@@ -8,12 +8,16 @@ import sys
 
 
 I = np.eye(5)
-# The commutator (01234)
+# alpha = (02143)
+A = np.matrix('0 0 1 0 0; 0 0 0 0 1; 0 1 0 0 0; 1 0 0 0 0; 0 0 0 1 0')
+# beta = (01342)
+B = np.matrix('0 1 0 0 0; 0 0 0 1 0; 1 0 0 0 0; 0 0 0 0 1; 0 0 1 0 0')
+# commutator = (01234)
 C = np.matrix('0 1 0 0 0; 0 0 1 0 0; 0 0 0 1 0; 0 0 0 0 1; 1 0 0 0 0')
-# R conjugates the commutator to alpha = (02143)
+# R conjugates the commutator to A
 R = np.matrix('1 0 0 0 0; 0 0 1 0 0; 0 1 0 0 0; 0 0 0 0 1; 0 0 0 1 0')
 Ri = np.linalg.inv(R)
-# S conjugates the commutator to beta = (01342)
+# S conjugates the commutator to B
 S = np.matrix('1 0 0 0 0; 0 1 0 0 0; 0 0 0 1 0; 0 0 0 0 1; 0 0 1 0 0')
 Si = np.linalg.inv(S)
 # T conjugates the commutator to its inverse (43210)
@@ -47,7 +51,7 @@ def circ2bp(fname):
                         str = "Ti %s T C" % ms[in1]
                         ms.append(str)
                     else:
-                        print("error: only support NOT so far")
+                        print("error: only support NOT so far:", line.strip())
                         exit(-1)
                 elif arity == 2:
                     _, a, b, c, d, _, _, _, in1, in2, \
@@ -55,11 +59,20 @@ def circ2bp(fname):
                     a, b, c, d, in1, in2 = ints(a, b, c, d, in1, in2)
                     if a == 0 and b == 0 and c == 0 and d == 1:
                         # AND gate
-                        str = "Ri %s R Si %s S inv(Ri %s R) inv(Si %s S)" \
-                              % (ms[in1], ms[in2], ms[in1], ms[in2])
+                        if ms[in1].startswith('C:'):
+                            _, idx = ms[in1].split(':')
+                            s1 = "A:%s" % idx
+                        else:
+                            s1 = "Ri %s R" % ms[in1]
+                        if ms[in2].startswith('C:'):
+                            _, idx = ms[in2].split(':')
+                            s2 = "B:%s" % idx
+                        else:
+                            s2 = "Si %s S" % ms[in2]
+                        str = "%s %s inv(%s) inv(%s)" % (s1, s2, s1, s2)
                         ms.append(str)
                     else:
-                        print("error: only support AND so far")
+                        print("error: only support AND so far:", line.strip())
                         exit(-1)
                 else:
                     print("error: arity %d unsupported" % arity)
@@ -91,30 +104,14 @@ def _eval_bp(bp, inp):
     ms = splitme(bp)
     comp = I
     for m in ms:
-        if m == 'C':
-            comp = comp * C
-        elif m == 'R':
-            comp = comp * R
-        elif m == 'Ri':
-            comp = comp * Ri
-        elif m == 'S':
-            comp = comp * S
-        elif m == 'Si':
-            comp = comp * Si
-        elif m == 'T':
-            comp = comp * T
-        elif m == 'Ti':
-            comp = comp * Ti
-        elif m.startswith('inv'):
+        if m.startswith('inv'):
             str = m[m.find('(')+1:m.rfind(')')]
             comp = comp * np.linalg.inv(_eval_bp(str, inp))
-        elif m.startswith('C:'):
-            _, idx = m.split(':')
-            idx = int(idx)
-            comp = comp * (I if inp[idx] == '0' else C)
+        elif m.find(':') != -1:
+            matrix, idx = m.split(':')
+            comp = comp * (I if inp[int(idx)] == '0' else eval(matrix))
         else:
-            print("error: unknown m %s" % m)
-            exit(-1)
+            comp = comp * eval(m)
     return comp
 
 
