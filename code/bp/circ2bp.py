@@ -1,19 +1,27 @@
+#!/usr/bin/env python3
+#
+# Converts a circuit with AND and NOT gates to branching program.
+#
 
 import numpy as np
 import sys
 
 
+I = np.eye(5)
+# The commutator (01234)
 C = np.matrix('0 1 0 0 0; 0 0 1 0 0; 0 0 0 1 0; 0 0 0 0 1; 1 0 0 0 0')
-Cinv = np.linalg.inv(C)
+# R conjugates the commutator to alpha = (02143)
 R = np.matrix('1 0 0 0 0; 0 0 1 0 0; 0 1 0 0 0; 0 0 0 0 1; 0 0 0 1 0')
-Rinv = np.linalg.inv(R)
+Ri = np.linalg.inv(R)
+# S conjugates the commutator to beta = (01342)
 S = np.matrix('1 0 0 0 0; 0 1 0 0 0; 0 0 0 1 0; 0 0 0 0 1; 0 0 1 0 0')
-Sinv = np.linalg.inv(S)
+Si = np.linalg.inv(S)
+# T conjugates the commutator to its inverse (43210)
 T = np.matrix('0 0 0 0 1; 0 0 0 1 0; 0 0 1 0 0; 0 1 0 0 0; 1 0 0 0 0')
-Tinv = np.linalg.inv(T)
+Ti = np.linalg.inv(T)
 
 
-def toint(*args):
+def ints(*args):
     return (int(arg) for arg in args)
 
 
@@ -33,10 +41,10 @@ def circ2bp(fname):
                 arity = int(arity)
                 if arity == 1:
                     _, a, b, _, _, _, in1, rest = rest.split(maxsplit=7)
-                    a, b, in1 = toint(a, b, in1)
+                    a, b, in1 = ints(a, b, in1)
                     if a == 1 and b == 0:
                         # NOT gate
-                        str = "Tinv %s T C" % ms[in1]
+                        str = "Ti %s T C" % ms[in1]
                         ms.append(str)
                     else:
                         print("error: only support NOT so far")
@@ -44,10 +52,10 @@ def circ2bp(fname):
                 elif arity == 2:
                     _, a, b, c, d, _, _, _, in1, in2, \
                         rest = rest.split(maxsplit=10)
-                    a, b, c, d, in1, in2 = toint(a, b, c, d, in1, in2)
+                    a, b, c, d, in1, in2 = ints(a, b, c, d, in1, in2)
                     if a == 0 and b == 0 and c == 0 and d == 1:
                         # AND gate
-                        str = "Rinv %s R Sinv %s S inv(Rinv %s R) inv(Sinv %s S)" \
+                        str = "Ri %s R Si %s S inv(Ri %s R) inv(Si %s S)" \
                               % (ms[in1], ms[in2], ms[in1], ms[in2])
                         ms.append(str)
                     else:
@@ -81,23 +89,22 @@ def splitme(str):
 
 def _eval_bp(bp, inp):
     ms = splitme(bp)
-    I = np.eye(5)
-    comp = np.eye(5)
+    comp = I
     for m in ms:
         if m == 'C':
             comp = comp * C
         elif m == 'R':
             comp = comp * R
-        elif m == 'Rinv':
-            comp = comp * Rinv
+        elif m == 'Ri':
+            comp = comp * Ri
         elif m == 'S':
             comp = comp * S
-        elif m == 'Sinv':
-            comp = comp * Sinv
+        elif m == 'Si':
+            comp = comp * Si
         elif m == 'T':
             comp = comp * T
-        elif m == 'Tinv':
-            comp = comp * Tinv
+        elif m == 'Ti':
+            comp = comp * Ti
         elif m.startswith('inv'):
             str = m[m.find('(')+1:m.rfind(')')]
             comp = comp * np.linalg.inv(_eval_bp(str, inp))
