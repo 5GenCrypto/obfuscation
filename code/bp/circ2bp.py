@@ -90,6 +90,8 @@ def circuit_to_bp(fname):
     with open(fname) as f:
         for line in f:
             print(line, end='')
+            if line.startswith('#'):
+                continue
             num, rest = line.split(maxsplit=1)
             num = int(num)
             if rest.startswith('input'):
@@ -134,6 +136,17 @@ def circuit_to_bp(fname):
     return ms[-1]
 
 
+def obliviate(bp, nins):
+    newbp = []
+    for m in bp:
+        for i in range(nins):
+            if m.inp == i:
+                newbp.append(m)
+            else:
+                newbp.append(Layer(i, I, I))
+    return newbp
+
+
 def eval_bp(bp, inp):
     comp = I
     for m in bp:
@@ -156,5 +169,9 @@ if __name__ == "__main__":
     inp = sys.argv[2]
     bp = circuit_to_bp(fname)
     print("BRANCHING PROGRAM =", bp)
-    out = eval_bp(bp, inp)
+    print("BP length =", len(bp))
+    obp = obliviate(bp, len(inp))
+    print("OBLIVIOUS BRANCHING PROGRAM =", obp)
+    print("OBP length =", len(obp))
+    out = eval_bp(obp, inp)
     print("OUTPUT = %d" % out)
