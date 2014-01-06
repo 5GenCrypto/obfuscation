@@ -1,3 +1,8 @@
+# NINS 2
+# TEST 00 0
+# TEST 01 1
+# TEST 10 1
+# TEST 11 0
 0 input
 1 input
 2 output gate arity 2 table [ 0 1 1 0 ] inputs [ 0 1 ]

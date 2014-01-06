@@ -9,16 +9,16 @@ import sys
 
 I = np.eye(3)
 A = np.matrix('-1 0 0; 0 -1 0; 0 0 1')
-Ai = np.linalg.inv(A)
+Ai = A
 B = np.matrix('0 0 1; 0 -1 0; 1 0 0')
-Bi = np.linalg.inv(B)
+Bi = B
 C = np.matrix('-1 0 0; 0 1 0; 0 0 -1')
-Ac = np.matrix('-1 0 0; 0 0 -1; -1 -1 0')
-Aci = np.linalg.inv(Ac)
+Ac = np.matrix('-1 0 0; 0 0 -1; 0 -1 0')
+Aci = Ac
 Bc = np.matrix('-1 -1 1; 1 0 1; 1 0 -1')
 Bci = np.linalg.inv(Bc)
-Cc = np.matrix('1 0 1; 0 1 0; 1 0 0')
-Cci = np.linalg.inv(Cc)
+Cc = np.matrix('-1 0 -1; 0 -1 0; 0 0 1')
+Cci = Cc
 
 
 def ints(*args):
@@ -89,7 +89,7 @@ def circuit_to_bp(fname):
     ms = []
     with open(fname) as f:
         for line in f:
-            print(line, end='')
+            # print(line, end='')
             if line.startswith('#'):
                 continue
             num, rest = line.split(maxsplit=1)
@@ -151,14 +151,14 @@ def eval_bp(bp, inp):
     comp = I
     for m in bp:
         comp = comp * (m.I if inp[m.inp] == '0' else m.J)
-    print(comp)
+    # print(comp)
     if (comp == I).all():
         return 0
     elif (comp == C).all():
         return 1
     else:
         print("error: invalid return matrix:\n%s" % comp)
-        exit(-1)
+        return None
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
