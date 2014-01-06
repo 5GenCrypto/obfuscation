@@ -3,126 +3,148 @@
 # Converts a circuit with AND and NOT gates to branching program.
 #
 
+import itertools
 import numpy as np
 import sys
 
-
-I = np.eye(5)
-# alpha = (02143)
-A = np.matrix('0 0 1 0 0; 0 0 0 0 1; 0 1 0 0 0; 1 0 0 0 0; 0 0 0 1 0')
-# beta = (01342)
-B = np.matrix('0 1 0 0 0; 0 0 0 1 0; 1 0 0 0 0; 0 0 0 0 1; 0 0 1 0 0')
-# commutator = (01234)
-C = np.matrix('0 1 0 0 0; 0 0 1 0 0; 0 0 0 1 0; 0 0 0 0 1; 1 0 0 0 0')
-# R conjugates the commutator to A
-R = np.matrix('1 0 0 0 0; 0 0 1 0 0; 0 1 0 0 0; 0 0 0 0 1; 0 0 0 1 0')
-Ri = np.linalg.inv(R)
-# S conjugates the commutator to B
-S = np.matrix('1 0 0 0 0; 0 1 0 0 0; 0 0 0 1 0; 0 0 0 0 1; 0 0 1 0 0')
-Si = np.linalg.inv(S)
-# T conjugates the commutator to its inverse (43210)
-T = np.matrix('0 0 0 0 1; 0 0 0 1 0; 0 0 1 0 0; 0 1 0 0 0; 1 0 0 0 0')
-Ti = np.linalg.inv(T)
+I = np.eye(3)
+A = np.matrix('-1 0 0; 0 -1 0; 0 0 1')
+Ai = np.linalg.inv(A)
+B = np.matrix('0 0 1; 0 -1 0; 1 0 0')
+Bi = np.linalg.inv(B)
+C = np.matrix('-1 0 0; 0 1 0; 0 0 -1')
+Ac = np.matrix('-1 0 0; 0 0 -1; -1 -1 0')
+Aci = np.linalg.inv(Ac)
+Bc = np.matrix('-1 -1 1; 1 0 1; 1 0 -1')
+Bci = np.linalg.inv(Bc)
+Cc = np.matrix('1 0 1; 0 1 0; 1 0 0')
+Cci = np.linalg.inv(Cc)
 
 
 def ints(*args):
     return (int(arg) for arg in args)
 
 
-def circ2bp(fname):
+def flatten(l):
+    return list(itertools.chain(*l))
+
+
+class Layer(object):
+    def __init__(self, inp, I, J):
+        self.inp = inp
+        self.I = I
+        self.J = J
+    def __repr__(self):
+        return "%d\nI:%s\nJ:%s" % (self.inp, self.I, self.J)
+
+
+def prepend(layers, M):
+    return [Layer(layers[0].inp, M * layers[0].I, M * layers[0].J)] \
+        + layers[1:]
+def append(layers, M):
+    return layers[:-1] \
+        + [Layer(layers[-1].inp, layers[-1].I * M, layers[-1].J * M)]
+
+
+CONJUGATES = {
+    'A': (Ac, Aci),
+    'B': (Bc, Bci),
+    'Ai': (Ac, Aci),
+    'Bi': (Bc, Bci)
+}
+
+
+def conjugate(layers, target):
+    if len(layers) == 1:
+        l = layers[0]
+        return [Layer(l.inp,
+                      CONJUGATES[target][1] * l.I * CONJUGATES[target][0],
+                      CONJUGATES[target][1] * l.J * CONJUGATES[target][0])]
+    else:
+        layers = prepend(layers, CONJUGATES[target][1])
+        return append(layers, CONJUGATES[target][0])
+
+
+def invert(layers):
+    if len(layers) == 1:
+        return [Layer(layers[0].inp,
+                      np.linalg.inv(layers[0].I),
+                      np.linalg.inv(layers[0].J))]
+    else:
+        return [invert(l) for l in reversed(layers)]
+
+
+def notgate(layers):
+    if len(layers) == 1:
+        layer = layers[0]
+        return [Layer(layer.inp,
+                      Cci * layer.I * Cc * C,
+                      Cci * layer.J * Cc * C)]
+    else:
+        layers = prepend(layers, Cci)
+        return append(layers, Cc * C)
+
+
+def circuit_to_bp(fname):
     ms = []
     with open(fname) as f:
         for line in f:
+            print(line, end='')
             num, rest = line.split(maxsplit=1)
             num = int(num)
             if rest.startswith('input'):
-                ms.append("C:%d" % num)
+                ms.append([Layer(num, I, C)])
             elif rest.startswith('gate') or rest.startswith('output'):
+                # XXX: watchout!  I'm not sure what'll happen if we have
+                # multiple outputs in a circuit
                 if rest.startswith('gate'):
                     _, _, arity, _, rest = rest.split(maxsplit=4)
                 else:
                     _, _, _, arity, _, rest = rest.split(maxsplit=5)
                 arity = int(arity)
                 if arity == 1:
-                    _, a, b, _, _, _, in1, rest = rest.split(maxsplit=7)
+                    _, a, b, _, _, _, in1, _ = rest.split(maxsplit=7)
                     a, b, in1 = ints(a, b, in1)
                     if a == 1 and b == 0:
                         # NOT gate
-                        str = "Ti %s T C" % ms[in1]
-                        ms.append(str)
+                        a = notgate(ms[in1])
+                        ms.append(a)
                     else:
-                        print("error: only support NOT so far:", line.strip())
-                        exit(-1)
+                        raise("error: only support NOT so far:", line.strip())
                 elif arity == 2:
-                    _, a, b, c, d, _, _, _, in1, in2, \
-                        rest = rest.split(maxsplit=10)
+                    _, a, b, c, d, _, _, _, in1, in2, _ \
+                        = rest.split(maxsplit=10)
                     a, b, c, d, in1, in2 = ints(a, b, c, d, in1, in2)
-                    if a == 0 and b == 0 and c == 0 and d == 1:
+                    if a == b == c == 0 and d == 1:
                         # AND gate
-                        if ms[in1].startswith('C:'):
-                            _, idx = ms[in1].split(':')
-                            s1 = "A:%s" % idx
-                        else:
-                            s1 = "Ri %s R" % ms[in1]
-                        if ms[in2].startswith('C:'):
-                            _, idx = ms[in2].split(':')
-                            s2 = "B:%s" % idx
-                        else:
-                            s2 = "Si %s S" % ms[in2]
-                        str = "%s %s inv(%s) inv(%s)" % (s1, s2, s1, s2)
-                        ms.append(str)
+                        a = conjugate(ms[in1], 'A')
+                        b = conjugate(ms[in2], 'B')
+                        c = conjugate(ms[in1], 'Ai')
+                        d = conjugate(ms[in2], 'Bi')
+                        ms.append(flatten([a, b, c, d]))
+                    elif a == d == 0 and b == c == 1:
+                        # XOR gate
+                        ms.append(flatten([ms[in1], ms[in2]]))
                     else:
-                        print("error: only support AND so far:", line.strip())
-                        exit(-1)
+                        raise("error: only support AND/XOR so far:", line.strip())
                 else:
-                    print("error: arity %d unsupported" % arity)
+                    raise("error: arity %d unsupported" % arity)
             else:
-                print("error: unknown type")
-                exit(-1)
-    print(ms[-1])
+                raise("error: unknown type")
     return ms[-1]
 
 
-def splitme(str):
-    parencount = 0
-    newstr = ""
-    for i in range(len(str)):
-        if str[i] == ')':
-            parencount -= 1
-            newstr += str[i]
-        elif str[i] == ' ' and parencount == 0:
-            newstr += "%"
-        elif str[i] == '(':
-            parencount += 1
-            newstr += str[i]
-        else:
-            newstr += str[i]
-    return newstr.split('%')
-
-
-def _eval_bp(bp, inp):
-    ms = splitme(bp)
-    comp = I
-    for m in ms:
-        if m.startswith('inv'):
-            str = m[m.find('(')+1:m.rfind(')')]
-            comp = comp * np.linalg.inv(_eval_bp(str, inp))
-        elif m.find(':') != -1:
-            matrix, idx = m.split(':')
-            comp = comp * (I if inp[int(idx)] == '0' else eval(matrix))
-        else:
-            comp = comp * eval(m)
-    return comp
-
-
 def eval_bp(bp, inp):
-    out = _eval_bp(bp, inp)
-    if (out == np.eye(5)).all():
+    comp = I
+    for m in bp:
+        comp = comp * (m.I if inp[m.inp] == '0' else m.J)
+    print(comp)
+    if (comp == I).all():
         return 0
-    elif (out == C).all():
+    elif (comp == C).all():
         return 1
     else:
-        print("error: invalid return matrix %s" % out)
+        print("error: invalid return matrix:\n%s" % comp)
         exit(-1)
 
 if __name__ == "__main__":
@@ -130,8 +152,9 @@ if __name__ == "__main__":
         print("error: invalid arguments")
         exit(-1)
 
-    circuit = sys.argv[1]
+    fname = sys.argv[1]
     inp = sys.argv[2]
-    bp = circ2bp(circuit)
+    bp = circuit_to_bp(fname)
+    print("BRANCHING PROGRAM =", bp)
     out = eval_bp(bp, inp)
     print("OUTPUT = %d" % out)
