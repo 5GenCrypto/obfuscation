@@ -1,24 +1,31 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 #
 # Converts a circuit with AND and NOT gates to branching program.
 #
 
+from __future__ import print_function
+
 import itertools
 import numpy as np
 import sys
+from sage.all import *
 
-I = np.eye(3)
-A = np.matrix('-1 0 0; 0 -1 0; 0 0 1')
-Ai = A
-B = np.matrix('0 0 1; 0 -1 0; 1 0 0')
-Bi = B
-C = np.matrix('-1 0 0; 0 1 0; 0 0 -1')
-Ac = np.matrix('-1 0 0; 0 0 -1; 0 -1 0')
-Aci = Ac
-Bc = np.matrix('-1 -1 1; 1 0 1; 1 0 -1')
-Bci = np.linalg.inv(Bc)
-Cc = np.matrix('-1 0 -1; 0 -1 0; 0 0 1')
-Cci = Cc
+MS = sage.matrix.matrix_space.MatrixSpace(GF(3), 3, 3)
+MSZp = sage.matrix.matrix_space.MatrixSpace(
+    ZZ.residue_field(ZZ.ideal(3388445611)), 3, 3)
+
+I = MS.identity_matrix()
+A = MS.matrix([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
+Ai = A.inverse()
+B = MS.matrix([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
+Bi = B.inverse()
+C = MS.matrix([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])
+Ac = MS.matrix([[-1, 0, 0], [0, 0, -1], [0, -1, 0]])
+Aci = Ac.inverse()
+Bc = MS.matrix([[0, 1, 0], [1, 0, 1], [-1, 0, 1]])
+Bci = Bc.inverse()
+Cc = MS.matrix([[-1, 0, -1], [0, -1, 0], [0, 0, 1]])
+Cci = Cc.inverse()
 
 
 def ints(*args):
@@ -89,10 +96,9 @@ def circuit_to_bp(fname):
     ms = []
     with open(fname) as f:
         for line in f:
-            # print(line, end='')
             if line.startswith('#'):
                 continue
-            num, rest = line.split(maxsplit=1)
+            num, rest = line.split(None, 1)
             num = int(num)
             if rest.startswith('input'):
                 ms.append([Layer(num, I, C)])
@@ -100,12 +106,12 @@ def circuit_to_bp(fname):
                 # XXX: watchout!  I'm not sure what'll happen if we have
                 # multiple outputs in a circuit
                 if rest.startswith('gate'):
-                    _, _, arity, _, rest = rest.split(maxsplit=4)
+                    _, _, arity, _, rest = rest.split(None, 4)
                 else:
-                    _, _, _, arity, _, rest = rest.split(maxsplit=5)
+                    _, _, _, arity, _, rest = rest.split(None, 5)
                 arity = int(arity)
                 if arity == 1:
-                    _, a, b, _, _, _, in1, _ = rest.split(maxsplit=7)
+                    _, a, b, _, _, _, in1, _ = rest.split(None, 7)
                     a, b, in1 = ints(a, b, in1)
                     if a == 1 and b == 0:
                         # NOT gate
@@ -115,7 +121,7 @@ def circuit_to_bp(fname):
                         raise("error: only support NOT so far:", line.strip())
                 elif arity == 2:
                     _, a, b, c, d, _, _, _, in1, in2, _ \
-                        = rest.split(maxsplit=10)
+                        = rest.split(None, 10)
                     a, b, c, d, in1, in2 = ints(a, b, c, d, in1, in2)
                     if a == b == c == 0 and d == 1:
                         # AND gate
@@ -128,15 +134,29 @@ def circuit_to_bp(fname):
                         # XOR gate
                         ms.append(flatten([ms[in1], ms[in2]]))
                     else:
-                        raise("error: only support AND/XOR so far:", line.strip())
+                        raise("error: unsupported gate:", line.strip())
                 else:
-                    raise("error: arity %d unsupported" % arity)
+                    raise("error: unsupported arity %d" % arity)
             else:
                 raise("error: unknown type")
     return ms[-1]
 
 
-def obliviate(bp, nins):
+def n_inputs(fname):
+    nins = 0
+    with open(fname) as f:
+        for line in f:
+            if line.startswith('#'):
+                continue
+            _, rest = line.split(None, 1)
+            if rest.startswith('input'):
+                nins = nins + 1
+            else:
+                break
+    return nins
+
+
+def obliviate(bp, nins, depth):
     newbp = []
     for m in bp:
         for i in range(nins):
@@ -144,17 +164,45 @@ def obliviate(bp, nins):
                 newbp.append(m)
             else:
                 newbp.append(Layer(i, I, I))
+    ms_needed = (4 ** depth) * nins
+    for _ in range((ms_needed - len(newbp)) // nins):
+        for i in range(nins):
+            newbp.append(Layer(i, I, I))
+    assert(len(newbp) == ms_needed)
     return newbp
 
 
-def eval_bp(bp, inp):
-    comp = I
+def randomize(bp):
+    def random_matrix():
+        while True:
+            m = MSZp.random_element()
+            if not m.is_singular():
+                return m, m.inverse()
+    bp[0] = Layer(bp[0].inp,
+                  MSZp.matrix(bp[0].I),
+                  MSZp.matrix(bp[0].J))
+    for i in range(1, len(bp)):
+        mi, mii = random_matrix()
+        bp[i-1] = Layer(bp[i-1].inp,
+                        MSZp.matrix(bp[i-1].I) * mii,
+                        MSZp.matrix(bp[i-1].J) * mii)
+        bp[i] = Layer(bp[i].inp,
+                      mi * MSZp.matrix(bp[i].I),
+                      mi * MSZp.matrix(bp[i].J))
+    bp[-1] = Layer(bp[-1].inp,
+                   MSZp.matrix(bp[-1].I),
+                   MSZp.matrix(bp[-1].J))
+    return bp
+
+
+def eval_bp(bp, inp, group):
+    comp = group.identity_matrix()
     for m in bp:
         comp = comp * (m.I if inp[m.inp] == '0' else m.J)
-    # print(comp)
-    if (comp == I).all():
+    comp = MS.matrix(comp)
+    if comp == I:
         return 0
-    elif (comp == C).all():
+    elif comp == C:
         return 1
     else:
         print("error: invalid return matrix:\n%s" % comp)
@@ -170,8 +218,10 @@ if __name__ == "__main__":
     bp = circuit_to_bp(fname)
     print("BRANCHING PROGRAM =", bp)
     print("BP length =", len(bp))
-    obp = obliviate(bp, len(inp))
-    print("OBLIVIOUS BRANCHING PROGRAM =", obp)
-    print("OBP length =", len(obp))
-    out = eval_bp(obp, inp)
+    # nins = n_inputs(fname)
+    # bp = obliviate(bp, nins, 1)
+    bp = randomize(bp)
+    print("RANDOMIZED BP =", bp)
+    print("RBP length =", len(bp))
+    out = eval_bp(bp, inp, MSZp)
     print("OUTPUT = %d" % out)
