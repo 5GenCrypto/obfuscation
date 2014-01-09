@@ -75,6 +75,12 @@ if __name__ == '__main__':
     print('  Eta: %d' % ETA)
     print('  Rho: %d' % RHO)
 
+    if len(sys.argv) == 1:
+        inp = 0
+    else:
+        inp = int(sys.argv[1])
+
     ge = GradedEncoding()
-    c = ge.encode(0)
-    print('encoded value = %d' % c)
+    print('---- Encoding value %d' % inp)
+    c = ge.encode(inp)
+    print('---- Encoded value = %d' % c)
