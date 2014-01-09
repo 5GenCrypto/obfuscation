@@ -6,26 +6,22 @@
 from __future__ import print_function
 
 import itertools
-import numpy as np
 import sys
 from sage.all import *
 
-MS = sage.matrix.matrix_space.MatrixSpace(GF(3), 3, 3)
+# MS = sage.matrix.matrix_space.MatrixSpace(GF(3), 3, 3)
+G = SL(3, GF(3))
 MSZp = sage.matrix.matrix_space.MatrixSpace(
     ZZ.residue_field(ZZ.ideal(3388445611)), 3, 3)
 
-I = MS.identity_matrix()
-A = MS.matrix([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
-Ai = A.inverse()
-B = MS.matrix([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
-Bi = B.inverse()
-C = MS.matrix([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])
-Ac = MS.matrix([[-1, 0, 0], [0, 0, -1], [0, -1, 0]])
-Aci = Ac.inverse()
-Bc = MS.matrix([[0, 1, 0], [1, 0, 1], [-1, 0, 1]])
+I = G.one()
+A = G([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
+B = G([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
+C = G([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])
+Ac = G([[-1, 0, 0], [0, 0, -1], [0, -1, 0]])
+Bc = G([[0, 1, 0], [1, 0, 1], [-1, 0, 1]])
 Bci = Bc.inverse()
-Cc = MS.matrix([[-1, 0, -1], [0, -1, 0], [0, 0, 1]])
-Cci = Cc.inverse()
+Cc = G([[-1, 0, -1], [0, -1, 0], [0, 0, 1]])
 
 
 def ints(*args):
@@ -43,30 +39,35 @@ class Layer(object):
         self.J = J
     def __repr__(self):
         return "%d\nI:%s\nJ:%s" % (self.inp, self.I, self.J)
+    def conjugate(self, M, Mi):
+        return Layer(self.inp, Mi * self.I * M, Mi * self.J * M)
+    def invert(self):
+        return Layer(self.inp, self.I.inverse(), self.J.inverse())
+    def group(self, group):
+        return Layer(self.inp, group(self.I), group(self.J))
+    def mult_left(self, M):
+        return Layer(self.inp, M * self.I, M * self.J)
+    def mult_right(self, M):
+        return Layer(self.inp, self.I * M, self.J * M)
 
 
 def prepend(layers, M):
-    return [Layer(layers[0].inp, M * layers[0].I, M * layers[0].J)] \
-        + layers[1:]
+    return [layers[0].mult_left(M)] + layers[1:]
 def append(layers, M):
-    return layers[:-1] \
-        + [Layer(layers[-1].inp, layers[-1].I * M, layers[-1].J * M)]
+    return layers[:-1] + [layers[-1].mult_right(M)]
 
 
 CONJUGATES = {
-    'A': (Ac, Aci),
+    'A': (Ac, Ac),
     'B': (Bc, Bci),
-    'Ai': (Ac, Aci),
+    'Ai': (Ac, Ac),
     'Bi': (Bc, Bci)
 }
 
 
 def conjugate(layers, target):
     if len(layers) == 1:
-        l = layers[0]
-        return [Layer(l.inp,
-                      CONJUGATES[target][1] * l.I * CONJUGATES[target][0],
-                      CONJUGATES[target][1] * l.J * CONJUGATES[target][0])]
+        return [layers[0].conjugate(*CONJUGATES[target])]
     else:
         layers = prepend(layers, CONJUGATES[target][1])
         return append(layers, CONJUGATES[target][0])
@@ -74,22 +75,16 @@ def conjugate(layers, target):
 
 def invert(layers):
     if len(layers) == 1:
-        return [Layer(layers[0].inp,
-                      np.linalg.inv(layers[0].I),
-                      np.linalg.inv(layers[0].J))]
+        return [layers[0].invert()]
     else:
         return [invert(l) for l in reversed(layers)]
 
 
 def notgate(layers):
     if len(layers) == 1:
-        layer = layers[0]
-        return [Layer(layer.inp,
-                      Cci * layer.I * Cc * C,
-                      Cci * layer.J * Cc * C)]
+        return [layers[0].mult_left(Cc).mult_right(Cc * C)]
     else:
-        layers = prepend(layers, Cci)
-        return append(layers, Cc * C)
+        return append(prepend(layers, Cc), Cc * C)
 
 
 def circuit_to_bp(fname):
@@ -115,10 +110,9 @@ def circuit_to_bp(fname):
                     a, b, in1 = ints(a, b, in1)
                     if a == 1 and b == 0:
                         # NOT gate
-                        a = notgate(ms[in1])
-                        ms.append(a)
+                        ms.append(notgate(ms[in1]))
                     else:
-                        raise("error: only support NOT so far:", line.strip())
+                        raise("error: unsupported gate:", line.strip())
                 elif arity == 2:
                     _, a, b, c, d, _, _, _, in1, in2, _ \
                         = rest.split(None, 10)
@@ -178,20 +172,12 @@ def randomize(bp):
             m = MSZp.random_element()
             if not m.is_singular():
                 return m, m.inverse()
-    bp[0] = Layer(bp[0].inp,
-                  MSZp.matrix(bp[0].I),
-                  MSZp.matrix(bp[0].J))
+    bp[0] = bp[0].group(MSZp)
     for i in range(1, len(bp)):
         mi, mii = random_matrix()
-        bp[i-1] = Layer(bp[i-1].inp,
-                        MSZp.matrix(bp[i-1].I) * mii,
-                        MSZp.matrix(bp[i-1].J) * mii)
-        bp[i] = Layer(bp[i].inp,
-                      mi * MSZp.matrix(bp[i].I),
-                      mi * MSZp.matrix(bp[i].J))
-    bp[-1] = Layer(bp[-1].inp,
-                   MSZp.matrix(bp[-1].I),
-                   MSZp.matrix(bp[-1].J))
+        bp[i-1] = bp[i-1].mult_right(mii)
+        bp[i] = bp[i].group(MSZp).mult_left(mi)
+    bp[-1] = bp[-1].group(MSZp)
     return bp
 
 
@@ -199,7 +185,7 @@ def eval_bp(bp, inp, group):
     comp = group.identity_matrix()
     for m in bp:
         comp = comp * (m.I if inp[m.inp] == '0' else m.J)
-    comp = MS.matrix(comp)
+    comp = G(comp)
     if comp == I:
         return 0
     elif comp == C:
