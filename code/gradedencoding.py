@@ -1,6 +1,7 @@
 #!/usr/bin/env sage -python
 
 from sage.all import *
+import numpy
 import sys
 
 LAMBDA = 16
@@ -46,10 +47,9 @@ class GradedEncoding(object):
             self.ps.append(random_prime((1 << ETA) - 1))
             logger('.', end='')
         logger('')
-        logger('Computing x0', end='')
+        logger('Computing x0')
         self.x0 = reduce(operator.mul, self.ps)
-        logger('')
-        logger('Generating z', end='')
+        logger('Generating z')
         while True:
             self.z = randint(0, self.x0)
             try:
@@ -57,14 +57,13 @@ class GradedEncoding(object):
                 break
             except:
                 pass
-        logger('')
         logger('Generating %d %d-bit primes g_i' % (N, ALPHA), end='')
         self.gs = []
         for _ in range(N):
             self.gs.append(random_prime((1 << ALPHA) - 1))
             logger('.', end='')
         logger('')
-        logger('Generating H', end='')
+        logger('Generating H')
         nrows, ncols = floor(N / 2.0), ceil(N / 2.0)
         MS = MatrixSpace(ZZ, nrows, ncols)
         Ifloor = MS(identity_matrix(nrows))
@@ -79,14 +78,16 @@ class GradedEncoding(object):
             if randint(0, 1) == 1:
                 HA = HA.transpose()
             Hs.append(HA)
-        H = reduce(operator.mul, Hs)
-        logger('')
+        H = matrix(reduce(operator.mul, Hs))
+        print('Checking singularity...')
+        assert not H.is_singular(), "H is singular!"
+        # print('Checking norms...')
+        # assert numpy.linalg.norm(H, ord=numpy.inf) <= (1 << BETA)
+        # assert numpy.linalg.norm(H.inverse(), ord=numpy.inf) <= (1 << BETA)
         logger('Generating zero test vector', end='')
         self.pzts = []
         zk = power_mod(self.z, KAPPA, self.x0)
         x0ps = [self.x0 / p for p in self.ps]
-        # x0ps = [prod([self.ps[j] for j in range(N) if j != i])
-        #         for i in range(N)]
         gsis = [inverse_mod(g, p) for g, p in zip(self.gs, self.ps)]
         for j in range(N):
             v = sum(H[i][j] * zk * gsis[i] * x0ps[i] for i in range(N))
@@ -98,17 +99,13 @@ class GradedEncoding(object):
         ms = [0 for _ in range(N)]
         ms[0] = msg
         assert msg < self.gs[0], "Message must be smaller than g_0"
-        logger('Generating %d random %d-bit integers r_i' % (N, RHO), end='')
+        logger('Generating %d random %d-bit integers r_i' % (N, RHO))
         rs = [random_prime((1 << RHO) - 1) for _ in range(N)]
-        logger('')
-        logger('Generating elements for CRT', end='')
+        logger('Generating elements for CRT')
         elems = [(r * g + m) * self.zinv % p
                  for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
-        logger('')
-        logger('Finding c', end='')
-        c = CRT(elems, self.ps)
-        logger('')
-        return c
+        logger('Finding c')
+        return CRT(elems, self.ps)
 
     def is_zero(self, c):
         omega = [c * e % self.x0 for e in self.pzts]
@@ -128,6 +125,6 @@ if __name__ == '__main__':
     c = ge.encode(inp)
     print('---- Encoded value = %d' % c)
     if ge.is_zero(c):
-        print('---- Output is *0*')
+        print('---- Output is ZERO')
     else:
-        print('---- Output is *1*')
+        print('---- Output is something else*')
