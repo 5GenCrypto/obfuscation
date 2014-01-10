@@ -1,6 +1,5 @@
-#!/usr/bin/env python2
+#!/usr/bin/env sage -python
 
-from __future__ import print_function
 from sage.all import *
 import sys
 
@@ -31,8 +30,11 @@ def print_params():
     print('  N: %d' % N)
 
 
-def logger(s, **kwargs):
-    print(s, **kwargs)
+def logger(s, end='\n'):
+    if end == '':
+        print(s),
+    else:
+        print(s)
     sys.stdout.flush()
 
 
@@ -83,26 +85,25 @@ class GradedEncoding(object):
         self.pzts = []
         zk = power_mod(self.z, KAPPA, self.x0)
         x0ps = [self.x0 / p for p in self.ps]
-        gsis = [inverse_mod(self.gs[i], self.ps[i])
-                for i in range(len(self.gs))]
+        # x0ps = [prod([self.ps[j] for j in range(N) if j != i])
+        #         for i in range(N)]
+        gsis = [inverse_mod(g, p) for g, p in zip(self.gs, self.ps)]
         for j in range(N):
             v = sum(H[i][j] * zk * gsis[i] * x0ps[i] for i in range(N))
             self.pzts.append(v % self.x0)
             logger('.', end='')
         logger('')
 
-    def encode(self, m):
+    def encode(self, msg):
         ms = [0 for _ in range(N)]
-        ms[0] = m
+        ms[0] = msg
+        assert msg < self.gs[0], "Message must be smaller than g_0"
         logger('Generating %d random %d-bit integers r_i' % (N, RHO), end='')
-        rs = []
-        for _ in range(N):
-            rs.append(random_prime((1 << RHO) - 1))
-            logger('.', end='')
+        rs = [random_prime((1 << RHO) - 1) for _ in range(N)]
         logger('')
         logger('Generating elements for CRT', end='')
-        elems = [(rs[i] * self.gs[i] + ms[i]) * self.zinv % self.ps[i]
-                 for i in range(len(ms))]
+        elems = [(r * g + m) * self.zinv % p
+                 for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
         logger('')
         logger('Finding c', end='')
         c = CRT(elems, self.ps)
