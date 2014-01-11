@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env sage -python
 #
 # Converts a circuit with AND and NOT gates to branching program.
 #
@@ -9,7 +9,6 @@ import itertools
 import sys
 from sage.all import *
 
-# MS = sage.matrix.matrix_space.MatrixSpace(GF(3), 3, 3)
 G = SL(3, GF(3))
 MSZp = sage.matrix.matrix_space.MatrixSpace(
     ZZ.residue_field(ZZ.ideal(3388445611)), 3, 3)
@@ -23,14 +22,11 @@ Bc = G([[0, 1, 0], [1, 0, 1], [-1, 0, 1]])
 Bci = Bc.inverse()
 Cc = G([[-1, 0, -1], [0, -1, 0], [0, 0, 1]])
 
-
 def ints(*args):
     return (int(arg) for arg in args)
 
-
 def flatten(l):
     return list(itertools.chain(*l))
-
 
 class Layer(object):
     def __init__(self, inp, I, J):
@@ -85,6 +81,10 @@ def notgate(layers):
         return [layers[0].mult_left(Cc).mult_right(Cc * C)]
     else:
         return append(prepend(layers, Cc), Cc * C)
+
+
+def bp2file(bp, fname):
+    pass
 
 
 def circuit_to_bp(fname):
