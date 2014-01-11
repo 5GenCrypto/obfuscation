@@ -77,7 +77,7 @@ class GradedEncoding(object):
         ms[0] = msg
         assert msg < self.gs[0], "Message must be smaller than g_0"
         logger('Generating random %d-bit integers r_i' % self.rho)
-        rs = [random_prime((1 << self.rho) - 1) for _ in range(self.n)]
+        rs = [randint(1 << self.rho - 1, (1 << self.rho) - 1) for _ in range(self.n)]
         logger('Generating elements for CRT')
         elems = [(r * g + m) * self.zinv % p
                  for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
