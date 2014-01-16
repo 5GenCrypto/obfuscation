@@ -1,4 +1,5 @@
-# DEPTH 4
+: nins 5
+: depth 4
 # TEST 00000 1
 # TEST 11111 0
 0 input

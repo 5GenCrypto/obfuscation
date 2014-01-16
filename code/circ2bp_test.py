@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 
 from __future__ import print_function
-import circ2bp
+import branchingprogram
 import os
 
 testdir = 'circuits'
@@ -9,30 +9,25 @@ testdir = 'circuits'
 if __name__ == "__main__":
     for circuit in os.listdir('circuits'):
         path = os.path.join(testdir, circuit)
-        nins = circ2bp.n_inputs(path)
-        depth = None
         testcases = {}
         print('Testing %s: ' % circuit, end='')
         with open(path) as f:
             for line in f:
                 if line.startswith('#'):
-                    if 'DEPTH' in line:
-                        _, _, depth = line.split()
-                        depth = int(depth)
-                    elif 'TEST' in line:
+                    if 'TEST' in line:
                         _, _, inp, outp = line.split()
                         testcases[inp] = int(outp)
                 else:
                     continue
-        if len(testcases) == 0 or nins is None or depth is None:
+        if len(testcases) == 0:
             print()
             continue
-        bp = circ2bp.circuit_to_bp(path)
-        bp = circ2bp.obliviate(bp, nins, depth)
-        bp = circ2bp.randomize(bp)
+        bp = branchingprogram.BranchingProgram(path, type='circuit')
+        bp.obliviate()
+        bp.randomize()
         failed = False
         for k, v in testcases.items():
-            if circ2bp.eval_bp(bp, k, circ2bp.MSZp) != v:
+            if bp.evaluate(k) != v:
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v), end='')
                 failed = True
         if failed:

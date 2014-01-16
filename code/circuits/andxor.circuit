@@ -1,4 +1,5 @@
-# DEPTH 2
+: nins 3
+: depth 2
 # TEST 000 0
 # TEST 001 1
 # TEST 010 0
