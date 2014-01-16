@@ -16,3 +16,6 @@
 *.exe
 *.out
 *.app
+
+# Python specific
+*.pyc
