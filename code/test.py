@@ -20,7 +20,7 @@ if __name__ == "__main__":
                 else:
                     continue
         if len(testcases) == 0:
-            print()
+            print('no test cases')
             continue
         bp = branchingprogram.BranchingProgram(path, type='circuit')
         bp.obliviate()

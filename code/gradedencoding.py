@@ -3,16 +3,15 @@
 from sage.all import *
 import sys
 
-
-def logger(s, end='\n'):
-    if end == '':
-        print(s),
-    else:
-        print(s)
-    sys.stdout.flush()
-
-
 class GradedEncoding(object):
+    def logger(self, s, end='\n'):
+        if self._verbose:
+            if end == '':
+                print(s),
+            else:
+                print(s)
+            sys.stdout.flush()
+
     def set_params(self, secparam, kappa):
         self.secparam = secparam
         self.kappa = kappa
@@ -38,19 +37,21 @@ class GradedEncoding(object):
         print('  Rhof: %d' % self.rho_f)
         print('  N: %d' % self.n)
 
-    def __init__(self, secparam=32, kappa=1):
+    def __init__(self, secparam=32, kappa=1, verbose=False):
         self.set_params(secparam, kappa)
-        self.print_params()
+        self._verbose = verbose
+        if verbose:
+            self.print_params()
 
-        logger('Generating %d-bit primes p_i' % self.eta, end='')
+        self.logger('Generating %d-bit primes p_i' % self.eta, end='')
         self.ps = []
         for _ in range(self.n):
             self.ps.append(random_prime((1 << self.eta) - 1))
-            logger('.', end='')
-        logger('')
-        logger('Computing x0')
+            self.logger('.', end='')
+        self.logger('')
+        self.logger('Computing x0')
         self.x0 = reduce(operator.mul, self.ps)
-        logger('Generating z')
+        self.logger('Generating z')
         while True:
             self.z = randint(0, self.x0)
             try:
@@ -58,30 +59,30 @@ class GradedEncoding(object):
                 break
             except:
                 pass
-        logger('Generating %d-bit primes g_i' % self.alpha, end='')
+        self.logger('Generating %d-bit primes g_i' % self.alpha, end='')
         self.gs = []
         for _ in range(self.n):
             self.gs.append(random_prime((1 << self.alpha) - 1))
-            logger('.', end='')
-        logger('')
-        logger('Generating zero test element')
+            self.logger('.', end='')
+        self.logger('')
+        self.logger('Generating zero test element')
         zk = power_mod(self.z, self.kappa, self.x0)
         x0ps = [self.x0 / p for p in self.ps]
         gsis = [inverse_mod(g, p) for g, p in zip(self.gs, self.ps)]
         self.pzt = sum(randint(0, (1 << self.beta) - 1) * zk * gsis[i] * x0ps[i]
                        for i in range(self.n))
 
-    def encode(self, msg):
-        logger('Encoding value %d' % msg)
+    def encode(self, val):
+        self.logger('Encoding value %d' % val)
         ms = [0 for _ in range(self.n)]
-        ms[0] = msg
-        assert msg < self.gs[0], "Message must be smaller than g_0"
-        logger('Generating random %d-bit integers r_i' % self.rho)
+        ms[0] = val
+        assert val < self.gs[0], "Message must be smaller than g_0"
+        self.logger('Generating random %d-bit integers r_i' % self.rho)
         rs = [randint(1 << self.rho - 1, (1 << self.rho) - 1) for _ in range(self.n)]
-        logger('Generating elements for CRT')
+        self.logger('Generating elements for CRT')
         elems = [(r * g + m) * self.zinv % p
                  for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
-        logger('Finding c')
+        self.logger('Finding c')
         return CRT(elems, self.ps)
 
     def is_zero(self, c):

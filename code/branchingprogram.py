@@ -4,9 +4,12 @@ import itertools
 import sys
 from sage.all import *
 
-G = SL(3, GF(3))
-MSZp = sage.matrix.matrix_space.MatrixSpace(
-    ZZ.residue_field(ZZ.ideal(3388445611)), 3, 3)
+MATRIX_LENGTH = 3
+_P = 3388445611
+
+# G = SL(MATRIX_LENGTH, GF(3))
+G = MatrixSpace(GF(3), MATRIX_LENGTH, MATRIX_LENGTH)
+MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(_P)), MATRIX_LENGTH, MATRIX_LENGTH)
 
 I = G.one()
 A = G([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
@@ -83,12 +86,22 @@ class BranchingProgram(object):
         self.n_inputs = None
         self.depth = None
         self._group = G
+        self.I = I
+        self.C = C
         if type not in ('circuit', 'bp'):
             raise Exception('invalid type argument')
         if type == 'circuit':
             self.load_circuit(fname)
         else:
             self.load_bp(fname)
+
+    def __len__(self):
+        return len(self.bp)
+
+    def __iter__(self):
+        return self.bp.__iter__()
+    def next(self):
+        return self.bp.next()
 
     def parse_param(self, line):
         try:
@@ -199,12 +212,15 @@ class BranchingProgram(object):
                 m = MSZp.random_element()
                 if not m.is_singular():
                     return m, m.inverse()
-        self.bp[0] = self.bp[0].group(MSZp)
+        # TODO: how come multiplying by bookend matrices m0 doesn't work?
+        # m0, m0i = random_matrix()
+        # self.C = G(m0 * MSZp(C) * m0i)
+        self.bp[0] = self.bp[0].group(MSZp)# .mult_left(m0)
         for i in range(1, len(self.bp)):
             mi, mii = random_matrix()
             self.bp[i-1] = self.bp[i-1].mult_right(mii)
             self.bp[i] = self.bp[i].group(MSZp).mult_left(mi)
-        self.bp[-1] = self.bp[-1].group(MSZp)
+        self.bp[-1] = self.bp[-1].group(MSZp)# .mult_right(m0i)
         self._group = MSZp
 
     def evaluate(self, inp):
@@ -212,9 +228,10 @@ class BranchingProgram(object):
         for m in self.bp:
             comp = comp * (m.I if inp[m.inp] == '0' else m.J)
         comp = G(comp)
-        if comp == I:
+        if comp == self.I:
             return 0
-        elif comp == C:
+        elif comp == self.C:
             return 1
         else:
-            raise Exception("invalid return matrix:\n%s" % comp)
+            # raise Exception("invalid return matrix:\n%s" % comp)
+            return None
