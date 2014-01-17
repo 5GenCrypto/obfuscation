@@ -4,28 +4,82 @@ import itertools
 import sys
 from sage.all import *
 
-MATRIX_LENGTH = 3
+MATRIX_LENGTH = 5
 _P = 12071
 
-# G = SL(MATRIX_LENGTH, GF(3))
-G = MatrixSpace(GF(3), MATRIX_LENGTH, MATRIX_LENGTH)
-MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(_P)), MATRIX_LENGTH, MATRIX_LENGTH)
+# G = MatrixSpace(GF(3), MATRIX_LENGTH)
+G = MatrixSpace(GF(2), MATRIX_LENGTH)
+MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(_P)), MATRIX_LENGTH)
 
 I = G.one()
-A = G([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
-B = G([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
-C = G([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])
-Ac = G([[-1, 0, 0], [0, 0, -1], [0, -1, 0]])
-Bc = G([[0, 1, 0], [1, 0, 1], [-1, 0, 1]])
+A = G([[0, 0, 1, 0, 0],
+       [0, 0, 0, 0, 1],
+       [0, 1, 0, 0, 0],
+       [1, 0, 0, 0, 0],
+       [0, 0, 0, 1, 0]])
+Ai = A.inverse()
+B = G([[0, 1, 0, 0, 0],
+       [0, 0, 0, 1, 0],
+       [1, 0, 0, 0, 0],
+       [0, 0, 0, 0, 1],
+       [0, 0, 1, 0, 0]])
+Bi = B.inverse()
+C = G([[0, 1, 0, 0, 0],
+       [0, 0, 1, 0, 0],
+       [0, 0, 0, 1, 0],
+       [0, 0, 0, 0, 1],
+       [1, 0, 0, 0, 0]])
+Ci = C.inverse()
+Ac = G([[1, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 1, 0, 0, 0],
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 1, 0]])
+Aci = Ac.inverse()
+Aic = G([[1, 0, 0, 0, 0],
+         [0, 0, 0, 1, 0],
+         [0, 0, 0, 0, 1],
+         [0, 1, 0, 0, 0],
+         [0, 0, 1, 0, 0]])
+Aici = Aic.inverse()
+Bc = G([[1, 0, 0, 0, 0],
+        [0, 1, 0, 0, 0],
+        [0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1],
+        [0, 0, 1, 0, 0]])
 Bci = Bc.inverse()
-Cc = G([[-1, 0, -1], [0, -1, 0], [0, 0, 1]])
-
+Bic = G([[1, 0, 0, 0, 0],
+         [0, 0, 1, 0, 0],
+         [0, 0, 0, 0, 1],
+         [0, 0, 0, 1, 0],
+         [0, 1, 0, 0, 0]])
+Bici = Bic.inverse()
+Cc = G([[0, 0, 0, 0, 1],
+        [0, 0, 0, 1, 0],
+        [0, 0, 1, 0, 0],
+        [0, 1, 0, 0, 0],
+        [1, 0, 0, 0, 0]])
+Cci = Cc.inverse()
 CONJUGATES = {
-    'A': (Ac, Ac),
+    'A': (Ac, Aci),
     'B': (Bc, Bci),
-    'Ai': (Ac, Ac),
-    'Bi': (Bc, Bci)
+    'Ai': (Aic, Aici),
+    'Bi': (Bic, Bici)
 }
+
+# A = G([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
+# B = G([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
+# C = G([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])
+# Ac = G([[-1, 0, 0], [0, 0, -1], [0, -1, 0]])
+# Bc = G([[0, 1, 0], [1, 0, 1], [-1, 0, 1]])
+# Bci = Bc.inverse()
+# Cc = G([[-1, 0, -1], [0, -1, 0], [0, 0, 1]])
+# CONJUGATES = {
+#     'A': (Ac, Ac),
+#     'B': (Bc, Bci),
+#     'Ai': (Ac, Ac),
+#     'Bi': (Bc, Bci)
+# }
 
 def ints(*args):
     return (int(arg) for arg in args)
@@ -89,7 +143,7 @@ class BranchingProgram(object):
         self.I = I
         self.C = C
         if type not in ('circuit', 'bp'):
-            raise Exception('invalid type argument')
+            raise ParseException('invalid type argument')
         if type == 'circuit':
             self.load_circuit(fname)
         else:
@@ -102,6 +156,9 @@ class BranchingProgram(object):
         return self.bp.__iter__()
     def next(self):
         return self.bp.next()
+
+    def __repr__(self):
+        return repr(self.bp)
 
     def parse_param(self, line):
         try:
@@ -142,9 +199,10 @@ class BranchingProgram(object):
             return flatten([a, b, c, d])
         elif a == d == 0 and b == c == 1:
             # XOR gate
-            return flatten([bp[in1], bp[in2]])
+            raise ParseException("XOR gates not supported for S5 group")
+            # return flatten([bp[in1], bp[in2]])
         else:
-            raise("error: unsupported gate:", line.strip())
+            raise ParseException("error: unsupported gate:", line.strip())
 
     def load_circuit(self, fname):
         bp = []
@@ -173,7 +231,7 @@ class BranchingProgram(object):
                     try:
                         bp.append(arity_dict[int(arity)](rest, bp))
                     except KeyError:
-                        raise Exception('unsupported gate arity %s' % arity)
+                        raise ParseException('unsupported gate arity %s' % arity)
                 else:
                     raise("error: unknown type")
         self.bp = bp[-1]
@@ -214,13 +272,14 @@ class BranchingProgram(object):
                     return m, m.inverse()
         # TODO: how come multiplying by bookend matrices m0 doesn't work?
         # m0, m0i = random_matrix()
-        # self.C = G(m0 * MSZp(C) * m0i)
-        self.bp[0] = self.bp[0].group(MSZp)# .mult_left(m0)
-        for i in range(1, len(self.bp)):
+        m0, m0i = MSZp.one(), MSZp.one()
+        self.C = G(m0 * MSZp(C) * m0i)
+        self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
+        for i in xrange(1, len(self.bp)):
             mi, mii = random_matrix()
             self.bp[i-1] = self.bp[i-1].mult_right(mii)
             self.bp[i] = self.bp[i].group(MSZp).mult_left(mi)
-        self.bp[-1] = self.bp[-1].group(MSZp)# .mult_right(m0i)
+        self.bp[-1] = self.bp[-1].group(MSZp).mult_right(m0i)
         self._group = MSZp
 
     def evaluate(self, inp):
@@ -233,5 +292,4 @@ class BranchingProgram(object):
         elif comp == self.C:
             return 1
         else:
-            # raise Exception("invalid return matrix:\n%s" % comp)
             return None

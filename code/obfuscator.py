@@ -7,7 +7,7 @@ from branchingprogram import (BranchingProgram, MATRIX_LENGTH)
 from sage.all import *
 import sys
 
-MS = MatrixSpace(ZZ, MATRIX_LENGTH, MATRIX_LENGTH)
+MS = MatrixSpace(ZZ, MATRIX_LENGTH)
 
 class ObfLayer(object):
     def __init__(self, inp, I, J):
@@ -18,9 +18,8 @@ class ObfLayer(object):
         return "%d\n%s\n%s" % (self.inp, self.I, self.J)
 
 class Obfuscator(object):
-    def __init__(self, secparam=16, verbose=False):
-        self.ge = GradedEncoding(secparam=secparam, kappa=len(bp),
-                                 verbose=verbose)
+    def __init__(self, secparam, verbose=False):
+        self.ge = GradedEncoding(secparam, len(bp), verbose=verbose)
         self.obfuscation = None
         self._verbose = verbose
 
@@ -61,13 +60,7 @@ class Obfuscator(object):
         comp = MS.identity_matrix()
         for m in self.obfuscation:
             comp = self._mult_matrices(comp, m.I if inp[m.inp] == '0' else m.J)
-        one = self.ge.encode(1)
-        r = self.ge.sub([comp[0][0], one])
-        print(self.ge.is_zero(r))
-        for i, row in enumerate(comp):
-            for j, elem in enumerate(row):
-                print(self.ge.is_zero(elem), end=' ')
-            print()
+        return 1 if self.ge.is_zero(comp[0][0]) else 0
 
 if __name__ == '__main__':
     fname = sys.argv[1]
@@ -75,9 +68,11 @@ if __name__ == '__main__':
     print('Converting circuit -> bp...')
     bp = BranchingProgram(fname, type='circuit')
     # bp.obliviate()
-    # bp.randomize()
+    bp.randomize()
+    print(bp)
     print('Obfuscating BP of length %d...' % len(bp))
-    obf = Obfuscator(secparam=8, verbose=True)
+    obf = Obfuscator(8, verbose=True)
     obf.obfuscate(bp)
     print('Evaluating on input %s...' % inp)
-    obf.evaluate(inp)
+    r = obf.evaluate(inp)
+    print('Output = %d' % r)

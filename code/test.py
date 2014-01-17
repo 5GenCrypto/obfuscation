@@ -1,7 +1,7 @@
-#!/usr/bin/env python2
+#!/usr/bin/env sage -python
 
 from __future__ import print_function
-from branchingprogram import BranchingProgram
+from branchingprogram import BranchingProgram, ParseException
 import os, sys
 
 testdir = 'circuits'
@@ -20,7 +20,11 @@ def test_circuit(path):
     if len(testcases) == 0:
         print('no test cases')
         return
-    bp = BranchingProgram(path, type='circuit')
+    try:
+        bp = BranchingProgram(path, type='circuit')
+    except ParseException as e:
+        print(e)
+        return
     bp.obliviate()
     bp.randomize()
     failed = False

@@ -1,7 +1,8 @@
 #!/usr/bin/env sage -python
 
 from sage.all import *
-import sys
+import math, sys
+import time
 
 class GradedEncoding(object):
     def logger(self, s, end='\n'):
@@ -15,14 +16,14 @@ class GradedEncoding(object):
     def set_params(self, secparam, kappa):
         self.secparam = secparam
         self.kappa = kappa
-        self.alpha = secparam
+        self.alpha = secparam << 1
         self.beta = secparam
         self.rho = secparam
         self.mu = self.rho + self.alpha + self.secparam
         self.rho_f = self.kappa * (self.mu + self.rho + self.alpha + 2) + self.rho
         self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
-        self.n = self.eta * log(self.secparam, base=2)
+        self.n = self.eta * int(math.log(self.secparam, 2))
 
     def print_params(self):
         print('Parameters:')
@@ -37,17 +38,24 @@ class GradedEncoding(object):
         print('  Rhof: %d' % self.rho_f)
         print('  N: %d' % self.n)
 
-    def __init__(self, secparam=32, kappa=1, verbose=False):
+    def __init__(self, secparam, kappa, verbose=False):
+        @fork
+        def genprime(bitsize):
+            return random_prime((1 << self.eta) - 1)
         self.set_params(secparam, kappa)
         self._verbose = verbose
         if verbose:
             self.print_params()
         self.logger('Generating %d-bit primes p_i' % self.eta, end='')
+        start = time.time()
+        # self.ps = [genprime((1 << self.eta) - 1) for _ in xrange(self.n)]
         self.ps = []
-        for _ in range(self.n):
+        for _ in xrange(self.n):
             self.ps.append(random_prime((1 << self.eta) - 1))
             self.logger('.', end='')
         self.logger('')
+        end = time.time()
+        self.logger('Took: %f seconds' % (end - start))
         self.logger('Computing x0')
         self.x0 = reduce(operator.mul, self.ps)
         self.logger('Generating z')
@@ -69,19 +77,19 @@ class GradedEncoding(object):
         x0ps = [self.x0 / p for p in self.ps]
         gsis = [inverse_mod(g, p) for g, p in zip(self.gs, self.ps)]
         self.pzt = sum(randint(0, (1 << self.beta) - 1) * zk * gsis[i] * x0ps[i]
-                       for i in range(self.n))
+                       for i in xrange(self.n))
 
     def encode(self, val):
         self.logger('Encoding value %d' % val)
-        ms = [0 for _ in range(self.n)]
+        ms = [0 for _ in xrange(self.n)]
         ms[0] = val
         assert val < self.gs[0], "Message must be smaller than g_0"
-        self.logger('  Generating random %d-bit integers r_i' % self.rho)
-        rs = [randint(1 << self.rho - 1, (1 << self.rho) - 1) for _ in range(self.n)]
-        self.logger('  Generating elements for CRT')
+        # self.logger('  Generating random %d-bit integers r_i' % self.rho)
+        rs = [randint(1 << self.rho - 1, (1 << self.rho) - 1) for _ in xrange(self.n)]
+        # self.logger('  Generating elements for CRT')
         elems = [(r * g + m) * self.zinv % p
                  for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
-        self.logger('  Finding c')
+        # self.logger('  Finding c')
         return CRT(elems, self.ps)
 
     def is_zero(self, c):
@@ -116,7 +124,7 @@ if __name__ == '__main__':
     secparam = 16
     kappa = ops.count('*') + 1
 
-    ge = GradedEncoding(secparam=secparam, kappa=kappa)
+    ge = GradedEncoding(secparam, kappa)
     encvals = [ge.encode(v) for v in vals]
     for op in ops:
         a, b = encvals.pop(0), encvals.pop(0)
