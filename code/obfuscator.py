@@ -5,8 +5,9 @@ from __future__ import print_function
 from gradedencoding import GradedEncoding
 from branchingprogram import (BranchingProgram, MATRIX_LENGTH)
 from sage.all import *
-import sys
+import time, sys
 
+SECPARAM = 8
 MS = MatrixSpace(ZZ, MATRIX_LENGTH)
 
 class ObfLayer(object):
@@ -65,14 +66,16 @@ class Obfuscator(object):
 if __name__ == '__main__':
     fname = sys.argv[1]
     inp = sys.argv[2]
+    start = time.time()
     print('Converting circuit -> bp...')
     bp = BranchingProgram(fname, type='circuit')
     # bp.obliviate()
     bp.randomize()
-    print(bp)
     print('Obfuscating BP of length %d...' % len(bp))
-    obf = Obfuscator(8, verbose=True)
+    obf = Obfuscator(SECPARAM, verbose=True)
     obf.obfuscate(bp)
     print('Evaluating on input %s...' % inp)
     r = obf.evaluate(inp)
     print('Output = %d' % r)
+    end = time.time()
+    print('Total time: %f seconds' % (end - start))

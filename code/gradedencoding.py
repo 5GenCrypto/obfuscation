@@ -39,16 +39,12 @@ class GradedEncoding(object):
         print('  N: %d' % self.n)
 
     def __init__(self, secparam, kappa, verbose=False):
-        @fork
-        def genprime(bitsize):
-            return random_prime((1 << self.eta) - 1)
         self.set_params(secparam, kappa)
         self._verbose = verbose
         if verbose:
             self.print_params()
         self.logger('Generating %d-bit primes p_i' % self.eta, end='')
         start = time.time()
-        # self.ps = [genprime((1 << self.eta) - 1) for _ in xrange(self.n)]
         self.ps = []
         for _ in xrange(self.n):
             self.ps.append(random_prime((1 << self.eta) - 1))
@@ -56,9 +52,15 @@ class GradedEncoding(object):
         self.logger('')
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
+
         self.logger('Computing x0')
+        start = time.time()
         self.x0 = reduce(operator.mul, self.ps)
+        end = time.time()
+        self.logger('Took: %f seconds' % (end - start))
+
         self.logger('Generating z')
+        start = time.time()
         while True:
             self.z = randint(0, self.x0)
             try:
@@ -66,31 +68,42 @@ class GradedEncoding(object):
                 break
             except:
                 pass
+        end = time.time()
+        self.logger('Took: %f seconds' % (end - start))
+
         self.logger('Generating %d-bit primes g_i' % self.alpha, end='')
+        start = time.time()
         self.gs = []
         for _ in range(self.n):
             self.gs.append(random_prime((1 << self.alpha) - 1))
             self.logger('.', end='')
         self.logger('')
+        end = time.time()
+        self.logger('Took: %f seconds' % (end - start))
+
         self.logger('Generating zero test element')
+        start = time.time()
         zk = power_mod(self.z, self.kappa, self.x0)
         x0ps = [self.x0 / p for p in self.ps]
         gsis = [inverse_mod(g, p) for g, p in zip(self.gs, self.ps)]
         self.pzt = sum(randint(0, (1 << self.beta) - 1) * zk * gsis[i] * x0ps[i]
                        for i in xrange(self.n))
+        end = time.time()
+        self.logger('Took: %f seconds' % (end - start))
 
     def encode(self, val):
         self.logger('Encoding value %d' % val)
+        start = time.time()
         ms = [0 for _ in xrange(self.n)]
         ms[0] = val
         assert val < self.gs[0], "Message must be smaller than g_0"
-        # self.logger('  Generating random %d-bit integers r_i' % self.rho)
         rs = [randint(1 << self.rho - 1, (1 << self.rho) - 1) for _ in xrange(self.n)]
-        # self.logger('  Generating elements for CRT')
         elems = [(r * g + m) * self.zinv % p
                  for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
-        # self.logger('  Finding c')
-        return CRT(elems, self.ps)
+        r = CRT(elems, self.ps)
+        end = time.time()
+        self.logger('Took: %f seconds' % (end - start))
+        return r
 
     def is_zero(self, c):
         omega = (self.pzt * c) % self.x0
