@@ -42,7 +42,6 @@ class GradedEncoding(object):
         self._verbose = verbose
         if verbose:
             self.print_params()
-
         self.logger('Generating %d-bit primes p_i' % self.eta, end='')
         self.ps = []
         for _ in range(self.n):
@@ -77,12 +76,12 @@ class GradedEncoding(object):
         ms = [0 for _ in range(self.n)]
         ms[0] = val
         assert val < self.gs[0], "Message must be smaller than g_0"
-        self.logger('Generating random %d-bit integers r_i' % self.rho)
+        self.logger('  Generating random %d-bit integers r_i' % self.rho)
         rs = [randint(1 << self.rho - 1, (1 << self.rho) - 1) for _ in range(self.n)]
-        self.logger('Generating elements for CRT')
+        self.logger('  Generating elements for CRT')
         elems = [(r * g + m) * self.zinv % p
                  for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
-        self.logger('Finding c')
+        self.logger('  Finding c')
         return CRT(elems, self.ps)
 
     def is_zero(self, c):
@@ -91,6 +90,9 @@ class GradedEncoding(object):
 
     def add(self, cs):
         return reduce(operator.add, cs) % self.x0
+
+    def sub(self, cs):
+        return reduce(operator.sub, cs) % self.x0
 
     def mult(self, cs):
         return reduce(operator.mul, cs) % self.x0

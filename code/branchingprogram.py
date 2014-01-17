@@ -5,7 +5,7 @@ import sys
 from sage.all import *
 
 MATRIX_LENGTH = 3
-_P = 3388445611
+_P = 12071
 
 # G = SL(MATRIX_LENGTH, GF(3))
 G = MatrixSpace(GF(3), MATRIX_LENGTH, MATRIX_LENGTH)
