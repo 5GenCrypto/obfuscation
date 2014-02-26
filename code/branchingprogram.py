@@ -1,13 +1,11 @@
 #!/usr/bin/env sage -python
 
 import itertools
-import sys
 from sage.all import *
 
 MATRIX_LENGTH = 5
 _P = 12071
 
-# G = MatrixSpace(GF(3), MATRIX_LENGTH)
 G = MatrixSpace(GF(2), MATRIX_LENGTH)
 MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(_P)), MATRIX_LENGTH)
 

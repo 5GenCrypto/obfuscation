@@ -7,7 +7,6 @@ from branchingprogram import (BranchingProgram, MATRIX_LENGTH)
 from sage.all import *
 import time, sys
 
-SECPARAM = 8
 MS = MatrixSpace(ZZ, MATRIX_LENGTH)
 
 class ObfLayer(object):
@@ -19,9 +18,10 @@ class ObfLayer(object):
         return "%d\n%s\n%s" % (self.inp, self.I, self.J)
 
 class Obfuscator(object):
-    def __init__(self, secparam, verbose=False):
+    def __init__(self, secparam, bp, verbose=False):
         self.ge = GradedEncoding(secparam, len(bp), verbose=verbose)
         self.obfuscation = None
+        self.bp = bp
         self._verbose = verbose
 
     def load(self, fname):
@@ -29,11 +29,8 @@ class Obfuscator(object):
 
     def _obfuscate_matrix(self, m):
         rows = []
-        for i, row in enumerate(m):
-            elems = []
-            for j, elem in enumerate(row):
-                r = self.ge.encode(int(elem))
-                elems.append(r)
+        for row in m:
+            elems = [self.ge.encode(int(elem)) for elem in row]
             rows.append(elems)
         return MS(rows)
 
@@ -42,8 +39,8 @@ class Obfuscator(object):
         J = self._obfuscate_matrix(layer.J)
         return ObfLayer(layer.inp, I, J)
 
-    def obfuscate(self, bp):
-        self.obfuscation = [self._obfuscate_layer(layer) for layer in bp]
+    def obfuscate(self):
+        self.obfuscation = [self._obfuscate_layer(layer) for layer in self.bp]
 
     def _mult_matrices(self, A, B):
         rows = []
@@ -57,13 +54,14 @@ class Obfuscator(object):
         return MS(rows)
 
     def evaluate(self, inp):
-        assert(self.obfuscation is not None)
+        assert self.obfuscation is not None
         comp = MS.identity_matrix()
         for m in self.obfuscation:
             comp = self._mult_matrices(comp, m.I if inp[m.inp] == '0' else m.J)
         return 1 if self.ge.is_zero(comp[0][0]) else 0
 
 if __name__ == '__main__':
+    secparam = 8
     fname = sys.argv[1]
     inp = sys.argv[2]
     start = time.time()
@@ -72,8 +70,8 @@ if __name__ == '__main__':
     # bp.obliviate()
     bp.randomize()
     print('Obfuscating BP of length %d...' % len(bp))
-    obf = Obfuscator(SECPARAM, verbose=True)
-    obf.obfuscate(bp)
+    obf = Obfuscator(secparam, bp, verbose=True)
+    obf.obfuscate()
     print('Evaluating on input %s...' % inp)
     r = obf.evaluate(inp)
     print('Output = %d' % r)

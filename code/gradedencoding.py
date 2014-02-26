@@ -16,14 +16,17 @@ class GradedEncoding(object):
     def set_params(self, secparam, kappa):
         self.secparam = secparam
         self.kappa = kappa
+        # FIXME: we're currently using a too small secparam, and thus we need
+        # alpha = 2 * secparam otherwise encoding fails due to message being
+        # smaller than the g_i values
         self.alpha = secparam << 1
         self.beta = secparam
-        self.rho = secparam
+        self.rho = 2 * secparam
         self.mu = self.rho + self.alpha + self.secparam
         self.rho_f = self.kappa * (self.mu + self.rho + self.alpha + 2) + self.rho
         self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
-        self.n = self.eta * int(math.log(self.secparam, 2))
+        self.n = int(self.eta * math.log(self.secparam, 2))
 
     def print_params(self):
         print('Parameters:')
@@ -43,11 +46,12 @@ class GradedEncoding(object):
         self._verbose = verbose
         if verbose:
             self.print_params()
+
         self.logger('Generating %d-bit primes p_i' % self.eta, end='')
         start = time.time()
         self.ps = []
         for _ in xrange(self.n):
-            self.ps.append(random_prime((1 << self.eta) - 1))
+            self.ps.append(random_prime((1 << self.eta) - 1, proof=False))
             self.logger('.', end='')
         self.logger('')
         end = time.time()
@@ -93,16 +97,24 @@ class GradedEncoding(object):
 
     def encode(self, val):
         self.logger('Encoding value %d' % val)
-        start = time.time()
+
         ms = [0 for _ in xrange(self.n)]
         ms[0] = val
         assert val < self.gs[0], "Message must be smaller than g_0"
-        rs = [randint(1 << self.rho - 1, (1 << self.rho) - 1) for _ in xrange(self.n)]
+        min, max = 1 << self.rho - 1, (1 << self.rho) - 1
+        start = time.time()
+        rs = [randint(min, max) for _ in xrange(self.n)]
+        end = time.time()
+        self.logger('  Generating r_i values: %f seconds' % (end - start))
+        start = time.time()
         elems = [(r * g + m) * self.zinv % p
                  for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
+        end = time.time()
+        self.logger('  Generating elements: %f seconds' % (end - start))
+        start = time.time()
         r = CRT(elems, self.ps)
         end = time.time()
-        self.logger('Took: %f seconds' % (end - start))
+        self.logger('  CRT: %f seconds' % (end - start))
         return r
 
     def is_zero(self, c):
