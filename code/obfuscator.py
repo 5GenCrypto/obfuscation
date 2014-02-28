@@ -4,8 +4,11 @@ from __future__ import print_function
 
 from gradedencoding import GradedEncoding
 from branchingprogram import (BranchingProgram, MATRIX_LENGTH)
+import utils
+
 from sage.all import *
-import time, sys
+
+import functools, time, sys
 
 MS = MatrixSpace(ZZ, MATRIX_LENGTH)
 
@@ -25,19 +28,22 @@ class Obfuscator(object):
         self.bp = bp
         self._verbose = verbose
         self._parallel = parallel
+        self.logger = functools.partial(utils.logger, verbose=self._verbose)
+
+    def load(self, fname):
+        raise NotImplemented()
 
     def _obfuscate_matrix(self, m):
+        m = [[int(e) for e in row] for row in m]
         m = [int(e) for e in flatten(m)]
+        self.logger('Obfuscating matrix %s' % m)
+        start = time.time()
         if self._parallel:
             m = self.ge.encode_list(m)
-            # for row in m:
-            #     elems = self.ge.encode_list([int(elem) for elem in row])
-            #     rows.append(elems)
         else:
             m = [self.ge.encode(e) for e in m]
-            # for row in m:
-            #     elems = [self.ge.encode(int(elem)) for elem in row]
-            #     rows.append(elems)
+        end = time.time()
+        self.logger('Took: %f seconds' % (end - start))
         return MS(m)
 
     def _obfuscate_layer(self, layer):
@@ -47,6 +53,10 @@ class Obfuscator(object):
 
     def obfuscate(self):
         self.obfuscation = [self._obfuscate_layer(layer) for layer in self.bp]
+
+    def save(self, fname):
+        assert self.obfuscation is not None
+        raise NotImplemented()
 
     def _mult_matrices(self, A, B):
         rows = []

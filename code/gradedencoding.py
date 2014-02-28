@@ -1,9 +1,12 @@
 #!/usr/bin/env sage -python
 
 from __future__ import print_function
+
 from sage.all import *
-import math, sys
-import time
+
+import math, sys, time
+import functools
+import utils
 
 def genprimes(num, bitlength, ncpus):
     @parallel(ncpus=ncpus)
@@ -13,22 +16,17 @@ def genprimes(num, bitlength, ncpus):
     rs = [randint(0, 1 << 64) for _ in xrange(num)]
     ps = list(_random_prime(rs))
     return [p for _, p in ps]
-    # def _random_prime(r):
-    #     with seed(r):
-    #         return random_prime(bitlength)
-    # ps = []
-    # for _ in xrange(num):
-    #     r = randint(0, 1 << 64)
-    #     ps.append(_random_prime(r))
-    #     print('.', end='')
-    #     sys.stdout.flush()
-    # return ps
+
+def genz(x0):
+    while True:
+        z = randint(0, x0)
+        try:
+            zinv = inverse_mod(z, x0)
+            return z, zinv
+        except:
+            pass
 
 class GradedEncoding(object):
-    def logger(self, s, end='\n'):
-        if self._verbose:
-            print(s, end=end)
-            sys.stdout.flush()
 
     def set_params(self, secparam, kappa):
         self.secparam = secparam
@@ -46,7 +44,7 @@ class GradedEncoding(object):
         self.n = int(self.eta * math.log(self.secparam, 2))
 
     def print_params(self):
-        print('Parameters:')
+        print('Graded Encoding Parameters:')
         print('  Lambda: %d' % self.secparam)
         print('  Kappa: %d' % self.kappa)
         print('  Alpha: %d' % self.alpha)
@@ -65,19 +63,17 @@ class GradedEncoding(object):
         self._ncpus = ncpus
         if verbose:
             self.print_params()
+        self.logger = functools.partial(utils.logger, verbose=self._verbose)
 
+        self.logger('Generating %d-bit primes p_i ' % self.eta, end='')
         start = time.time()
+        primesize = (1 << self.eta) - 1
         if parallel:
-            self.logger('Generating %d-bit primes p_i (parallel)' % self.eta)
-            self.ps = genprimes(self.n, (1 << self.eta) - 1, self._ncpus)
+            self.logger('(parallel)')
+            self.ps = genprimes(self.n, primesize, self._ncpus)
         else:
-            self.logger('Generating %d-bit primes p_i (sequential) ' % self.eta, end='')
-            start = time.time()
-            self.ps = []
-            for _ in xrange(self.n):
-                self.ps.append(random_prime((1 << self.eta) - 1))
-                self.logger('.', end='')
-            self.logger('')
+            self.logger('(sequential)')
+            self.ps = [random_prime(primesize) for _ in xrange(self.n)]
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
@@ -89,35 +85,35 @@ class GradedEncoding(object):
 
         self.logger('Generating z')
         start = time.time()
-        while True:
-            self.z = randint(0, self.x0)
-            try:
-                self.zinv = inverse_mod(self.z, self.x0)
-                break
-            except:
-                pass
+        self.z, self.zinv = genz(self.x0)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
-        self.logger('Generating %d-bit primes g_i' % self.alpha, end='')
+        self.logger('Generating %d-bit primes g_i (sequentially)' % self.alpha)
         start = time.time()
-        self.gs = []
-        for _ in range(self.n):
-            self.gs.append(random_prime((1 << self.alpha) - 1))
-            self.logger('.', end='')
-        self.logger('')
+        primesize = (1 << self.alpha) - 1
+        self.gs = [random_prime(primesize) for _ in xrange(self.n)]
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
         self.logger('Generating zero test element')
         start = time.time()
         zk = power_mod(self.z, self.kappa, self.x0)
+        end = time.time()
+        self.logger('  Computing power_mod: %f seconds' % (end - start))
+        start = time.time()
         x0ps = [self.x0 / p for p in self.ps]
+        end = time.time()
+        self.logger('  Computing x0 / p_i: %f seconds' % (end - start))
+        start = time.time()
         gsis = [inverse_mod(g, p) for g, p in zip(self.gs, self.ps)]
+        end = time.time()
+        self.logger('  Computing inverse_mod: %f seconds' % (end - start))
+        start = time.time()
         self.pzt = sum(randint(0, (1 << self.beta) - 1) * zk * gsis[i] * x0ps[i]
                        for i in xrange(self.n))
         end = time.time()
-        self.logger('Took: %f seconds' % (end - start))
+        self.logger('  Computing pzt: %f seconds' % (end - start))
 
     def encode(self, val):
         self.logger('Encoding value %d' % val)
@@ -146,13 +142,9 @@ class GradedEncoding(object):
             with seed(r):
                 return self.encode(val)
         self.logger('Encoding values %s' % vals)
-        start = time.time()
         rs = [randint(0, 1 << 64) for _ in xrange(len(vals))]
         es = list(_encode(zip(vals, rs)))
-        es = [e for _, e in es]
-        end = time.time()
-        self.logger('Took: %f seconds' % (end - start))
-        return es
+        return [e for _, e in es]
 
     def is_zero(self, c):
         omega = (self.pzt * c) % self.x0
