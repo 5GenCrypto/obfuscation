@@ -18,21 +18,27 @@ class ObfLayer(object):
         return "%d\n%s\n%s" % (self.inp, self.I, self.J)
 
 class Obfuscator(object):
-    def __init__(self, secparam, bp, verbose=False):
-        self.ge = GradedEncoding(secparam, len(bp), verbose=verbose)
+    def __init__(self, secparam, bp, verbose=False, parallel=False, ncpus=1):
+        self.ge = GradedEncoding(secparam, len(bp), verbose=verbose,
+                                 parallel=parallel, ncpus=ncpus)
         self.obfuscation = None
         self.bp = bp
         self._verbose = verbose
-
-    def load(self, fname):
-        raise NotImplemented()
+        self._parallel = parallel
 
     def _obfuscate_matrix(self, m):
-        rows = []
-        for row in m:
-            elems = [self.ge.encode(int(elem)) for elem in row]
-            rows.append(elems)
-        return MS(rows)
+        m = [int(e) for e in flatten(m)]
+        if self._parallel:
+            m = self.ge.encode_list(m)
+            # for row in m:
+            #     elems = self.ge.encode_list([int(elem) for elem in row])
+            #     rows.append(elems)
+        else:
+            m = [self.ge.encode(e) for e in m]
+            # for row in m:
+            #     elems = [self.ge.encode(int(elem)) for elem in row]
+            #     rows.append(elems)
+        return MS(m)
 
     def _obfuscate_layer(self, layer):
         I = self._obfuscate_matrix(layer.I)
@@ -59,21 +65,3 @@ class Obfuscator(object):
         for m in self.obfuscation:
             comp = self._mult_matrices(comp, m.I if inp[m.inp] == '0' else m.J)
         return 1 if self.ge.is_zero(comp[0][0]) else 0
-
-if __name__ == '__main__':
-    secparam = 8
-    fname = sys.argv[1]
-    inp = sys.argv[2]
-    start = time.time()
-    print('Converting circuit -> bp...')
-    bp = BranchingProgram(fname, type='circuit')
-    # bp.obliviate()
-    bp.randomize()
-    print('Obfuscating BP of length %d...' % len(bp))
-    obf = Obfuscator(secparam, bp, verbose=True)
-    obf.obfuscate()
-    print('Evaluating on input %s...' % inp)
-    r = obf.evaluate(inp)
-    print('Output = %d' % r)
-    end = time.time()
-    print('Total time: %f seconds' % (end - start))
