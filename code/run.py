@@ -34,11 +34,9 @@ def test_circuit(path):
     failed = False
     for k, v in testcases.items():
         if bp.evaluate(k) != v:
-            print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v), end='')
+            print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
             failed = True
-    if failed:
-        print()
-    else:
+    if not failed:
         print('\x1b[32mPass\x1b[0m')
 
 def bp(args):
@@ -96,7 +94,7 @@ def obf(args):
         print("Converting '%s' -> bp..." % args.load_circuit)
         bp = BranchingProgram(args.load_circuit, type='circuit')
         # bp.obliviate()
-        bp.randomize()
+        # bp.randomize()
         print('Obfuscating BP of length %d...' % len(bp))
         start = time.time()
         obf.obfuscate(bp)

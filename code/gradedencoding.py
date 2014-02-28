@@ -41,7 +41,10 @@ class GradedEncoding(object):
         self.rho_f = self.kappa * (self.mu + self.rho + self.alpha + 2) + self.rho
         self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
-        self.n = int(self.eta * math.log(self.secparam, 2))
+        # XXX: things appear to break when we use the real value for n.
+        # However, smaller values (e.g., n = eta) appear to work...
+        self.n = self.eta * 2
+        # self.n = int(self.eta * math.log(self.secparam, 2))
 
     def _print_params(self):
         print('Graded Encoding Parameters:')
@@ -77,7 +80,7 @@ class GradedEncoding(object):
         self.logger('Generating %d-bit primes p_i ' % self.eta, end='')
         start = time.time()
         primesize = (1 << self.eta) - 1
-        if parallel:
+        if self._parallel:
             self.logger('(parallel)')
             self.ps = genprimes(self.n, primesize, self._ncpus)
         else:
@@ -162,8 +165,8 @@ class GradedEncoding(object):
     def add(self, cs):
         return reduce(operator.add, cs) % self.x0
 
-    def sub(self, cs):
-        return reduce(operator.sub, cs) % self.x0
+    # def sub(self, cs):
+    #     return reduce(operator.sub, cs) % self.x0
 
     def mult(self, cs):
         return reduce(operator.mul, cs) % self.x0
