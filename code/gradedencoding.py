@@ -28,7 +28,7 @@ def genz(x0):
 
 class GradedEncoding(object):
 
-    def set_params(self, secparam, kappa):
+    def _set_params(self, secparam, kappa):
         self.secparam = secparam
         self.kappa = kappa
         # FIXME: we're currently using a too small secparam, and thus we need
@@ -43,7 +43,7 @@ class GradedEncoding(object):
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
         self.n = int(self.eta * math.log(self.secparam, 2))
 
-    def print_params(self):
+    def _print_params(self):
         print('Graded Encoding Parameters:')
         print('  Lambda: %d' % self.secparam)
         print('  Kappa: %d' % self.kappa)
@@ -56,14 +56,23 @@ class GradedEncoding(object):
         print('  Rhof: %d' % self.rho_f)
         print('  N: %d' % self.n)
 
-    def __init__(self, secparam, kappa, verbose=False, parallel=False, ncpus=1):
-        self.set_params(secparam, kappa)
+    def __init__(self, verbose=False, parallel=False, ncpus=1):
         self._verbose = verbose
         self._parallel = parallel
         self._ncpus = ncpus
-        if verbose:
-            self.print_params()
         self.logger = functools.partial(utils.logger, verbose=self._verbose)
+
+    def load_system_params(self, secparam, kappa, x0, pzt):
+        self._set_params(secparam, kappa)
+        if self._verbose:
+            self._print_params()
+        self.x0 = x0
+        self.pzt = pzt
+
+    def gen_system_params(self, secparam, kappa):
+        self._set_params(secparam, kappa)
+        if self._verbose:
+            self._print_params()
 
         self.logger('Generating %d-bit primes p_i ' % self.eta, end='')
         start = time.time()
@@ -160,36 +169,36 @@ class GradedEncoding(object):
         return reduce(operator.mul, cs) % self.x0
 
 
-if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print("invalid number of arguments")
-        sys.exit(1)
+# if __name__ == '__main__':
+#     if len(sys.argv) != 2:
+#         print("invalid number of arguments")
+#         sys.exit(1)
 
-    args = sys.argv[1].split()
-    vals = []
-    ops = []
-    for arg in args:
-        try:
-            vals.append(int(arg))
-        except ValueError:
-            assert arg in ('+', '*'), "invalid argument"
-            ops.append(arg)
+#     args = sys.argv[1].split()
+#     vals = []
+#     ops = []
+#     for arg in args:
+#         try:
+#             vals.append(int(arg))
+#         except ValueError:
+#             assert arg in ('+', '*'), "invalid argument"
+#             ops.append(arg)
 
-    secparam = 8
-    kappa = ops.count('*') + 1
+#     secparam = 8
+#     kappa = ops.count('*') + 1
 
-    ge = GradedEncoding(secparam, kappa, verbose=True)
-    encvals = ge.encode_list(vals)
-    # encvals = [ge.encode(v) for v in vals]
-    for op in ops:
-        a, b = encvals.pop(0), encvals.pop(0)
-        if op == '+':
-            encvals.insert(0, ge.add([a, b]))
-        else:
-            encvals.insert(0, ge.mult([a, b]))
-    assert len(encvals) == 1
+#     ge = GradedEncoding(secparam, kappa, verbose=True)
+#     encvals = ge.encode_list(vals)
+#     # encvals = [ge.encode(v) for v in vals]
+#     for op in ops:
+#         a, b = encvals.pop(0), encvals.pop(0)
+#         if op == '+':
+#             encvals.insert(0, ge.add([a, b]))
+#         else:
+#             encvals.insert(0, ge.mult([a, b]))
+#     assert len(encvals) == 1
 
-    if ge.is_zero(encvals[0]):
-        print('---- Output is ZERO')
-    else:
-        print('---- Output is something else')
+#     if ge.is_zero(encvals[0]):
+#         print('---- Output is ZERO')
+#     else:
+#         print('---- Output is something else')

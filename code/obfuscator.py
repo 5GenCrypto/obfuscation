@@ -31,26 +31,44 @@ class ObfEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 class Obfuscator(object):
-    def __init__(self, secparam, bp, verbose=False, parallel=False, ncpus=1):
-        self.ge = GradedEncoding(secparam, len(bp), verbose=verbose,
-                                 parallel=parallel, ncpus=ncpus)
+    def __init__(self, secparam, verbose=False, parallel=False, ncpus=1):
+        self.ge = GradedEncoding(verbose=verbose, parallel=parallel,
+                                 ncpus=ncpus)
+        self.secparam = secparam
         self.obfuscation = None
-        self.bp = bp
+        self.bp = None
         self._verbose = verbose
         self._parallel = parallel
         self.logger = functools.partial(utils.logger, verbose=self._verbose)
 
-    def load(self, fname):
+    def load_bp(self, bp):
+        self.ge.gen_system_params(self.secparam, len(bp))
+        self.bp = bp
+
+    def load_obf(self, directory):
         assert self.obfuscation is None
+        assert os.path.exists(directory)
         self.obfuscation = []
-        with open(fname, 'r') as f:
-            for line in f:
-                pass
+        x0 = load('%s/x0.sobj' % directory)
+        pzt = load('%s/pzt.sobj' % directory)
+        self.ge.load_system_params(self.secparam, len(self.obfuscation), x0,
+                                   pzt)
+        files = os.listdir(directory)
+        files.remove('x0.sobj')
+        files.remove('pzt.sobj')
+        inputs = filter(lambda s: 'input' in s, files)
+        Is = filter(lambda s: 'I' in s, files)
+        Js = filter(lambda s: 'J' in s, files)
+        self.obfuscation = []
+        # XXX: will the order be preserved for multiple layers?
+        for inpfile, Ifile, Jfile in zip(inputs, Is, Js):
+            inp = load('%s/%s' % (directory, inpfile))
+            I = load('%s/%s' % (directory, Ifile))
+            J = load('%s/%s' % (directory, Jfile))
+            self.obfuscation.append(ObfLayer(int(inp), I, J))
 
     def _obfuscate_matrix(self, m):
         m = ms2list(m)
-        # m = [[int(e) for e in row] for row in m]
-        # m = [int(e) for e in flatten(m)]
         self.logger('Obfuscating matrix %s' % m)
         start = time.time()
         if self._parallel:
@@ -69,11 +87,16 @@ class Obfuscator(object):
     def obfuscate(self):
         self.obfuscation = [self._obfuscate_layer(layer) for layer in self.bp]
 
-    def save(self, fname):
+    def save(self, directory):
         assert self.obfuscation is not None
-        with open(fname, 'w') as f:
-            for layer in self.obfuscation:
-                f.write(json.dumps(layer, cls=ObfEncoder))
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+        self.ge.x0.save('%s/x0' % directory)
+        self.ge.pzt.save('%s/pzt' % directory)
+        for idx, layer in enumerate(self.obfuscation):
+            Integer(layer.inp).save('%s/%d.input' % (directory, idx))
+            layer.I.save('%s/%d.I' % (directory, idx))
+            layer.J.save('%s/%d.J' % (directory, idx))
 
     def _mult_matrices(self, A, B):
         rows = []
