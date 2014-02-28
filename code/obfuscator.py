@@ -8,11 +8,12 @@ import utils
 
 from sage.all import *
 
-import functools, json, time, sys
+import functools, time, sys
 
 MS = MatrixSpace(ZZ, MATRIX_LENGTH)
 
 def ms2list(m):
+    '''Convert an element in MS to a flat integer list'''
     m = [[int(e) for e in row] for row in m]
     return [int(e) for e in flatten(m)]
 
@@ -24,48 +25,44 @@ class ObfLayer(object):
     def __repr__(self):
         return "%d\n%s\n%s" % (self.inp, self.I, self.J)
 
-class ObfEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, ObfLayer):
-            return [obj.inp, ms2list(obj.I), ms2list(obj.J)]
-        return json.JSONEncoder.default(self, obj)
-
 class Obfuscator(object):
     def __init__(self, secparam, verbose=False, parallel=False, ncpus=1):
         self.ge = GradedEncoding(verbose=verbose, parallel=parallel,
                                  ncpus=ncpus)
         self.secparam = secparam
         self.obfuscation = None
-        self.bp = None
         self._verbose = verbose
         self._parallel = parallel
         self.logger = functools.partial(utils.logger, verbose=self._verbose)
+        self.logger('Obfuscation parameters:')
+        self.logger('  Security Parameter: %d' % self.secparam)
+        self.logger('  Parallel: %s' % self._parallel)
+        self.logger('  Verbose: %s' % self._verbose)
 
-    def load_bp(self, bp):
-        self.ge.gen_system_params(self.secparam, len(bp))
-        self.bp = bp
-
-    def load_obf(self, directory):
+    def load(self, directory):
         assert self.obfuscation is None
-        assert os.path.exists(directory)
-        self.obfuscation = []
         x0 = load('%s/x0.sobj' % directory)
         pzt = load('%s/pzt.sobj' % directory)
-        self.ge.load_system_params(self.secparam, len(self.obfuscation), x0,
-                                   pzt)
+        # REFACTOR: this is a mess
         files = os.listdir(directory)
         files.remove('x0.sobj')
         files.remove('pzt.sobj')
         inputs = filter(lambda s: 'input' in s, files)
+        inputs.sort()
         Is = filter(lambda s: 'I' in s, files)
+        Is.sort()
         Js = filter(lambda s: 'J' in s, files)
+        Js.sort()
         self.obfuscation = []
-        # XXX: will the order be preserved for multiple layers?
+        # XXX: will the order be preserved for >= 10 layers?
         for inpfile, Ifile, Jfile in zip(inputs, Is, Js):
+            # print(inpfile, Ifile, Jfile)
             inp = load('%s/%s' % (directory, inpfile))
             I = load('%s/%s' % (directory, Ifile))
             J = load('%s/%s' % (directory, Jfile))
             self.obfuscation.append(ObfLayer(int(inp), I, J))
+        self.ge.load_system_params(self.secparam, len(self.obfuscation), x0,
+                                   pzt)
 
     def _obfuscate_matrix(self, m):
         m = ms2list(m)
@@ -84,8 +81,9 @@ class Obfuscator(object):
         J = self._obfuscate_matrix(layer.J)
         return ObfLayer(layer.inp, I, J)
 
-    def obfuscate(self):
-        self.obfuscation = [self._obfuscate_layer(layer) for layer in self.bp]
+    def obfuscate(self, bp):
+        self.ge.gen_system_params(self.secparam, len(bp))
+        self.obfuscation = [self._obfuscate_layer(layer) for layer in bp]
 
     def save(self, directory):
         assert self.obfuscation is not None

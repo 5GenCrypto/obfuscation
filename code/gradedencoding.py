@@ -167,38 +167,3 @@ class GradedEncoding(object):
 
     def mult(self, cs):
         return reduce(operator.mul, cs) % self.x0
-
-
-# if __name__ == '__main__':
-#     if len(sys.argv) != 2:
-#         print("invalid number of arguments")
-#         sys.exit(1)
-
-#     args = sys.argv[1].split()
-#     vals = []
-#     ops = []
-#     for arg in args:
-#         try:
-#             vals.append(int(arg))
-#         except ValueError:
-#             assert arg in ('+', '*'), "invalid argument"
-#             ops.append(arg)
-
-#     secparam = 8
-#     kappa = ops.count('*') + 1
-
-#     ge = GradedEncoding(secparam, kappa, verbose=True)
-#     encvals = ge.encode_list(vals)
-#     # encvals = [ge.encode(v) for v in vals]
-#     for op in ops:
-#         a, b = encvals.pop(0), encvals.pop(0)
-#         if op == '+':
-#             encvals.insert(0, ge.add([a, b]))
-#         else:
-#             encvals.insert(0, ge.mult([a, b]))
-#     assert len(encvals) == 1
-
-#     if ge.is_zero(encvals[0]):
-#         print('---- Output is ZERO')
-#     else:
-#         print('---- Output is something else')

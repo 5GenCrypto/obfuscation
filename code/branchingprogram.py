@@ -4,6 +4,7 @@ import itertools
 from sage.all import *
 
 MATRIX_LENGTH = 5
+# FIXME: this should be the size of the security parameter
 _P = 12071
 
 G = MatrixSpace(GF(2), MATRIX_LENGTH)
@@ -250,14 +251,14 @@ class BranchingProgram(object):
         assert self.n_inputs is not None and self.depth is not None
         newbp = []
         for m in self.bp:
-            for i in range(self.n_inputs):
+            for i in xrange(self.n_inputs):
                 if m.inp == i:
                     newbp.append(m)
                 else:
                     newbp.append(Layer(i, I, I))
         ms_needed = (4 ** self.depth) * self.n_inputs
-        for _ in range((ms_needed - len(newbp)) // self.n_inputs):
-            for i in range(self.n_inputs):
+        for _ in xrange((ms_needed - len(newbp)) // self.n_inputs):
+            for i in xrange(self.n_inputs):
                 newbp.append(Layer(i, I, I))
         assert(len(newbp) == ms_needed)
         self.bp = newbp
