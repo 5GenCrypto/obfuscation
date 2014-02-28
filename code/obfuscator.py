@@ -8,9 +8,13 @@ import utils
 
 from sage.all import *
 
-import functools, time, sys
+import functools, json, time, sys
 
 MS = MatrixSpace(ZZ, MATRIX_LENGTH)
+
+def ms2list(m):
+    m = [[int(e) for e in row] for row in m]
+    return [int(e) for e in flatten(m)]
 
 class ObfLayer(object):
     def __init__(self, inp, I, J):
@@ -19,6 +23,12 @@ class ObfLayer(object):
         self.J = J
     def __repr__(self):
         return "%d\n%s\n%s" % (self.inp, self.I, self.J)
+
+class ObfEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, ObfLayer):
+            return [obj.inp, ms2list(obj.I), ms2list(obj.J)]
+        return json.JSONEncoder.default(self, obj)
 
 class Obfuscator(object):
     def __init__(self, secparam, bp, verbose=False, parallel=False, ncpus=1):
@@ -31,11 +41,16 @@ class Obfuscator(object):
         self.logger = functools.partial(utils.logger, verbose=self._verbose)
 
     def load(self, fname):
-        raise NotImplemented()
+        assert self.obfuscation is None
+        self.obfuscation = []
+        with open(fname, 'r') as f:
+            for line in f:
+                pass
 
     def _obfuscate_matrix(self, m):
-        m = [[int(e) for e in row] for row in m]
-        m = [int(e) for e in flatten(m)]
+        m = ms2list(m)
+        # m = [[int(e) for e in row] for row in m]
+        # m = [int(e) for e in flatten(m)]
         self.logger('Obfuscating matrix %s' % m)
         start = time.time()
         if self._parallel:
@@ -56,7 +71,9 @@ class Obfuscator(object):
 
     def save(self, fname):
         assert self.obfuscation is not None
-        raise NotImplemented()
+        with open(fname, 'w') as f:
+            for layer in self.obfuscation:
+                f.write(json.dumps(layer, cls=ObfEncoder))
 
     def _mult_matrices(self, A, B):
         rows = []
