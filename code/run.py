@@ -44,6 +44,7 @@ def test_circuit(path, args, params):
         obf = Obfuscator(args.secparam, verbose=args.verbose,
                          parallel=args.parallel, ncpus=args.ncpus)
         obf.obfuscate(bp)
+        obf.save("%s.obf" % path)
         program = obf
     failed = False
     for k, v in testcases.items():
@@ -99,39 +100,38 @@ def ge(args):
 def obf(args):
     obf = Obfuscator(args.secparam, verbose=args.verbose,
                      parallel=args.parallel, ncpus=args.ncpus)
-    logger = utils.make_logger(verbose=args.verbose)
     if args.load_obf is not None:
-        logger("Loading obfuscation from '%s'..." % args.load_obf)
+        print("Loading obfuscation from '%s'..." % args.load_obf)
         start = time.time()
         obf.load(args.load_obf)
         end = time.time()
-        logger("Loading took: %f seconds" % (end - start))
+        print("Loading took: %f seconds" % (end - start))
     elif args.load_circuit is not None:
-        logger("Converting '%s' -> bp..." % args.load_circuit)
+        print("Converting '%s' -> bp..." % args.load_circuit)
         bp = BranchingProgram(args.load_circuit, type='circuit')
         # bp.obliviate()
         bp.randomize(args.secparam)
-        logger('Obfuscating BP of length %d...' % len(bp))
+        print('Obfuscating BP of length %d...' % len(bp))
         start = time.time()
         obf.obfuscate(bp)
         end = time.time()
-        logger("Obfuscation took: %f seconds" % (end - start))
+        print("Obfuscation took: %f seconds" % (end - start))
     elif args.test_circuit is not None:
-        params = TestParams(randomize=True, obfuscate=True)
+        params = TestParams(randomize=False, obfuscate=True)
         test_circuit(args.test_circuit, args, params)
     else:
         print('One of --load-obf, --load-circuit, --test-circuit must be used!')
         sys.exit(1)
     if args.save is not None:
-        logger("Saving obfuscation to '%s'..." % args.save)
+        print("Saving obfuscation to '%s'..." % args.save)
         obf.save(args.save)
     if args.eval is not None:
-        logger("Evaluating on input '%s'..." % args.eval)
+        print("Evaluating on input '%s'..." % args.eval)
         start = time.time()
         r = obf.evaluate(args.eval)
         print('Output = %d' % r)
         end = time.time()
-        logger("Evalution took: %f seconds" % (end - start))
+        print("Evalution took: %f seconds" % (end - start))
 
 def main(argv):
     parser = argparse.ArgumentParser(
