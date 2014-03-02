@@ -6,7 +6,7 @@ from gradedencoding import GradedEncoding
 from branchingprogram import (BranchingProgram, MATRIX_LENGTH)
 import utils
 
-from sage.all import MatrixSpace, ZZ, load
+from sage.all import Integer, MatrixSpace, ZZ, flatten, load
 
 import os, sys, time
 

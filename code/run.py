@@ -5,12 +5,19 @@ from __future__ import print_function
 from branchingprogram import BranchingProgram, ParseException
 from gradedencoding import GradedEncoding
 from obfuscator import Obfuscator
+import utils
 
 import sage
 
 import argparse, os, sys, time
 
-def test_circuit(path, args):
+class TestParams(object):
+    def __init__(self, obliviate=False, randomize=False, obfuscate=False):
+        self.obliviate = obliviate
+        self.randomize = randomize
+        self.obfuscate = obfuscate
+
+def test_circuit(path, args, params):
     testcases = {}
     print('Testing %s: ' % path, end='')
     with open(path) as f:
@@ -27,13 +34,20 @@ def test_circuit(path, args):
     try:
         bp = BranchingProgram(path, type='circuit', verbose=args.verbose)
     except ParseException as e:
-        print(e)
-        return
-    bp.obliviate()
-    bp.randomize(args.secparam)
+        raise e
+    program = bp
+    if params.obliviate:
+        bp.obliviate()
+    if params.randomize:
+        bp.randomize(args.secparam)
+    if params.obfuscate:
+        obf = Obfuscator(args.secparam, verbose=args.verbose,
+                         parallel=args.parallel, ncpus=args.ncpus)
+        obf.obfuscate(bp)
+        program = obf
     failed = False
     for k, v in testcases.items():
-        if bp.evaluate(k) != v:
+        if program.evaluate(k) != v:
             print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
             failed = True
     if not failed:
@@ -41,12 +55,13 @@ def test_circuit(path, args):
 
 def bp(args):
     testdir = 'circuits'
+    params = TestParams(obliviate=True, randomize=True)
     if args.test is not None:
-        test_circuit(args.test, args)
+        test_circuit(args.test, args, params)
     if args.test_all:
         for circuit in os.listdir('circuits'):
             path = os.path.join(testdir, circuit)
-            test_circuit(path, args)
+            test_circuit(path, args, params)
 
 def ge(args):
     fargs = args.formula.split()
@@ -84,35 +99,39 @@ def ge(args):
 def obf(args):
     obf = Obfuscator(args.secparam, verbose=args.verbose,
                      parallel=args.parallel, ncpus=args.ncpus)
+    logger = utils.make_logger(verbose=args.verbose)
     if args.load_obf is not None:
-        print("Loading obfuscation from '%s'..." % args.load_obf)
+        logger("Loading obfuscation from '%s'..." % args.load_obf)
         start = time.time()
         obf.load(args.load_obf)
         end = time.time()
-        print("Loading took: %f seconds" % (end - start))
+        logger("Loading took: %f seconds" % (end - start))
     elif args.load_circuit is not None:
-        print("Converting '%s' -> bp..." % args.load_circuit)
+        logger("Converting '%s' -> bp..." % args.load_circuit)
         bp = BranchingProgram(args.load_circuit, type='circuit')
         # bp.obliviate()
-        # bp.randomize()
-        print('Obfuscating BP of length %d...' % len(bp))
+        bp.randomize(args.secparam)
+        logger('Obfuscating BP of length %d...' % len(bp))
         start = time.time()
         obf.obfuscate(bp)
         end = time.time()
-        print("Obfuscation took: %f seconds" % (end - start))
+        logger("Obfuscation took: %f seconds" % (end - start))
+    elif args.test_circuit is not None:
+        params = TestParams(randomize=True, obfuscate=True)
+        test_circuit(args.test_circuit, args, params)
     else:
-        print('One of --load-obf or --load-circuit must be used!')
+        print('One of --load-obf, --load-circuit, --test-circuit must be used!')
         sys.exit(1)
     if args.save is not None:
-        print("Saving obfuscation to '%s'..." % args.save)
+        logger("Saving obfuscation to '%s'..." % args.save)
         obf.save(args.save)
     if args.eval is not None:
-        print("Evaluating on input '%s'..." % args.eval)
+        logger("Evaluating on input '%s'..." % args.eval)
         start = time.time()
         r = obf.evaluate(args.eval)
         print('Output = %d' % r)
         end = time.time()
-        print("Evalution took: %f seconds" % (end - start))
+        logger("Evalution took: %f seconds" % (end - start))
 
 def main(argv):
     parser = argparse.ArgumentParser(
@@ -164,6 +183,8 @@ def main(argv):
                             help='load obfuscation from DIR')
     parser_obf.add_argument('--load-circuit', metavar='FILE', type=str, action='store',
                             help='load circuit from FILE and obfuscate')
+    parser_obf.add_argument('--test-circuit', metavar='FILE', type=str, action='store',
+                            help='test FILE -> obfuscation')
     parser_obf.add_argument('--save', metavar='DIR', type=str, action='store',
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int,

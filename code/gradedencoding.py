@@ -2,20 +2,11 @@
 
 from __future__ import print_function
 
-from sage.all import *
+from sage.all import (CRT, inverse_mod, operator, parallel, power_mod, randint,
+                      random_prime, seed)
 
 import math, sys, time
-import functools
 import utils
-
-def genprimes(num, bitlength, ncpus):
-    @parallel(ncpus=ncpus)
-    def _random_prime(r):
-        with seed(r):
-            return random_prime(bitlength)
-    rs = [randint(0, 1 << 64) for _ in xrange(num)]
-    ps = list(_random_prime(rs))
-    return [p for _, p in ps]
 
 def genz(x0):
     while True:
@@ -34,7 +25,10 @@ class GradedEncoding(object):
         # FIXME: we're currently using a too small secparam, and thus we need
         # alpha = 2 * secparam otherwise encoding fails due to message being
         # smaller than the g_i values
-        self.alpha = secparam << 1
+        if secparam <= 16:
+            self.alpha = secparam << 1
+        else:
+            self.alpha = secparam
         self.beta = secparam
         self.rho = 2 * secparam
         self.mu = self.rho + self.alpha + self.secparam
@@ -59,11 +53,23 @@ class GradedEncoding(object):
         print('  Rhof: %d' % self.rho_f)
         print('  N: %d' % self.n)
 
+    def genprimes(self, num, bitlength):
+        @parallel(ncpus=self._ncpus)
+        def _random_prime(r):
+            with seed(r):
+                return random_prime(bitlength)
+        if self._parallel:
+            rs = [randint(0, 1 << 64) for _ in xrange(num)]
+            ps = list(_random_prime(rs))
+            return [p for _, p in ps]
+        else:
+            return [random_prime(bitlength) for _ in xrange(num)]
+
     def __init__(self, verbose=False, parallel=False, ncpus=1):
         self._verbose = verbose
         self._parallel = parallel
         self._ncpus = ncpus
-        self.logger = functools.partial(utils.logger, verbose=self._verbose)
+        self.logger = utils.make_logger(self._verbose)
 
     def load_system_params(self, secparam, kappa, x0, pzt):
         self._set_params(secparam, kappa)
@@ -77,38 +83,33 @@ class GradedEncoding(object):
         if self._verbose:
             self._print_params()
 
-        self.logger('Generating %d-bit primes p_i ' % self.eta, end='')
+        self.logger('Generating %d-bit primes p_i...' % self.eta)
         start = time.time()
         primesize = (1 << self.eta) - 1
-        if self._parallel:
-            self.logger('(parallel)')
-            self.ps = genprimes(self.n, primesize, self._ncpus)
-        else:
-            self.logger('(sequential)')
-            self.ps = [random_prime(primesize) for _ in xrange(self.n)]
+        self.ps = self.genprimes(self.n, primesize)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
-        self.logger('Computing x0')
+        self.logger('Computing x0...')
         start = time.time()
         self.x0 = reduce(operator.mul, self.ps)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
-        self.logger('Generating z')
+        self.logger('Generating z...')
         start = time.time()
         self.z, self.zinv = genz(self.x0)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
-        self.logger('Generating %d-bit primes g_i (sequentially)' % self.alpha)
+        self.logger('Generating %d-bit primes g_i...' % self.alpha)
         start = time.time()
         primesize = (1 << self.alpha) - 1
-        self.gs = [random_prime(primesize) for _ in xrange(self.n)]
+        self.gs = self.genprimes(self.n, primesize)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
-        self.logger('Generating zero test element')
+        self.logger('Generating zero test element...')
         start = time.time()
         zk = power_mod(self.z, self.kappa, self.x0)
         end = time.time()

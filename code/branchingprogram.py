@@ -275,7 +275,9 @@ class BranchingProgram(object):
                 m = MSZp.random_element()
                 if not m.is_singular():
                     return m, m.inverse()
-        m0, m0i = random_matrix()
+        # XXX: random bookend matrices don't work!  Run test-case on not.circuit
+        m0, m0i = MSZp.one(), MSZp.one()
+        # m0, m0i = random_matrix()
         self.I = G(m0 * MSZp(self.I) * m0i)
         self.C = G(m0 * MSZp(self.C) * m0i)
         self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
