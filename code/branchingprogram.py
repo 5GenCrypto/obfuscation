@@ -1,14 +1,14 @@
 #!/usr/bin/env sage -python
 
+import utils
+
+from sage.all import GF, MatrixSpace, ZZ, random_prime
+
 import itertools
-from sage.all import *
 
 MATRIX_LENGTH = 5
-# FIXME: this should be the size of the security parameter
-_P = 12071
 
 G = MatrixSpace(GF(2), MATRIX_LENGTH)
-MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(_P)), MATRIX_LENGTH)
 
 I = G.one()
 A = G([[0, 0, 1, 0, 0],
@@ -134,13 +134,15 @@ class ParseException(Exception):
     pass
 
 class BranchingProgram(object):
-    def __init__(self, fname, type='circuit'):
+    def __init__(self, fname, type='circuit', verbose=False):
         self.bp = None
         self.n_inputs = None
         self.depth = None
         self._group = G
+        self._verbose = verbose
         self.I = I
         self.C = C
+        self.logger = utils.make_logger(self._verbose)
         if type not in ('circuit', 'bp'):
             raise ParseException('invalid type argument')
         if type == 'circuit':
@@ -263,16 +265,19 @@ class BranchingProgram(object):
         assert(len(newbp) == ms_needed)
         self.bp = newbp
 
-    def randomize(self):
+    def randomize(self, secparam):
+        self.logger('randomizing with security parameter = %d' % secparam)
+        p = random_prime(1 << secparam)
+        self.logger('prime = %d' % p)
+        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(p)), MATRIX_LENGTH)
         def random_matrix():
             while True:
                 m = MSZp.random_element()
                 if not m.is_singular():
                     return m, m.inverse()
-        # TODO: how come multiplying by bookend matrices m0 doesn't work?
-        # m0, m0i = random_matrix()
-        m0, m0i = MSZp.one(), MSZp.one()
-        self.C = G(m0 * MSZp(C) * m0i)
+        m0, m0i = random_matrix()
+        self.I = G(m0 * MSZp(self.I) * m0i)
+        self.C = G(m0 * MSZp(self.C) * m0i)
         self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
         for i in xrange(1, len(self.bp)):
             mi, mii = random_matrix()
@@ -291,4 +296,5 @@ class BranchingProgram(object):
         elif comp == self.C:
             return 1
         else:
+            raise Exception('Evaluation failed!')
             return None

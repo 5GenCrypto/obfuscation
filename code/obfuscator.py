@@ -6,9 +6,9 @@ from gradedencoding import GradedEncoding
 from branchingprogram import (BranchingProgram, MATRIX_LENGTH)
 import utils
 
-from sage.all import *
+from sage.all import MatrixSpace, ZZ, load
 
-import functools, time, sys
+import os, sys, time
 
 MS = MatrixSpace(ZZ, MATRIX_LENGTH)
 
@@ -22,6 +22,16 @@ class ObfLayer(object):
         self.inp = inp
         self.I = I
         self.J = J
+    @classmethod
+    def load(cls, directory, inp, I, J):
+        inp = load('%s/%s' % (directory, inp))
+        I = load('%s/%s' % (directory, I))
+        J = load('%s/%s' % (directory, J))
+        return cls(int(inp), I, J)
+    def save(self, directory, idx):
+        Integer(self.inp).save('%s/%d.input' % (directory, idx))
+        self.I.save('%s/%d.I' % (directory, idx))
+        self.J.save('%s/%d.J' % (directory, idx))
     def __repr__(self):
         return "%d\n%s\n%s" % (self.inp, self.I, self.J)
 
@@ -33,7 +43,7 @@ class Obfuscator(object):
         self.obfuscation = None
         self._verbose = verbose
         self._parallel = parallel
-        self.logger = functools.partial(utils.logger, verbose=self._verbose)
+        self.logger = utils.make_logger(self._verbose)
         self.logger('Obfuscation parameters:')
         self.logger('  Security Parameter: %d' % self.secparam)
         self.logger('  Parallel: %s' % self._parallel)
@@ -53,14 +63,9 @@ class Obfuscator(object):
         Is.sort()
         Js = filter(lambda s: 'J' in s, files)
         Js.sort()
-        self.obfuscation = []
         # XXX: will the order be preserved for >= 10 layers?
-        for inpfile, Ifile, Jfile in zip(inputs, Is, Js):
-            # print(inpfile, Ifile, Jfile)
-            inp = load('%s/%s' % (directory, inpfile))
-            I = load('%s/%s' % (directory, Ifile))
-            J = load('%s/%s' % (directory, Jfile))
-            self.obfuscation.append(ObfLayer(int(inp), I, J))
+        self.obfuscation = [ObfLayer.load(directory, inp, I, J) for inp, I, J in
+                            zip(inputs, Is, Js)]
         self.ge.load_system_params(self.secparam, len(self.obfuscation), x0,
                                    pzt)
 
@@ -92,9 +97,7 @@ class Obfuscator(object):
         self.ge.x0.save('%s/x0' % directory)
         self.ge.pzt.save('%s/pzt' % directory)
         for idx, layer in enumerate(self.obfuscation):
-            Integer(layer.inp).save('%s/%d.input' % (directory, idx))
-            layer.I.save('%s/%d.I' % (directory, idx))
-            layer.J.save('%s/%d.J' % (directory, idx))
+            layer.save(directory, idx)
 
     def _mult_matrices(self, A, B):
         rows = []

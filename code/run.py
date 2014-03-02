@@ -6,11 +6,11 @@ from branchingprogram import BranchingProgram, ParseException
 from gradedencoding import GradedEncoding
 from obfuscator import Obfuscator
 
-from sage.all import *
+import sage
 
-import argparse, sys, time
+import argparse, os, sys, time
 
-def test_circuit(path):
+def test_circuit(path, args):
     testcases = {}
     print('Testing %s: ' % path, end='')
     with open(path) as f:
@@ -25,12 +25,12 @@ def test_circuit(path):
         print('no test cases')
         return
     try:
-        bp = BranchingProgram(path, type='circuit')
+        bp = BranchingProgram(path, type='circuit', verbose=args.verbose)
     except ParseException as e:
         print(e)
         return
     bp.obliviate()
-    bp.randomize()
+    bp.randomize(args.secparam)
     failed = False
     for k, v in testcases.items():
         if bp.evaluate(k) != v:
@@ -42,11 +42,11 @@ def test_circuit(path):
 def bp(args):
     testdir = 'circuits'
     if args.test is not None:
-        test_circuit(args.test)
+        test_circuit(args.test, args)
     if args.test_all:
         for circuit in os.listdir('circuits'):
             path = os.path.join(testdir, circuit)
-            test_circuit(path)
+            test_circuit(path, args)
 
 def ge(args):
     fargs = args.formula.split()
@@ -121,15 +121,23 @@ def main(argv):
     subparsers = parser.add_subparsers()
 
     parser_bp = subparsers.add_parser(
-        'bp', help='commands for circuit -> branching program conversion')
+        'bp',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        help='commands for circuit -> branching program conversion')
     parser_bp.add_argument('--test', metavar='FILE', type=str, action='store',
                            help='test FILE circuit -> bp conversion')
     parser_bp.add_argument('--test-all', action='store_true',
                            help='test circuit -> bp conversion')
+    parser_bp.add_argument('--secparam', metavar='N', type=int,
+                           action='store', default=8, help="security parameter")
+    parser_bp.add_argument('-v', '--verbose', action='store_true',
+                           help='be verbose')
     parser_bp.set_defaults(func=bp)
 
     parser_ge = subparsers.add_parser(
-        'ge', help='commands for graded encoding')
+        'ge',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        help='commands for graded encoding')
     parser_ge.add_argument('formula', type=str, action='store',
                            help='formula to evaluate')
     parser_ge.add_argument('--ncpus', metavar='N', type=int, action='store',
@@ -144,7 +152,9 @@ def main(argv):
     parser_ge.set_defaults(func=ge)
 
     parser_obf = subparsers.add_parser(
-        'obf', help='commands for obfuscating a circuit/branching program')
+        'obf',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        help='commands for obfuscating a circuit/branching program')
     parser_obf.add_argument('--ncpus', metavar='N', type=int, action='store',
                             default=sage.parallel.ncpus.ncpus(),
                             help='number of CPUs to use (only used when --parallel flag set)')
