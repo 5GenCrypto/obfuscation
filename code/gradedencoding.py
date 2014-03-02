@@ -37,8 +37,8 @@ class GradedEncoding(object):
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
         # XXX: things appear to break when we use the real value for n.
         # However, smaller values (e.g., n = eta) appear to work...
-        # self.n = self.eta * 2
-        self.n = int(self.eta * math.log(self.secparam, 2))
+        self.n = self.eta * 2
+        # self.n = int(self.eta * math.log(self.secparam, 2))
 
     def _print_params(self):
         print('Graded Encoding Parameters:')

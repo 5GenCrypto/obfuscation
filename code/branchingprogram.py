@@ -149,15 +149,12 @@ class BranchingProgram(object):
             self.load_circuit(fname)
         else:
             self.load_bp(fname)
-
     def __len__(self):
         return len(self.bp)
-
     def __iter__(self):
         return self.bp.__iter__()
     def next(self):
         return self.bp.next()
-
     def __repr__(self):
         return repr(self.bp)
 
@@ -167,8 +164,6 @@ class BranchingProgram(object):
         except ValueError:
             raise ParseException("Invalid line '%s'" % line)
         param = param.lower()
-        if param not in ('nins', 'depth'):
-            raise ParseException("Invalid parameter '%s'" % param)
         try:
             value = int(value)
         except ValueError:
@@ -177,6 +172,8 @@ class BranchingProgram(object):
             self.n_inputs = value
         elif param == 'depth':
             self.depth = value
+        else:
+            raise ParseException("Invalid parameter '%s'" % param)
 
     def load_arity_one_gate(self, rest, bp):
         _, a, b, _, _, _, in1, _ = rest.split(None, 7)
@@ -266,9 +263,9 @@ class BranchingProgram(object):
         self.bp = newbp
 
     def randomize(self, secparam):
-        self.logger('randomizing with security parameter = %d' % secparam)
-        p = random_prime(1 << secparam)
-        self.logger('prime = %d' % p)
+        # self.logger('randomizing with security parameter = %d' % secparam)
+        p = random_prime((1 << secparam) - 1, lbound=(1 << secparam - 1))
+        # self.logger('prime = %d' % p)
         MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(p)), MATRIX_LENGTH)
         def random_matrix():
             while True:
@@ -278,8 +275,12 @@ class BranchingProgram(object):
         # XXX: random bookend matrices don't work!  Run test-case on not.circuit
         m0, m0i = MSZp.one(), MSZp.one()
         # m0, m0i = random_matrix()
+        self.logger('old I = %s' % self.I)
         self.I = G(m0 * MSZp(self.I) * m0i)
+        self.logger('new I = %s' % self.I)
+        self.logger('old C = %s' % self.C)
         self.C = G(m0 * MSZp(self.C) * m0i)
+        self.logger('new C = %s' % self.C)
         self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
         for i in xrange(1, len(self.bp)):
             mi, mii = random_matrix()
@@ -299,4 +300,3 @@ class BranchingProgram(object):
             return 1
         else:
             raise Exception('Evaluation failed!')
-            return None

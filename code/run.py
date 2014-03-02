@@ -20,6 +20,8 @@ class TestParams(object):
 def test_circuit(path, args, params):
     testcases = {}
     print('Testing %s: ' % path, end='')
+    if args.verbose:
+        print()
     with open(path) as f:
         for line in f:
             if line.startswith('#'):
@@ -36,10 +38,10 @@ def test_circuit(path, args, params):
     except ParseException as e:
         raise e
     program = bp
-    if params.obliviate:
-        bp.obliviate()
-    if params.randomize:
-        bp.randomize(args.secparam)
+    # if params.obliviate:
+    #     bp.obliviate()
+    # if params.randomize:
+    #     bp.randomize(args.secparam)
     if params.obfuscate:
         obf = Obfuscator(args.secparam, verbose=args.verbose,
                          parallel=args.parallel, ncpus=args.ncpus)
@@ -98,40 +100,41 @@ def ge(args):
         print('---- Output is something else')
 
 def obf(args):
-    obf = Obfuscator(args.secparam, verbose=args.verbose,
-                     parallel=args.parallel, ncpus=args.ncpus)
-    if args.load_obf is not None:
-        print("Loading obfuscation from '%s'..." % args.load_obf)
-        start = time.time()
-        obf.load(args.load_obf)
-        end = time.time()
-        print("Loading took: %f seconds" % (end - start))
-    elif args.load_circuit is not None:
-        print("Converting '%s' -> bp..." % args.load_circuit)
-        bp = BranchingProgram(args.load_circuit, type='circuit')
-        # bp.obliviate()
-        bp.randomize(args.secparam)
-        print('Obfuscating BP of length %d...' % len(bp))
-        start = time.time()
-        obf.obfuscate(bp)
-        end = time.time()
-        print("Obfuscation took: %f seconds" % (end - start))
-    elif args.test_circuit is not None:
-        params = TestParams(randomize=False, obfuscate=True)
+    if args.test_circuit:
+        params = TestParams(obliviate=False, randomize=False, obfuscate=True)
         test_circuit(args.test_circuit, args, params)
     else:
-        print('One of --load-obf, --load-circuit, --test-circuit must be used!')
-        sys.exit(1)
-    if args.save is not None:
-        print("Saving obfuscation to '%s'..." % args.save)
-        obf.save(args.save)
-    if args.eval is not None:
-        print("Evaluating on input '%s'..." % args.eval)
-        start = time.time()
-        r = obf.evaluate(args.eval)
-        print('Output = %d' % r)
-        end = time.time()
-        print("Evalution took: %f seconds" % (end - start))
+        obf = Obfuscator(args.secparam, verbose=args.verbose,
+                         parallel=args.parallel, ncpus=args.ncpus)
+        if args.load_obf is not None:
+            print("Loading obfuscation from '%s'..." % args.load_obf)
+            start = time.time()
+            obf.load(args.load_obf)
+            end = time.time()
+            print("Loading took: %f seconds" % (end - start))
+        elif args.load_circuit is not None:
+            print("Converting '%s' -> bp..." % args.load_circuit)
+            bp = BranchingProgram(args.load_circuit, type='circuit')
+            # bp.obliviate()
+            bp.randomize(args.secparam)
+            print('Obfuscating BP of length %d...' % len(bp))
+            start = time.time()
+            obf.obfuscate(bp)
+            end = time.time()
+            print("Obfuscation took: %f seconds" % (end - start))
+        else:
+            print('One of --load-obf, --load-circuit, --test-circuit must be used!')
+            sys.exit(1)
+        if args.save is not None:
+            print("Saving obfuscation to '%s'..." % args.save)
+            obf.save(args.save)
+        if args.eval is not None:
+            print("Evaluating on input '%s'..." % args.eval)
+            start = time.time()
+            r = obf.evaluate(args.eval)
+            print('Output = %d' % r)
+            end = time.time()
+            print("Evalution took: %f seconds" % (end - start))
 
 def main(argv):
     parser = argparse.ArgumentParser(
