@@ -38,10 +38,10 @@ def test_circuit(path, args, params):
     except ParseException as e:
         raise e
     program = bp
-    # if params.obliviate:
-    #     bp.obliviate()
-    # if params.randomize:
-    #     bp.randomize(args.secparam)
+    if params.obliviate:
+        bp.obliviate()
+    if params.randomize:
+        bp.randomize(args.secparam)
     if params.obfuscate:
         obf = Obfuscator(args.secparam, verbose=args.verbose,
                          parallel=args.parallel, ncpus=args.ncpus)
