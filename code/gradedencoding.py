@@ -144,19 +144,37 @@ class GradedEncoding(object):
         end = time.time()
         self.logger('  Generating elements: %f seconds' % (end - start))
         start = time.time()
-        r = CRT(elems, self.ps)
+        r = CRT_list(elems, self.ps)
         end = time.time()
         self.logger('  CRT: %f seconds' % (end - start))
         return r
 
     def encode_list(self, vals):
+        # _encode takes an index value as its first argument so we can recreate
+        # the proper ordering of the encoded values after parallelization
         @parallel(ncpus=self._ncpus)
-        def _encode(val, r):
+        def _encode(idx, val, r):
             with seed(r):
-                return self.encode(val)
+                return idx, self.encode(val)
+            # ms = [0] * self.n
+            # ms[0] = val
+            # assert val < self.gs[0], "Message must be smaller than g_0"
+            # elems = [(r * g + m) * self.zinv % p
+            #          for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
+            # return idx, CRT_list(elems, self.ps)
         self.logger('Encoding values %s' % vals)
+        indices = list(xrange(len(vals)))
+        # generate random values needed for encoding
         rs = [randint(0, 1 << 64) for _ in xrange(len(vals))]
-        es = list(_encode(zip(vals, rs)))
+        # min, max = 1 << self.rho - 1, (1 << self.rho) - 1
+        # rs = [[randint(min, max) for _ in xrange(num)] for _ in xrange(len(vals))]
+        # compute encoded values in parallel
+        es = list(_encode(zip(indices, vals, rs)))
+        # extract encoded values from parallelization output
+        es = [e for _, e in es]
+        # sort by indices
+        es.sort()
+        # return encoded values, ignoring indices
         return [e for _, e in es]
 
     def is_zero(self, c):
