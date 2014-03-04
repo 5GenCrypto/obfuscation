@@ -2,8 +2,7 @@
 
 from __future__ import print_function
 
-from sage.all import (CRT, inverse_mod, operator, parallel, power_mod, randint,
-                      random_prime, seed)
+from sage.all import *
 
 import math, sys, time
 import utils
@@ -35,9 +34,8 @@ class GradedEncoding(object):
         self.rho_f = self.kappa * (self.mu + self.rho + self.alpha + 2) + self.rho
         self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
-        # XXX: things appear to break when we use the real value for n.
-        # However, smaller values (e.g., n = eta) appear to work...
-        self.n = self.eta * 2
+        # XXX: use smaller n value for now to speed things up
+        self.n = self.eta
         # self.n = int(self.eta * math.log(self.secparam, 2))
 
     def _print_params(self):

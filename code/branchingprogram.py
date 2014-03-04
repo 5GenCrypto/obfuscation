@@ -2,7 +2,7 @@
 
 import utils
 
-from sage.all import GF, MatrixSpace, ZZ, random_prime
+from sage.all import *
 
 import itertools
 

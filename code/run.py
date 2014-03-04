@@ -7,7 +7,7 @@ from gradedencoding import GradedEncoding
 from obfuscator import Obfuscator
 import utils
 
-import sage
+from sage.all import *
 
 import argparse, os, sys, time
 
