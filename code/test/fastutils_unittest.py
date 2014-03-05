@@ -11,5 +11,5 @@ class DeviceTest(unittest.TestCase):
             primes = fastutils.genprimes(100, 100)
             print(primes);
         except ImportError as e:
-            self.Fail(str(e))
+            self.fail(str(e))
 
