@@ -1,5 +1,6 @@
 #include <Python.h>
 #include <gmp.h>
+#include <omp.h>
 
 static gmp_randstate_t rng;
 
@@ -9,40 +10,39 @@ fastutils_genprimes(PyObject *self, PyObject *args)
     const long int num;
     const long int bitlength;
     long int i;
-    mpz_t p_unif, p_tmp;
     PyObject *py_primes;
 
     if (!PyArg_ParseTuple(args, "ll", &num, &bitlength))
         return NULL;
 
-    mpz_init(p_tmp);
-    mpz_init(p_unif);
-    
     py_primes = PyList_New(num);
+    if (py_primes == NULL)
+        return NULL;
 
-/* #pragma omp parallel for private(p_tmp, p_unif) */
+#pragma omp parallel for private(i)
     for (i = 0; i < num; ++i) {
         char *buffer;
-        PyObject *ps_result;
-        PyObject *pi_result;
+        PyObject *ps_result, *pi_result;
+        mpz_t p_tmp, p_unif;
+
+        mpz_init(p_tmp);
+        mpz_init(p_unif);
 
         mpz_urandomb(p_unif, rng, bitlength);
         mpz_nextprime(p_tmp, p_unif);
-        buffer =  mpz_get_str(NULL, 10, p_tmp);
+        buffer = mpz_get_str(NULL, 10, p_tmp);
         ps_result = PyString_FromString(buffer);
+
+        free(buffer);
+        mpz_clear(p_tmp);
+        mpz_clear(p_unif);
+
         pi_result = PyNumber_Long(ps_result);
-/* #pragma omp critical */
+#pragma omp critical
         {
             PyList_SET_ITEM(py_primes, i, pi_result);
         }
-
-        free(buffer);
-        /* Py_DECREF(ps_result); */
-        /* Py_DECREF(pi_result); */
     }
-
-    mpz_clear(p_tmp);
-    mpz_clear(p_unif);
 
     return py_primes;
 }
