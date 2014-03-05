@@ -6,6 +6,7 @@ from sage.all import *
 
 import math, sys, time
 import utils
+import fastutils
 
 def genz(x0):
     while True:
@@ -55,7 +56,7 @@ class GradedEncoding(object):
         @parallel(ncpus=self._ncpus)
         def _random_prime(r):
             with seed(r):
-                return random_prime(bitlength)
+                return random_prime(bitlength, proof=False)
         if self._parallel:
             rs = [randint(0, 1 << 64) for _ in xrange(num)]
             ps = list(_random_prime(rs))
@@ -63,10 +64,11 @@ class GradedEncoding(object):
         else:
             return [random_prime(bitlength) for _ in xrange(num)]
 
-    def __init__(self, verbose=False, parallel=False, ncpus=1):
+    def __init__(self, verbose=False, parallel=False, ncpus=1, use_c=False):
         self._verbose = verbose
         self._parallel = parallel
         self._ncpus = ncpus
+        self._use_c = use_c
         self.logger = utils.make_logger(self._verbose)
 
     def load_system_params(self, secparam, kappa, x0, pzt):
@@ -83,8 +85,12 @@ class GradedEncoding(object):
 
         self.logger('Generating %d-bit primes p_i...' % self.eta)
         start = time.time()
-        primesize = (1 << self.eta) - 1
-        self.ps = self.genprimes(self.n, primesize)
+        if self._use_c:
+            self.ps = fastutils.genprimes(self.n, self.eta)
+            self.ps = [Integer(p) for p in self.ps]
+        else:
+            primesize = (1 << self.eta) - 1
+            self.ps = self.genprimes(self.n, primesize)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
@@ -102,8 +108,12 @@ class GradedEncoding(object):
 
         self.logger('Generating %d-bit primes g_i...' % self.alpha)
         start = time.time()
-        primesize = (1 << self.alpha) - 1
-        self.gs = self.genprimes(self.n, primesize)
+        if self._use_c:
+            self.gs = fastutils.genprimes(self.n, self.alpha)
+            self.gs = [Integer(p) for p in self.gs]
+        else:
+            primesize = (1 << self.alpha) - 1
+            self.gs = self.genprimes(self.n, primesize)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 

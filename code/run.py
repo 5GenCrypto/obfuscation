@@ -12,10 +12,11 @@ from sage.all import *
 import argparse, os, sys, time
 
 class TestParams(object):
-    def __init__(self, obliviate=False, randomize=False, obfuscate=False):
+    def __init__(self, obliviate=False, randomize=False, obfuscate=False, use_c=False):
         self.obliviate = obliviate
         self.randomize = randomize
         self.obfuscate = obfuscate
+        self.use_c = use_c
 
 def test_circuit(path, args, params):
     testcases = {}
@@ -44,7 +45,8 @@ def test_circuit(path, args, params):
         bp.randomize(args.secparam)
     if params.obfuscate:
         obf = Obfuscator(args.secparam, verbose=args.verbose,
-                         parallel=args.parallel, ncpus=args.ncpus)
+                         parallel=args.parallel, ncpus=args.ncpus,
+                         use_c=params.use_c)
         obf.obfuscate(bp)
         obf.save("%s.obf" % path)
         program = obf
@@ -101,11 +103,14 @@ def ge(args):
 
 def obf(args):
     if args.test_circuit:
-        params = TestParams(obliviate=False, randomize=False, obfuscate=True)
+        use_c = True if args.use_c else False
+        params = TestParams(obliviate=False, randomize=False, obfuscate=True,
+                            use_c=use_c)
         test_circuit(args.test_circuit, args, params)
     else:
         obf = Obfuscator(args.secparam, verbose=args.verbose,
-                         parallel=args.parallel, ncpus=args.ncpus)
+                         parallel=args.parallel, ncpus=args.ncpus,
+                         use_c=args.use_c)
         if args.load_obf is not None:
             print("Loading obfuscation from '%s'..." % args.load_obf)
             start = time.time()
@@ -192,6 +197,8 @@ def main(argv):
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int,
                              action='store', default=8, help="security parameter")
+    parser_obf.add_argument('--use-c', action='store_true',
+                            help="use C library")
     parser_obf.add_argument('-p', '--parallel', action='store_true',
                             help='use parallelization')
     parser_obf.add_argument('-v', '--verbose', action='store_true',

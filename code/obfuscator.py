@@ -36,18 +36,21 @@ class ObfLayer(object):
         return "%d\n%s\n%s" % (self.inp, self.I, self.J)
 
 class Obfuscator(object):
-    def __init__(self, secparam, verbose=False, parallel=False, ncpus=1):
+    def __init__(self, secparam, verbose=False, parallel=False, ncpus=1,
+                 use_c=False):
         self.ge = GradedEncoding(verbose=verbose, parallel=parallel,
-                                 ncpus=ncpus)
+                                 ncpus=ncpus, use_c=use_c)
         self.secparam = secparam
         self.obfuscation = None
         self._verbose = verbose
         self._parallel = parallel
+        self._use_c = use_c
         self.logger = utils.make_logger(self._verbose)
         self.logger('Obfuscation parameters:')
         self.logger('  Security Parameter: %d' % self.secparam)
         self.logger('  Parallel: %s' % self._parallel)
         self.logger('  Verbose: %s' % self._verbose)
+        self.logger('  Using C: %s' % self._use_c)
 
     def load(self, directory):
         assert self.obfuscation is None
