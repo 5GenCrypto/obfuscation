@@ -20,6 +20,7 @@ fastutils_genprimes(PyObject *self, PyObject *args)
     
     py_primes = PyList_New(num);
 
+/* #pragma omp parallel for private(p_tmp, p_unif) */
     for (i = 0; i < num; ++i) {
         char *buffer;
         PyObject *ps_result;
@@ -30,7 +31,10 @@ fastutils_genprimes(PyObject *self, PyObject *args)
         buffer =  mpz_get_str(NULL, 10, p_tmp);
         ps_result = PyString_FromString(buffer);
         pi_result = PyNumber_Long(ps_result);
-        PyList_SET_ITEM(py_primes, i, pi_result);
+/* #pragma omp critical */
+        {
+            PyList_SET_ITEM(py_primes, i, pi_result);
+        }
 
         free(buffer);
         /* Py_DECREF(ps_result); */

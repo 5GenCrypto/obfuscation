@@ -4,6 +4,8 @@ from setuptools import setup, Extension
 
 fastutils = Extension('fastutils',
                       libraries = ['gmp'],
+                      extra_compile_args=['-fopenmp'],
+                      extra_link_args=['-lgomp'],
                       sources = ['src/fastutils.c'])
 
 setup(name = 'FastUtils',
