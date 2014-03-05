@@ -9,7 +9,7 @@ class DeviceTest(unittest.TestCase):
         try:
             import fastutils
             primes = fastutils.genprimes(100, 100)
-            print(primes);
+            print(primes)
         except ImportError as e:
             self.fail(str(e))
 
