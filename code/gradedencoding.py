@@ -82,59 +82,77 @@ class GradedEncoding(object):
         self._set_params(secparam, kappa)
         if self._verbose:
             self._print_params()
-
-        self.logger('Generating %d-bit primes p_i...' % self.eta)
+            
+        self.logger('Generating parameters...')
         start = time.time()
         if self._use_c:
-            self.ps = fastutils.genprimes(self.n, self.eta)
-            self.ps = [Integer(p) for p in self.ps]
+            x0, ps, gs, z, zinv, pzt = \
+              fastutils.genparams(self.n, self.alpha, self.beta, self.eta, self.kappa)
+            self.x0 = Integer(x0)
+            self.ps = [Integer(p) for p in ps]
+            self.gs = [Integer(g) for g in gs]
+            self.z = Integer(z)
+            self.zinv = Integer(zinv)
+            self.pzt = Integer(pzt)
         else:
             primesize = (1 << self.eta) - 1
             self.ps = self.genprimes(self.n, primesize)
-        end = time.time()
-        self.logger('Took: %f seconds' % (end - start))
-
-        self.logger('Computing x0...')
-        start = time.time()
-        self.x0 = reduce(operator.mul, self.ps)
-        end = time.time()
-        self.logger('Took: %f seconds' % (end - start))
-
-        self.logger('Generating z...')
-        start = time.time()
-        self.z, self.zinv = genz(self.x0)
-        end = time.time()
-        self.logger('Took: %f seconds' % (end - start))
-
-        self.logger('Generating %d-bit primes g_i...' % self.alpha)
-        start = time.time()
-        if self._use_c:
-            self.gs = fastutils.genprimes(self.n, self.alpha)
-            self.gs = [Integer(p) for p in self.gs]
-        else:
+            self.x0 = reduce(operator.mul, self.ps)
             primesize = (1 << self.alpha) - 1
             self.gs = self.genprimes(self.n, primesize)
+            self.z, self.zinv = genz(self.x0)
+            zk = power_mod(self.z, self.kappa, self.x0)
+            x0ps = [self.x0 / p for p in self.ps]
+            gsis = [inverse_mod(g, p) for g, p in zip(self.gs, self.ps)]
+            self.pzt = sum(randint(0, (1 << self.beta) - 1) * zk * gsis[i] * x0ps[i]
+                           for i in xrange(self.n))
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
-        self.logger('Generating zero test element...')
-        start = time.time()
-        zk = power_mod(self.z, self.kappa, self.x0)
-        end = time.time()
-        self.logger('  Computing power_mod: %f seconds' % (end - start))
-        start = time.time()
-        x0ps = [self.x0 / p for p in self.ps]
-        end = time.time()
-        self.logger('  Computing x0 / p_i: %f seconds' % (end - start))
-        start = time.time()
-        gsis = [inverse_mod(g, p) for g, p in zip(self.gs, self.ps)]
-        end = time.time()
-        self.logger('  Computing inverse_mod: %f seconds' % (end - start))
-        start = time.time()
-        self.pzt = sum(randint(0, (1 << self.beta) - 1) * zk * gsis[i] * x0ps[i]
-                       for i in xrange(self.n))
-        end = time.time()
-        self.logger('  Computing pzt: %f seconds' % (end - start))
+        # self.logger('Generating %d-bit primes p_i...' % self.eta)
+        # start = time.time()
+        # primesize = (1 << self.eta) - 1
+        # self.ps = self.genprimes(self.n, primesize)
+        # end = time.time()
+        # self.logger('Took: %f seconds' % (end - start))
+
+        # self.logger('Computing x0...')
+        # start = time.time()
+        # self.x0 = reduce(operator.mul, self.ps)
+        # end = time.time()
+        # self.logger('Took: %f seconds' % (end - start))
+
+        # self.logger('Generating z...')
+        # start = time.time()
+        # self.z, self.zinv = genz(self.x0)
+        # end = time.time()
+        # self.logger('Took: %f seconds' % (end - start))
+
+        # self.logger('Generating %d-bit primes g_i...' % self.alpha)
+        # start = time.time()
+        # primesize = (1 << self.alpha) - 1
+        # self.gs = self.genprimes(self.n, primesize)
+        # end = time.time()
+        # self.logger('Took: %f seconds' % (end - start))
+
+        # self.logger('Generating zero test element...')
+        # start = time.time()
+        # zk = power_mod(self.z, self.kappa, self.x0)
+        # end = time.time()
+        # self.logger('  Computing power_mod: %f seconds' % (end - start))
+        # start = time.time()
+        # x0ps = [self.x0 / p for p in self.ps]
+        # end = time.time()
+        # self.logger('  Computing x0 / p_i: %f seconds' % (end - start))
+        # start = time.time()
+        # gsis = [inverse_mod(g, p) for g, p in zip(self.gs, self.ps)]
+        # end = time.time()
+        # self.logger('  Computing inverse_mod: %f seconds' % (end - start))
+        # start = time.time()
+        # self.pzt = sum(randint(0, (1 << self.beta) - 1) * zk * gsis[i] * x0ps[i]
+        #                for i in xrange(self.n))
+        # end = time.time()
+        # self.logger('  Computing pzt: %f seconds' % (end - start))
 
     def encode(self, val):
         self.logger('Encoding value %d' % val)
