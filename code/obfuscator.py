@@ -97,8 +97,8 @@ class Obfuscator(object):
         assert self.obfuscation is not None
         if not os.path.exists(directory):
             os.mkdir(directory)
-        self.ge.x0.save('%s/x0' % directory)
-        self.ge.pzt.save('%s/pzt' % directory)
+        Integer(self.ge.x0).save('%s/x0' % directory)
+        Integer(self.ge.pzt).save('%s/pzt' % directory)
         for idx, layer in enumerate(self.obfuscation):
             layer.save(directory, idx)
 

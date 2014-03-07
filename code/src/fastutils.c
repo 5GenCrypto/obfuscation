@@ -5,10 +5,6 @@
 #include "mpz_pylong.h"
 
 static gmp_randstate_t g_rng;
-/* static mpz_t *g_ps; */
-/* static mpz_t *g_gs; */
-/* static mpz_t g_zinv; */
-/* static long g_n, g_rho; */
 
 inline static PyObject *
 mpz_to_py(mpz_t x)
@@ -24,7 +20,7 @@ mpz_to_py(mpz_t x)
 }
 
 inline static void
-py_to_mpz(PyObject *in, mpz_t out)
+py_to_mpz(mpz_t out, PyObject *in)
 {
     (void) mpz_set_pylong(out, in);   
 }
@@ -37,6 +33,7 @@ genrandom(mpz_t rnd, long nbits)
     mpz_init_set_ui(one, 1 << (nbits - 1));
     mpz_init(rndtmp);
     mpz_urandomb(rndtmp, g_rng, nbits);
+    /* mpz_sub(rnd, rndtmp, one); */
     mpz_ior(rnd, rndtmp, one);
     mpz_clear(one);
     mpz_clear(rndtmp);
@@ -143,8 +140,8 @@ fastutils_genparams(PyObject *self, PyObject *args)
             mpz_init(g);
             mpz_init(p);
 
-            py_to_mpz(PyList_GET_ITEM(py_ps, i), p);
-            py_to_mpz(PyList_GET_ITEM(py_gs, i), g);
+            py_to_mpz(p, PyList_GET_ITEM(py_ps, i));
+            py_to_mpz(g, PyList_GET_ITEM(py_gs, i));
             mpz_invert(input, g, p);
             mpz_mul(tmp1, input, zkappa);
             mpz_mod(tmp2, tmp1, p);
@@ -192,95 +189,122 @@ fastutils_genparams(PyObject *self, PyObject *args)
 /*     return 0; */
 /* } */
 
-/* static PyObject * */
-/* fastutils_init(PyObject *self, PyObject *args) */
-/* { */
-/*     const long n; */
-/*     PyObject *py_ps, *py_gs, *py_zinv; */
-/*     int i; */
+static void
+crt(mpz_t out, mpz_t a, mpz_t b, mpz_t m, mpz_t n)
+{
+    mpz_t g, alpha, beta, q, r, tmp, tmp2;
 
-/*     if (!PyArg_ParseTuple(args, "lOOOl", &n, &py_ps, &py_gs, &py_zinv, &g_rho)) */
-/*         return NULL; */
+    mpz_init(g);
+    mpz_init(alpha);
+    mpz_init(beta);
+    mpz_init(q);
+    mpz_init(r);
+    mpz_init(tmp);
+    mpz_init(tmp2);
 
-/*     { */
-/*         int ps_len, gs_len; */
-/*         ps_len = PySequence_Size(py_ps); */
-/*         gs_len = PySequence_Size(py_gs); */
-/*         if (n != ps_len || n != gs_len) */
-/*             return NULL; */
-/*         g_n = n; */
-/*     } */
+    mpz_gcdext(g, alpha, beta, m, n);
+    mpz_sub(tmp, b, a);
+    mpz_cdiv_qr(q, r, tmp, g);
+    // TODO: check if r != 0
+    mpz_mul(tmp, q, alpha);
+    mpz_mul(tmp2, tmp, m);
+    mpz_add(tmp, a, tmp2);
+    mpz_lcm(tmp2, m, n);
 
-/*     g_ps = (mpz_t *) malloc(sizeof(mpz_t) * g_n); */
-/*     g_gs = (mpz_t *) malloc(sizeof(mpz_t) * g_n); */
-/*     for (i = 0; i < g_n; ++i) { */
-/*         mpz_init(g_ps[i]); */
-/*         mpz_init(g_gs[i]); */
-/*     } */
-/*     mpz_init(g_zinv); */
+    mpz_mod(out, tmp, tmp2);
 
-/*     (void) convert_list(g_n, py_ps, g_ps); */
-/*     (void) convert_list(g_n, py_gs, g_gs); */
+    mpz_clear(g);
+    mpz_clear(alpha);
+    mpz_clear(beta);
+    mpz_clear(q);
+    mpz_clear(r);
+    mpz_clear(tmp);
+    mpz_clear(tmp2);
+}
 
-/*     /\* mpz_init(result); *\/ */
+static PyObject *
+fastutils_encode(PyObject *self, PyObject *args)
+{
+    const long n, rho;
+    PyObject *py_msgs, *py_ps, *py_gs, *py_zinv, *py_out, *py_rs;
+    mpz_t zinv, x, m, xtmp, mtmp;
+    int i;
 
-/*     /\* for (i = 0; i < num; ++i) { *\/ */
-/*     /\*     res += (m[i] + g[i] * rnd) * zinv % p[i]; *\/ */
-/*     /\* } *\/ */
+    if (!PyArg_ParseTuple(args, "llOOOOO", &n, &rho, &py_msgs, &py_ps, &py_gs, &py_zinv, &py_rs))
+        return NULL;
 
-/*     /\* mpz_mod(res, res, x0); *\/ */
+    if (n != PySequence_Size(py_msgs)
+     || n != PySequence_Size(py_ps)
+     || n != PySequence_Size(py_gs))
+        return NULL;
 
-/*     return Py_BuildValue(""); */
-/* } */
+    mpz_init(zinv);
+    py_to_mpz(zinv, py_zinv);
 
-/* static PyObject * */
-/* fastutils_encode(PyObject *self, PyObject *args) */
-/* { */
-/*     PyObject *py_ms, *py_ms_seq; */
-/*     mpz_t *ms; */
-/*     mpz_t result, rnd; */
-/*     int i; */
+    mpz_init(x);
+    mpz_init(m);
+    mpz_init(xtmp);
+    mpz_init(mtmp);
 
-/*     if (!PyArg_ParseTuple(args, "O", &py_ms)) */
-/*         return NULL; */
+/* #pragma omp parallel for private(i) */
+    for (i = 0; i < n; ++i) {
+        mpz_t g, msg, p, r, tmp1, tmp2;
 
-/*     if (g_n != PySequence_Size(py_ms)) */
-/*         return NULL; */
+        mpz_init(g);
+        mpz_init(msg);
+        mpz_init(p);
+        mpz_init(r);
+        mpz_init(tmp1);
+        mpz_init(tmp2);
 
-/*     mpz_init(result); */
-/*     mpz_init(rnd); */
+        py_to_mpz(g, PyList_GET_ITEM(py_gs, i));
+        py_to_mpz(msg, PyList_GET_ITEM(py_msgs, i));
+        py_to_mpz(p, PyList_GET_ITEM(py_ps, i));
+        py_to_mpz(r, PyList_GET_ITEM(py_rs, i));
+        genrandom(r, rho);
+        mpz_addmul(msg, r, g);
+        mpz_mul(tmp1, msg, zinv);
+        mpz_mod(tmp2, tmp1, p);
+/* #pragma omp critical */
+        {
+            if (i == 0) {
+                mpz_set(x, tmp2);
+                mpz_set(m, p);
+            } else {
+                mpz_set(xtmp, x);
+                mpz_set(mtmp, m);
 
-/*     ms = (mpz_t *) malloc(sizeof(mpz_t) * g_n); */
-/*     py_ms_seq = PySequence_Fast(py_ms, "not a list"); */
-/*     for (i = 0; i < g_n; ++i) { */
-/*         mpz_init(ms[i]); */
-/*         (void) mpz_set_pylong(ms[i], PySequence_Fast_GET_ITEM(py_ms_seq, i)); */
-/*         genrandom(rnd, g_rho); */
-/*         /\* (ms[i] + g_gs[i] * rnd) * g_zinv; *\/ */
-/*     } */
-    
-/* } */
+                crt(x, x, tmp2, mtmp, p);
+                mpz_lcm(m, mtmp, p);
+            }
+        }
 
-/* static PyObject * */
-/* fastutils_clear(PyObject *self, PyObject *args) */
-/* { */
-/*     int i; */
+        mpz_clear(g);
+        mpz_clear(msg);
+        mpz_clear(p);
+        mpz_clear(r);
+        mpz_clear(tmp1);
+        mpz_clear(tmp2);
+    }
+    mpz_set(xtmp, x);
+    mpz_mod(x, xtmp, m);
 
-/*     for (i = 0; i < g_n; ++i) { */
-/*         mpz_clear(g_ps[i]); */
-/*         mpz_clear(g_gs[i]); */
-/*     } */
-/*     mpz_clear(g_zinv); */
-/* } */
+    py_out = mpz_to_py(x);
+
+    mpz_clear(x);
+    mpz_clear(m);
+    mpz_clear(xtmp);
+    mpz_clear(mtmp);
+
+    return py_out;
+}
 
 static PyMethodDef
 FastutilsMethods[] = {
-    /* {"init", fastutils_init, METH_VARARGS, */
-    /*  "TODO."}, */
-    /* {"genprimes", fastutils_genprimes, METH_VARARGS, */
-    /*  "Generate random primes."}, */
     {"genparams", fastutils_genparams, METH_VARARGS,
      "Generate MLM parameters."},
+    {"encode", fastutils_encode, METH_VARARGS,
+     "Encode vector."},
     {NULL, NULL, 0, NULL}
 };
 

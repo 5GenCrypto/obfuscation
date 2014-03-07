@@ -86,14 +86,8 @@ class GradedEncoding(object):
         self.logger('Generating parameters...')
         start = time.time()
         if self._use_c:
-            x0, ps, gs, z, zinv, pzt = \
+            self.x0, self.ps, self.gs, self.z, self.zinv, self.pzt = \
               fastutils.genparams(self.n, self.alpha, self.beta, self.eta, self.kappa)
-            self.x0 = Integer(x0)
-            self.ps = [Integer(p) for p in ps]
-            self.gs = [Integer(g) for g in gs]
-            self.z = Integer(z)
-            self.zinv = Integer(zinv)
-            self.pzt = Integer(pzt)
         else:
             primesize = (1 << self.eta) - 1
             self.ps = self.genprimes(self.n, primesize)
@@ -156,23 +150,32 @@ class GradedEncoding(object):
 
     def encode(self, val):
         self.logger('Encoding value %d' % val)
-        ms = [0] * self.n
-        ms[0] = val
         assert val < self.gs[0], "Message must be smaller than g_0"
-        min, max = 1 << self.rho - 1, (1 << self.rho) - 1
         start = time.time()
-        rs = [randint(min, max) for _ in xrange(self.n)]
+        ms = [long(0)] * self.n
+        ms[0] = long(val)
+        # min, max = 1 << self.rho - 1, (1 << self.rho) - 1
+        # rs = [long(randint(min, max)) for _ in xrange(self.n)]
+        rs = [0] * self.n
+        if self._use_c:
+            r = fastutils.encode(self.n, self.rho, ms, self.ps, self.gs, self.zinv, rs)
+        else:
+            min, max = 1 << self.rho - 1, (1 << self.rho) - 1
+            # start = time.time()
+            rs = [randint(min, max) for _ in xrange(self.n)]
+            # end = time.time()
+            # self.logger('  Generating r_i values: %f seconds' % (end - start))
+            # start = time.time()
+            elems = [(r * g + m) * self.zinv % p
+                    for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
+            # end = time.time()
+            # self.logger('  Generating elements: %f seconds' % (end - start))
+            # start = time.time()
+            r = CRT_list(elems, self.ps)
+            # end = time.time()
+            # self.logger('  CRT: %f seconds' % (end - start))
         end = time.time()
-        self.logger('  Generating r_i values: %f seconds' % (end - start))
-        start = time.time()
-        elems = [(r * g + m) * self.zinv % p
-                 for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
-        end = time.time()
-        self.logger('  Generating elements: %f seconds' % (end - start))
-        start = time.time()
-        r = CRT_list(elems, self.ps)
-        end = time.time()
-        self.logger('  CRT: %f seconds' % (end - start))
+        self.logger('Took: %f seconds' % (end - start))
         return r
 
     def encode_list(self, vals):
@@ -182,12 +185,6 @@ class GradedEncoding(object):
         def _encode(idx, val, r):
             with seed(r):
                 return idx, self.encode(val)
-            # ms = [0] * self.n
-            # ms[0] = val
-            # assert val < self.gs[0], "Message must be smaller than g_0"
-            # elems = [(r * g + m) * self.zinv % p
-            #          for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
-            # return idx, CRT_list(elems, self.ps)
         self.logger('Encoding values %s' % vals)
         indices = list(xrange(len(vals)))
         # generate random values needed for encoding

@@ -8,7 +8,11 @@ alpha = 16
 beta = 8
 eta = 360
 kappa = 4
+rho = 16
 n = 360
+
+ms = [0] * n
+ms[0] = 1
 
 class DeviceTest(unittest.TestCase):
     def runTest(self):
@@ -16,6 +20,8 @@ class DeviceTest(unittest.TestCase):
             import fastutils
             x0, ps, gs, z, zinv, pzt \
               = fastutils.genparams(n, alpha, beta, eta, kappa)
+            # r = fastutils.encode(n, rho, ms, ps, gs, zinv)
+            # print(r)
             # print(x0)
             # print(ps)
             # print(gs)
