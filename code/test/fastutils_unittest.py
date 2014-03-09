@@ -18,20 +18,7 @@ class DeviceTest(unittest.TestCase):
     def runTest(self):
         try:
             import fastutils
-            x0, ps, gs, z, zinv, pzt \
-              = fastutils.genparams(n, alpha, beta, eta, kappa)
-            # r = fastutils.encode(n, rho, ms, ps, gs, zinv)
-            # print(r)
-            # print(x0)
-            # print(ps)
-            # print(gs)
-            # print(z)
-            # print(zinv)
-            # print(pzt)
-            # fastutils.init(num, ps, gs, 0, 0)
-            # primes = fastutils.genprimes(100, 100)
-            # x0, primes = fastutils.genprimes(100, 100)
-            # print(primes)
+            x0, pzt = fastutils.genparams(n, alpha, beta, eta, kappa)
         except ImportError as e:
             self.fail(str(e))
 
