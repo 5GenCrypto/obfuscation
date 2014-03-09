@@ -106,16 +106,13 @@ class GradedEncoding(object):
 
     def encode(self, val):
         self.logger('Encoding value %d' % val)
-        # assert val < self.gs[0], "Message must be smaller than g_0"
         start = time.time()
         ms = [long(0)] * self.n
         ms[0] = long(val)
-        # min, max = 1 << self.rho - 1, (1 << self.rho) - 1
-        # rs = [long(randint(min, max)) for _ in xrange(self.n)]
-
         if self._use_c:
             r = fastutils.encode(self.rho, ms)
         else:
+            assert ms[0] < self.gs[0], "Message must be smaller than g_0"
             min, max = 1 << self.rho - 1, (1 << self.rho) - 1
             rs = [randint(min, max) for _ in xrange(self.n)]
             elems = [(r * g + m) * self.zinv % p
@@ -151,9 +148,6 @@ class GradedEncoding(object):
 
     def add(self, cs):
         return reduce(operator.add, cs) % self.x0
-
-    # def sub(self, cs):
-    #     return reduce(operator.sub, cs) % self.x0
 
     def mult(self, cs):
         return reduce(operator.mul, cs) % self.x0

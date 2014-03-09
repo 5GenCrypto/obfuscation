@@ -205,59 +205,51 @@ fastutils_encode(PyObject *self, PyObject *args)
 {
     const long rho;
     PyObject *py_msgs, *py_out;
-    mpz_t x, m, xtmp, mtmp;
+    mpz_t x, m;
     double start, end;
     int i;
 
     if (!PyArg_ParseTuple(args, "lO", &rho, &py_msgs))
         return NULL;
-
     if (n != PySequence_Size(py_msgs))
         return NULL;
+    // XXX: compare msgs[i] with gs[i]
 
     mpz_init(x);
     mpz_init(m);
-    mpz_init(xtmp);
-    mpz_init(mtmp);
 
     start = current_time();
 
 /* #pragma omp parallel for private(i) */
     for (i = 0; i < n; ++i) {
-        mpz_t  msg, r, tmp1, tmp2;
+        mpz_t msg, r, tmp;
 
         mpz_init(msg);
         mpz_init(r);
-        mpz_init(tmp1);
-        mpz_init(tmp2);
+        mpz_init(tmp);
 
         py_to_mpz(msg, PyList_GET_ITEM(py_msgs, i));
 
         genrandom(r, rho);
         mpz_addmul(msg, r, gs[i]);
-        mpz_mul(tmp1, msg, zinv);
-        mpz_mod(tmp2, tmp1, ps[i]);
+        mpz_mul(tmp, msg, zinv);
+        mpz_mod(tmp, tmp, ps[i]);
 /* #pragma omp critical */
         {
             if (i == 0) {
-                mpz_set(x, tmp2);
-                mpz_set(m, ps[i]);
+                mpz_set(x, tmp);
+                mpz_set(m, ps[0]);
             } else {
-                mpz_set(xtmp, x);
-                mpz_set(mtmp, m);
-
-                crt(x, x, tmp2, mtmp, ps[i]);
-                mpz_lcm(m, mtmp, ps[i]);
+                crt(x, x, tmp, m, ps[i]);
+                mpz_lcm(m, m, ps[i]);
             }
         }
 
         mpz_clear(msg);
         mpz_clear(r);
-        mpz_clear(tmp1);
-        mpz_clear(tmp2);
+        mpz_clear(tmp);
     }
-    mpz_set(xtmp, x);
-    mpz_mod(x, xtmp, m);
+    mpz_mod(x, x, m);
 
     end = current_time();
 
@@ -267,8 +259,6 @@ fastutils_encode(PyObject *self, PyObject *args)
 
     mpz_clear(x);
     mpz_clear(m);
-    mpz_clear(xtmp);
-    mpz_clear(mtmp);
 
     return py_out;
 }
