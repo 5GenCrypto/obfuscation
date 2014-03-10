@@ -36,8 +36,8 @@ class GradedEncoding(object):
         self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
         # XXX: use smaller n value for now to speed things up
-        # self.n = self.eta
-        self.n = int(self.eta * math.log(self.secparam, 2))
+        self.n = self.eta
+        # self.n = int(self.eta * math.log(self.secparam, 2))
 
     def _print_params(self):
         print('Graded Encoding Parameters:')
