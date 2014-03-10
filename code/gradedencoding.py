@@ -143,8 +143,11 @@ class GradedEncoding(object):
         return [e for _, e in es]
 
     def is_zero(self, c):
-        omega = (self.pzt * c) % self.x0
-        return abs(omega) < (self.x0 >> self.nu)
+        if self._use_c:
+            return fastutils.is_zero(long(c), self.nu)
+        else:
+            omega = (self.pzt * c) % self.x0
+            return abs(omega) < (self.x0 >> self.nu)
 
     def add(self, cs):
         return reduce(operator.add, cs) % self.x0
