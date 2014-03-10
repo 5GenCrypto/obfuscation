@@ -24,7 +24,7 @@ current_time(void)
 }
 
 inline static PyObject *
-mpz_to_py(mpz_t x)
+mpz_to_py(const mpz_t x)
 {
     PyObject *outs, *out;
     char *buffer;
@@ -43,7 +43,7 @@ py_to_mpz(mpz_t out, PyObject *in)
 }
 
 static void
-genrandom(mpz_t rnd, long nbits)
+genrandom(mpz_t rnd, const long nbits)
 {
     mpz_t one, rndtmp;
 
@@ -168,7 +168,7 @@ fastutils_genparams(PyObject *self, PyObject *args)
 }
 
 static void
-crt(mpz_t out, mpz_t a, mpz_t b, mpz_t m, mpz_t n)
+crt(mpz_t out, const mpz_t a, const mpz_t b, const mpz_t m, const mpz_t n)
 {
     mpz_t g, alpha, beta, q, r, tmp;
 
@@ -198,22 +198,12 @@ crt(mpz_t out, mpz_t a, mpz_t b, mpz_t m, mpz_t n)
     mpz_clear(tmp);
 }
 
-static PyObject *
-fastutils_encode(PyObject *self, PyObject *args)
+static void
+encode(mpz_t out, const mpz_t in, const long rho)
 {
-    const long rho;
-    PyObject *py_msgs, *py_out;
-    mpz_t x, m;
-    double start, end;
+    mpz_t m;
     int i;
 
-    if (!PyArg_ParseTuple(args, "lO", &rho, &py_msgs))
-        return NULL;
-    if (PySequence_Size(py_msgs) != g_n)
-        return NULL;
-    // XXX: compare msgs[i] with gs[i]
-
-    mpz_init(x);
     mpz_init(m);
 
     /* mpz_set_ui(x, 0); */
@@ -242,44 +232,87 @@ fastutils_encode(PyObject *self, PyObject *args)
 
     /* gmp_fprintf(stderr, "x = %Zd\n", x); */
 
+
+
 /* #pragma omp parallel for private(i) */
     for (i = 0; i < g_n; ++i) {
-        mpz_t msg, r;
+        mpz_t r, tmp;
 
-        mpz_init(msg);
         mpz_init(r);
-
-        py_to_mpz(msg, PyList_GET_ITEM(py_msgs, i));
+        mpz_init(tmp);
 
         genrandom(r, rho);
-        mpz_addmul(msg, r, g_gs[i]);
-        mpz_mul(msg, msg, g_zinv);
-        mpz_mod(msg, msg, g_ps[i]);
+        mpz_mul(tmp, r, g_gs[i]);
+        if (i == 0) {
+            mpz_add(tmp, tmp, in);
+        }
+        mpz_mul(tmp, tmp, g_zinv);
+        mpz_mod(tmp, tmp, g_ps[i]);
 /* #pragma omp critical */
         {
             if (i == 0) {
-                mpz_set(x, msg);
+                mpz_set(out, tmp);
                 mpz_set(m, g_ps[0]);
             } else {
-                crt(x, x, msg, m, g_ps[i]);
+                crt(out, out, tmp, m, g_ps[i]);
                 mpz_lcm(m, m, g_ps[i]);
             }
         }
 
-        mpz_clear(msg);
         mpz_clear(r);
     }
-    mpz_mod(x, x, m);
+    mpz_mod(out, out, m);
 
-/*     /\* fprintf(stderr, "***********************************\n"); *\/ */
-/*     /\* gmp_fprintf(stderr, "x_old = %Zd\n", x); *\/ */
-
-    py_out = mpz_to_py(x);
-
-    mpz_clear(x);
     mpz_clear(m);
+}
 
+static PyObject *
+fastutils_encode(PyObject *self, PyObject *args)
+{
+    const long rho;
+    PyObject *py_msg, *py_out;
+    mpz_t msg;
+
+    if (!PyArg_ParseTuple(args, "Ol", &py_msg, &rho))
+        return NULL;
+
+    mpz_init(msg);
+    py_to_mpz(msg, py_msg);
+    if (mpz_cmp(msg, g_gs[0]) >= 0)
+        return NULL;
+    encode(msg, msg, rho);
+    py_out = mpz_to_py(msg);
+    mpz_clear(msg);
     return py_out;
+}
+
+static PyObject *
+fastutils_encode_list(PyObject *self, PyObject *args)
+{
+    const long rho;
+    PyObject *py_vals, *py_outs;
+    Py_ssize_t i, len;
+
+    if (!PyArg_ParseTuple(args, "Ol", &py_vals, &rho))
+        return NULL;
+
+    len = PySequence_Size(py_vals);
+
+    if ((py_outs = PyList_New(len)) == NULL)
+        return NULL;
+
+#pragma omp parallel for private(i)
+    for (i = 0; i < len; ++i) {
+        mpz_t val;
+
+        mpz_init(val);
+        py_to_mpz(val, PyList_GET_ITEM(py_vals, i));
+        encode(val, val, rho);
+        PyList_SET_ITEM(py_outs, i, mpz_to_py(val));
+        mpz_clear(val);
+    }
+
+    return py_outs;
 }
 
 static PyObject *
@@ -321,7 +354,9 @@ FastutilsMethods[] = {
     {"genparams", fastutils_genparams, METH_VARARGS,
      "Generate MLM parameters."},
     {"encode", fastutils_encode, METH_VARARGS,
-     "Encode vector."},
+     "Encode a value."},
+    {"encode_list", fastutils_encode_list, METH_VARARGS,
+     "Encode a list of values."},
     {"is_zero", fastutils_is_zero, METH_VARARGS,
      "Zero test."},
     {NULL, NULL, 0, NULL}
@@ -333,5 +368,4 @@ initfastutils(void)
     (void) Py_InitModule("fastutils", FastutilsMethods);
 
     gmp_randinit_default(g_rng);
-    /* gmp_randseed_ui(g_rng, 1234);  /\* XXX: for testing! *\/ */
 }

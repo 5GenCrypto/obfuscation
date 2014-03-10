@@ -36,8 +36,8 @@ class GradedEncoding(object):
         self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
         # XXX: use smaller n value for now to speed things up
-        self.n = self.eta
-        # self.n = int(self.eta * math.log(self.secparam, 2))
+        # self.n = self.eta
+        self.n = int(self.eta * math.log(self.secparam, 2))
 
     def _print_params(self):
         print('Graded Encoding Parameters:')
@@ -107,11 +107,11 @@ class GradedEncoding(object):
     def encode(self, val):
         self.logger('Encoding value %d' % val)
         start = time.time()
-        ms = [long(0)] * self.n
-        ms[0] = long(val)
         if self._use_c:
-            r = fastutils.encode(self.rho, ms)
+            r = fastutils.encode(long(val), self.rho)
         else:
+            ms = [0] * self.n
+            ms[0] = val
             assert ms[0] < self.gs[0], "Message must be smaller than g_0"
             min, max = 1 << self.rho - 1, (1 << self.rho) - 1
             rs = [randint(min, max) for _ in xrange(self.n)]
@@ -123,24 +123,28 @@ class GradedEncoding(object):
         return r
 
     def encode_list(self, vals):
-        # _encode takes an index value as its first argument so we can recreate
-        # the proper ordering of the encoded values after parallelization
-        @parallel(ncpus=self._ncpus)
-        def _encode(idx, val, r):
-            with seed(r):
-                return idx, self.encode(val)
-        self.logger('Encoding values %s' % vals)
-        indices = list(xrange(len(vals)))
-        # generate random values needed for encoding
-        rs = [randint(0, 1 << 64) for _ in xrange(len(vals))]
-        # compute encoded values in parallel
-        es = list(_encode(zip(indices, vals, rs)))
-        # extract encoded values from parallelization output
-        es = [e for _, e in es]
-        # sort by indices
-        es.sort()
-        # return encoded values, ignoring indices
-        return [e for _, e in es]
+        if self._use_c:
+            vals = [long(val) for val in vals]
+            return fastutils.encode_list(vals, self.rho)
+        else:
+            # _encode takes an index value as its first argument so we can recreate
+            # the proper ordering of the encoded values after parallelization
+            @parallel(ncpus=self._ncpus)
+            def _encode(idx, val, r):
+                with seed(r):
+                    return idx, self.encode(val)
+            self.logger('Encoding values %s' % vals)
+            indices = list(xrange(len(vals)))
+            # generate random values needed for encoding
+            rs = [randint(0, 1 << 64) for _ in xrange(len(vals))]
+            # compute encoded values in parallel
+            es = list(_encode(zip(indices, vals, rs)))
+            # extract encoded values from parallelization output
+            es = [e for _, e in es]
+            # sort by indices
+            es.sort()
+            # return encoded values, ignoring indices
+            return [e for _, e in es]
 
     def is_zero(self, c):
         if self._use_c:

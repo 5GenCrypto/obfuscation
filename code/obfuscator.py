@@ -91,7 +91,11 @@ class Obfuscator(object):
 
     def obfuscate(self, bp):
         self.ge.gen_system_params(self.secparam, len(bp))
+        self.logger('Obfuscating...')
+        start = time.time()
         self.obfuscation = [self._obfuscate_layer(layer) for layer in bp]
+        end = time.time()
+        self.logger('Obfuscation took: %f seconds' % (end - start))
 
     def save(self, directory):
         assert self.obfuscation is not None
