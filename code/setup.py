@@ -1,7 +1,8 @@
 #!/usr/bin/env python2
 
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 
+__name__ = 'ind_obfuscation'
 __version__ = '1.0'
 
 fastutils = Extension(
@@ -13,10 +14,18 @@ fastutils = Extension(
                'src/mpz_pylong.c']
 )
 
-setup(name = 'IndObfuscation',
+setup(name = __name__,
       version = __version__,
-      description = 'Indistinguishability obfuscation',
       author = 'Alex J. Malozemoff',
-      packages = ['indobf', 'tests'],
-      test_suite = "tests.fastutils_unittest",
-      ext_modules = [fastutils])
+      description = 'Indistinguishability obfuscation',
+      packages = find_packages(),
+      ext_modules = [fastutils],
+      test_suite = 'tests',
+      classifiers = [
+          'Development Status :: 2 - Pre-Alpha',
+          'Environment :: Console',
+          'Frakework :: Sage',
+          'Topic :: Security :: Cryptography',
+          'License :: OSI Approved :: Free For Educational Use',
+      ],
+)
