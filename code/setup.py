@@ -2,16 +2,21 @@
 
 from setuptools import setup, Extension
 
-fastutils = Extension('fastutils',
-                      libraries = ['gmp', 'gomp'],
-                      extra_compile_args=['-fopenmp', '-g', '-Wall'],
-                      sources = ['src/fastutils.c',
-                                 'src/mpn_pylong.c',
-                                 'src/mpz_pylong.c'])
+__version__ = '1.0'
 
-setup(name = 'FastUtils',
-      version = '1.0',
-      description = 'Fast utilities',
+fastutils = Extension(
+    'fastutils',
+    libraries = ['gmp', 'gomp'],
+    extra_compile_args = ['-fopenmp', '-ggdb', '-Wall'],
+    sources = ['src/fastutils.c',
+               'src/mpn_pylong.c',
+               'src/mpz_pylong.c']
+)
+
+setup(name = 'IndObfuscation',
+      version = __version__,
+      description = 'Indistinguishability obfuscation',
       author = 'Alex J. Malozemoff',
-      test_suite = "test.fastutils_unittest",
+      packages = ['indobf', 'tests'],
+      test_suite = "tests.fastutils_unittest",
       ext_modules = [fastutils])

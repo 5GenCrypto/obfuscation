@@ -2,10 +2,10 @@
 
 from __future__ import print_function
 
-from branchingprogram import BranchingProgram, ParseException
-from gradedencoding import GradedEncoding
-from obfuscator import Obfuscator
-import utils
+from indobf.branchingprogram import BranchingProgram, ParseException
+from indobf.gradedencoding import GradedEncoding
+from indobf.obfuscator import Obfuscator
+import indobf.utils
 
 from sage.all import *
 
