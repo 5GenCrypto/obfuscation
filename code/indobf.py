@@ -12,11 +12,10 @@ from sage.all import *
 import argparse, os, sys, time
 
 class TestParams(object):
-    def __init__(self, obliviate=False, randomize=False, obfuscate=False, use_c=False):
+    def __init__(self, obliviate=False, randomize=False, obfuscate=False):
         self.obliviate = obliviate
         self.randomize = randomize
         self.obfuscate = obfuscate
-        self.use_c = use_c
 
 def test_circuit(path, args, params):
     testcases = {}
@@ -44,9 +43,7 @@ def test_circuit(path, args, params):
     if params.randomize:
         bp.randomize(args.secparam)
     if params.obfuscate:
-        obf = Obfuscator(args.secparam, verbose=args.verbose,
-                         parallel=args.parallel, ncpus=args.ncpus,
-                         use_c=params.use_c)
+        obf = Obfuscator(args.secparam, verbose=args.verbose)
         obf.obfuscate(bp)
         obf.save("%s.obf" % path)
         program = obf
@@ -81,13 +78,9 @@ def ge(args):
 
     kappa = ops.count('*') + 1
 
-    ge = GradedEncoding(verbose=args.verbose, parallel=args.parallel,
-                        ncpus=args.ncpus)
+    ge = GradedEncoding(verbose=args.verbose)
     ge.gen_system_params(args.secparam, kappa)
-    if args.parallel:
-        encvals = ge.encode_list(vals)
-    else:
-        encvals = [ge.encode(v) for v in vals]
+    encvals = ge.encode_list(vals)
     for op in ops:
         a, b = encvals.pop(0), encvals.pop(0)
         if op == '+':
@@ -103,14 +96,10 @@ def ge(args):
 
 def obf(args):
     if args.test_circuit:
-        use_c = True if args.use_c else False
-        params = TestParams(obliviate=False, randomize=False, obfuscate=True,
-                            use_c=use_c)
+        params = TestParams(obliviate=False, randomize=False, obfuscate=True)
         test_circuit(args.test_circuit, args, params)
     else:
-        obf = Obfuscator(args.secparam, verbose=args.verbose,
-                         parallel=args.parallel, ncpus=args.ncpus,
-                         use_c=args.use_c)
+        obf = Obfuscator(args.secparam, verbose=args.verbose)
         if args.load_obf is not None:
             print("Loading obfuscation from '%s'..." % args.load_obf)
             start = time.time()
@@ -167,13 +156,8 @@ def main(argv):
         help='commands for graded encoding')
     parser_ge.add_argument('formula', type=str, action='store',
                            help='formula to evaluate')
-    parser_ge.add_argument('--ncpus', metavar='N', type=int, action='store',
-                           default=sage.parallel.ncpus.ncpus(),
-                           help='number of CPUs to use (only used when --parallel flag set)')
     parser_ge.add_argument('--secparam', metavar='N', type=int,
                            action='store', default=8, help="security parameter")
-    parser_ge.add_argument('-p', '--parallel', action='store_true',
-                           help='use parallelization')
     parser_ge.add_argument('-v', '--verbose', action='store_true',
                            help='be verbose')
     parser_ge.set_defaults(func=ge)
@@ -182,9 +166,6 @@ def main(argv):
         'obf',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help='commands for obfuscating a circuit/branching program')
-    parser_obf.add_argument('--ncpus', metavar='N', type=int, action='store',
-                            default=sage.parallel.ncpus.ncpus(),
-                            help='number of CPUs to use (only used when --parallel flag set)')
     parser_obf.add_argument('--eval', metavar='INPUT', type=str, action='store',
                             help='evaluate obfuscation on INPUT')
     parser_obf.add_argument('--load-obf', metavar='DIR', type=str, action='store',
@@ -197,10 +178,6 @@ def main(argv):
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int,
                              action='store', default=8, help="security parameter")
-    parser_obf.add_argument('--use-c', action='store_true',
-                            help="use C library")
-    parser_obf.add_argument('-p', '--parallel', action='store_true',
-                            help='use parallelization')
     parser_obf.add_argument('-v', '--verbose', action='store_true',
                             help='be verbose')
     parser_obf.set_defaults(func=obf)

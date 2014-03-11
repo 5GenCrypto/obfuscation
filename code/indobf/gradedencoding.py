@@ -8,15 +8,6 @@ import math, sys, time
 import utils
 import fastutils
 
-def genz(x0):
-    while True:
-        z = randint(0, x0)
-        try:
-            zinv = inverse_mod(z, x0)
-            return z, zinv
-        except:
-            pass
-
 class GradedEncoding(object):
 
     def _set_params(self, secparam, kappa):
@@ -45,33 +36,15 @@ class GradedEncoding(object):
         print('  Rho: %d' % self.rho)
         print('  N: %d' % self.n)
 
-    def genprimes(self, num, bitlength):
-        @parallel(ncpus=self._ncpus)
-        def _random_prime(r):
-            with seed(r):
-                return random_prime(bitlength, proof=False)
-        if self._parallel:
-            rs = [randint(0, 1 << 64) for _ in xrange(num)]
-            ps = list(_random_prime(rs))
-            return [p for _, p in ps]
-        else:
-            return [random_prime(bitlength) for _ in xrange(num)]
-
-    def __init__(self, verbose=False, parallel=False, ncpus=1, use_c=False):
+    def __init__(self, verbose=False):
         self._verbose = verbose
-        self._parallel = parallel
-        self._ncpus = ncpus
-        self._use_c = use_c
         self.logger = utils.make_logger(self._verbose)
 
     def load_system_params(self, secparam, kappa, x0, pzt):
         self._set_params(secparam, kappa)
         if self._verbose:
             self._print_params()
-        self.x0 = x0
-        self.pzt = pzt
-        if self._use_c:
-            fastutils.loadparams(long(x0), long(pzt))
+        fastutils.loadparams(long(x0), long(pzt))
 
     def gen_system_params(self, secparam, kappa):
         self._set_params(secparam, kappa)
@@ -80,70 +53,22 @@ class GradedEncoding(object):
 
         self.logger('Generating parameters...')
         start = time.time()
-        if self._use_c:
-            self.x0, self.pzt = fastutils.genparams(self.n, self.alpha,
-                                                    self.beta, self.eta,
-                                                    self.kappa)
-        else:
-            primesize = (1 << self.eta) - 1
-            self.ps = self.genprimes(self.n, primesize)
-            self.x0 = reduce(operator.mul, self.ps)
-            primesize = (1 << self.alpha) - 1
-            self.gs = self.genprimes(self.n, primesize)
-            self.z, self.zinv = genz(self.x0)
-            zk = power_mod(self.z, self.kappa, self.x0)
-            x0ps = [self.x0 / p for p in self.ps]
-            gsis = [inverse_mod(g, p) for g, p in zip(self.gs, self.ps)]
-            self.pzt = sum(randint(0, (1 << self.beta) - 1) * zk * gsis[i] * x0ps[i]
-                           for i in xrange(self.n))
+        self.x0, self.pzt = fastutils.genparams(self.n, self.alpha, self.beta,
+                                                self.eta, self.kappa)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
     def encode(self, val):
         self.logger('Encoding value %d' % val)
         start = time.time()
-        if self._use_c:
-            r = fastutils.encode(long(val), self.rho)
-        else:
-            ms = [0] * self.n
-            ms[0] = val
-            assert ms[0] < self.gs[0], "Message must be smaller than g_0"
-            min, max = 1 << self.rho - 1, (1 << self.rho) - 1
-            rs = [randint(min, max) for _ in xrange(self.n)]
-            elems = [(r * g + m) * self.zinv % p
-                     for r, g, m, p in zip(rs, self.gs, ms, self.ps)]
-            r = CRT_list(elems, self.ps)
+        r = fastutils.encode(long(val), self.rho)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
         return r
 
     def encode_list(self, vals):
-        if self._use_c:
-            vals = [long(val) for val in vals]
-            return fastutils.encode_list(vals, self.rho)
-        else:
-            # _encode takes an index value as its first argument so we can recreate
-            # the proper ordering of the encoded values after parallelization
-            @parallel(ncpus=self._ncpus)
-            def _encode(idx, val, r):
-                with seed(r):
-                    return idx, self.encode(val)
-            self.logger('Encoding values %s' % vals)
-            indices = list(xrange(len(vals)))
-            # generate random values needed for encoding
-            rs = [randint(0, 1 << 64) for _ in xrange(len(vals))]
-            # compute encoded values in parallel
-            es = list(_encode(zip(indices, vals, rs)))
-            # extract encoded values from parallelization output
-            es = [e for _, e in es]
-            # sort by indices
-            es.sort()
-            # return encoded values, ignoring indices
-            return [e for _, e in es]
+        vals = [long(val) for val in vals]
+        return fastutils.encode_list(vals, self.rho)
 
     def is_zero(self, c):
-        if self._use_c:
-            return fastutils.is_zero(long(c), self.nu)
-        else:
-            omega = (self.pzt * c) % self.x0
-            return abs(omega) < (self.x0 >> self.nu)
+        return fastutils.is_zero(long(c), self.nu)

@@ -31,21 +31,14 @@ def save_obf(layer, directory, idx):
     layer.J.save('%s/%d.J' % (directory, idx))
 
 class Obfuscator(object):
-    def __init__(self, secparam, verbose=False, parallel=False, ncpus=1,
-                 use_c=False):
-        self.ge = GradedEncoding(verbose=verbose, parallel=parallel,
-                                 ncpus=ncpus, use_c=use_c)
+    def __init__(self, secparam, verbose=False):
+        self.ge = GradedEncoding(verbose=verbose)
         self.secparam = secparam
         self.obfuscation = None
         self._verbose = verbose
-        self._parallel = parallel
-        self._use_c = use_c
         self.logger = utils.make_logger(self._verbose)
         self.logger('Obfuscation parameters:')
         self.logger('  Security Parameter: %d' % self.secparam)
-        self.logger('  Parallel: %s' % self._parallel)
-        self.logger('  Verbose: %s' % self._verbose)
-        self.logger('  Using C: %s' % self._use_c)
 
     def save(self, directory):
         assert self.obfuscation is not None
@@ -76,7 +69,6 @@ class Obfuscator(object):
         m = ms2list(layer.I)
         m.extend(ms2list(layer.J))
         half = len(m) / 2
-        # es = [self.ge.encode(i) for i in m]
         es = self.ge.encode_list(m)
         I, J = MS(es[:half]), MS(es[half:])
         end = time.time()
