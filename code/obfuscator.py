@@ -6,7 +6,7 @@ from gradedencoding import GradedEncoding
 from branchingprogram import (BranchingProgram, MATRIX_LENGTH)
 import utils
 
-from sage.all import *
+from sage.all import flatten, Integer, load, MatrixSpace, ZZ
 
 import collections, os, sys, time
 
@@ -47,6 +47,15 @@ class Obfuscator(object):
         self.logger('  Verbose: %s' % self._verbose)
         self.logger('  Using C: %s' % self._use_c)
 
+    def save(self, directory):
+        assert self.obfuscation is not None
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+        Integer(self.ge.x0).save('%s/x0' % directory)
+        Integer(self.ge.pzt).save('%s/pzt' % directory)
+        for idx, layer in enumerate(self.obfuscation):
+            save_obf(layer, directory, idx)
+
     def load(self, directory):
         assert self.obfuscation is None
         x0 = load('%s/x0.sobj' % directory)
@@ -80,15 +89,6 @@ class Obfuscator(object):
         self.obfuscation = [self._obfuscate_layer(layer) for layer in bp]
         end = time.time()
         self.logger('Obfuscation took: %f seconds' % (end - start))
-
-    def save(self, directory):
-        assert self.obfuscation is not None
-        if not os.path.exists(directory):
-            os.mkdir(directory)
-        Integer(self.ge.x0).save('%s/x0' % directory)
-        Integer(self.ge.pzt).save('%s/pzt' % directory)
-        for idx, layer in enumerate(self.obfuscation):
-            save_obf(layer, directory, idx)
 
     def _mult_matrices(self, A, B):
         rows = []

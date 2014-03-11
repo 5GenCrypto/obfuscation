@@ -31,8 +31,9 @@ class GradedEncoding(object):
             self.alpha = secparam
         self.beta = secparam
         self.rho = 2 * secparam
-        self.mu = self.rho + self.alpha + self.secparam
-        self.rho_f = self.kappa * (self.mu + self.rho + self.alpha + 2) + self.rho
+        # self.mu = self.rho + self.alpha + self.secparam
+        # self.rho_f = self.kappa * (self.mu + self.rho + self.alpha + 2) + self.rho
+        self.rho_f = self.kappa * (self.rho + self.alpha)
         self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
         # XXX: use smaller n value for now to speed things up
@@ -46,7 +47,7 @@ class GradedEncoding(object):
         print('  Alpha: %d' % self.alpha)
         print('  Beta: %d' % self.beta)
         print('  Eta: %d' % self.eta)
-        print('  Mu: %d' % self.mu)
+        # print('  Mu: %d' % self.mu)
         print('  Nu: %d' % self.nu)
         print('  Rho: %d' % self.rho)
         print('  Rhof: %d' % self.rho_f)
