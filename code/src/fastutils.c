@@ -184,14 +184,10 @@ fastutils_loadparams(PyObject *self, PyObject *args)
 static void
 encode(mpz_t out, const mpz_t in, const long rho)
 {
-    mpz_t res, m;
-    mpz_t r, tmp;
-    
+    mpz_t res, r, tmp;
     int i;
 
     mpz_init(res);
-    mpz_init(m);
-
     mpz_init(r);
     mpz_init(tmp);
 
@@ -211,7 +207,9 @@ encode(mpz_t out, const mpz_t in, const long rho)
 
     mpz_set(out, res);
 
-    mpz_clear(m);
+    mpz_clear(res);
+    mpz_clear(r);
+    mpz_clear(tmp);
 }
 
 static PyObject *
