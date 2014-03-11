@@ -40,7 +40,7 @@ class GradedEncoding(object):
         # self.n = int(self.eta * math.log(self.secparam, 2))
 
     def _print_params(self):
-        print('Graded Encoding Parameters:')
+        print('Graded encoding parameters:')
         print('  Lambda: %d' % self.secparam)
         print('  Kappa: %d' % self.kappa)
         print('  Alpha: %d' % self.alpha)
@@ -77,6 +77,8 @@ class GradedEncoding(object):
             self._print_params()
         self.x0 = x0
         self.pzt = pzt
+        if self._use_c:
+            fastutils.loadparams(long(x0), long(pzt))
 
     def gen_system_params(self, secparam, kappa):
         self._set_params(secparam, kappa)

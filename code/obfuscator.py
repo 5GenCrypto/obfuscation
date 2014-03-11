@@ -8,7 +8,7 @@ import utils
 
 from sage.all import *
 
-import os, sys, time
+import collections, os, sys, time
 
 MS = MatrixSpace(ZZ, MATRIX_LENGTH)
 
@@ -17,23 +17,18 @@ def ms2list(m):
     m = [[int(e) for e in row] for row in m]
     return [int(e) for e in flatten(m)]
 
-class ObfLayer(object):
-    def __init__(self, inp, I, J):
-        self.inp = inp
-        self.I = I
-        self.J = J
-    @classmethod
-    def load(cls, directory, inp, I, J):
-        inp = load('%s/%s' % (directory, inp))
-        I = load('%s/%s' % (directory, I))
-        J = load('%s/%s' % (directory, J))
-        return cls(int(inp), I, J)
-    def save(self, directory, idx):
-        Integer(self.inp).save('%s/%d.input' % (directory, idx))
-        self.I.save('%s/%d.I' % (directory, idx))
-        self.J.save('%s/%d.J' % (directory, idx))
-    def __repr__(self):
-        return "%d\n%s\n%s" % (self.inp, self.I, self.J)
+ObfLayer = collections.namedtuple('ObfLayer', ['inp', 'I', 'J'])
+
+def load_obf(directory, inp, I, J):
+    inp = load('%s/%s' % (directory, inp))
+    I = load('%s/%s' % (directory, I))
+    J = load('%s/%s' % (directory, J))
+    return ObfLayer(int(inp), I, J)
+
+def save_obf(layer, directory, idx):
+    Integer(layer.inp).save('%s/%d.input' % (directory, idx))
+    layer.I.save('%s/%d.I' % (directory, idx))
+    layer.J.save('%s/%d.J' % (directory, idx))
 
 class Obfuscator(object):
     def __init__(self, secparam, verbose=False, parallel=False, ncpus=1,
@@ -56,37 +51,26 @@ class Obfuscator(object):
         assert self.obfuscation is None
         x0 = load('%s/x0.sobj' % directory)
         pzt = load('%s/pzt.sobj' % directory)
-        # REFACTOR: this is a mess
         files = os.listdir(directory)
-        files.remove('x0.sobj')
-        files.remove('pzt.sobj')
-        inputs = filter(lambda s: 'input' in s, files)
-        inputs.sort()
-        Is = filter(lambda s: 'I' in s, files)
-        Is.sort()
-        Js = filter(lambda s: 'J' in s, files)
-        Js.sort()
+        inputs = sorted(filter(lambda s: 'input' in s, files))
+        Is = sorted(filter(lambda s: 'I' in s, files))
+        Js = sorted(filter(lambda s: 'J' in s, files))
         # XXX: will the order be preserved for >= 10 layers?
-        self.obfuscation = [ObfLayer.load(directory, inp, I, J) for inp, I, J in
+        self.obfuscation = [load_obf(directory, inp, I, J) for inp, I, J in
                             zip(inputs, Is, Js)]
         self.ge.load_system_params(self.secparam, len(self.obfuscation), x0,
                                    pzt)
 
-    def _obfuscate_matrix(self, m):
-        m = ms2list(m)
-        self.logger('Obfuscating matrix %s' % m)
+    def _obfuscate_layer(self, layer):
+        self.logger('Obfuscating layer...')
         start = time.time()
-        if self._parallel:
-            m = self.ge.encode_list(m)
-        else:
-            m = [self.ge.encode(e) for e in m]
+        m = ms2list(layer.I)
+        m.extend(ms2list(layer.J))
+        half = len(m) / 2
+        es = self.ge.encode_list(m)
+        I, J = MS(es[:half]), MS(es[half:])
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
-        return MS(m)
-
-    def _obfuscate_layer(self, layer):
-        I = self._obfuscate_matrix(layer.I)
-        J = self._obfuscate_matrix(layer.J)
         return ObfLayer(layer.inp, I, J)
 
     def obfuscate(self, bp):
@@ -104,7 +88,7 @@ class Obfuscator(object):
         Integer(self.ge.x0).save('%s/x0' % directory)
         Integer(self.ge.pzt).save('%s/pzt' % directory)
         for idx, layer in enumerate(self.obfuscation):
-            layer.save(directory, idx)
+            save_obf(layer, directory, idx)
 
     def _mult_matrices(self, A, B):
         rows = []

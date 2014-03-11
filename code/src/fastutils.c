@@ -15,13 +15,13 @@ static mpz_t g_zinv;
 static mpz_t g_pzt;
 static mpz_t *g_crt_coeffs;
 
-static double
-current_time(void)
-{
-    struct timeval t;
-    gettimeofday(&t, NULL);
-    return (double) (t.tv_sec + (double) (t.tv_usec / 1000000.0));
-}
+/* static double */
+/* current_time(void) */
+/* { */
+/*     struct timeval t; */
+/*     gettimeofday(&t, NULL); */
+/*     return (double) (t.tv_sec + (double) (t.tv_usec / 1000000.0)); */
+/* } */
 
 inline static PyObject *
 mpz_to_py(const mpz_t x)
@@ -47,11 +47,9 @@ genrandom(mpz_t rnd, const long nbits)
 {
     mpz_t one, rndtmp;
 
-    /* mpz_set_ui(rnd, 1); */
     mpz_init_set_ui(one, 1 << (nbits - 1));
     mpz_init(rndtmp);
     mpz_urandomb(rndtmp, g_rng, nbits);
-    /* mpz_sub(rnd, rndtmp, one); */
     mpz_ior(rnd, rndtmp, one);
     mpz_clear(one);
     mpz_clear(rndtmp);
@@ -167,6 +165,20 @@ fastutils_genparams(PyObject *self, PyObject *args)
     return PyTuple_Pack(2, py_x0, py_pzt);
 }
 
+static PyObject *
+fastutils_loadparams(PyObject *self, PyObject *args)
+{
+    PyObject *py_x0, *py_pzt;
+
+    if (!PyArg_ParseTuple(args, "OO", &py_x0, &py_pzt))
+        return NULL;
+
+    py_to_mpz(g_x0, py_x0);
+    py_to_mpz(g_pzt, py_pzt);
+
+    Py_RETURN_NONE;
+}
+
 static void
 crt(mpz_t out, const mpz_t a, const mpz_t b, const mpz_t m, const mpz_t n)
 {
@@ -232,8 +244,6 @@ encode(mpz_t out, const mpz_t in, const long rho)
 
     /* gmp_fprintf(stderr, "x = %Zd\n", x); */
 
-
-
 /* #pragma omp parallel for private(i) */
     for (i = 0; i < g_n; ++i) {
         mpz_t r, tmp;
@@ -260,6 +270,7 @@ encode(mpz_t out, const mpz_t in, const long rho)
         }
 
         mpz_clear(r);
+        mpz_clear(tmp);
     }
     mpz_mod(out, out, m);
 
@@ -278,10 +289,14 @@ fastutils_encode(PyObject *self, PyObject *args)
 
     mpz_init(msg);
     py_to_mpz(msg, py_msg);
-    if (mpz_cmp(msg, g_gs[0]) >= 0)
-        return NULL;
+    if (mpz_cmp(msg, g_gs[0]) >= 0) {
+        py_out = NULL;
+        goto cleanup;
+    }
     encode(msg, msg, rho);
     py_out = mpz_to_py(msg);
+
+ cleanup:
     mpz_clear(msg);
     return py_out;
 }
@@ -301,7 +316,7 @@ fastutils_encode_list(PyObject *self, PyObject *args)
     if ((py_outs = PyList_New(len)) == NULL)
         return NULL;
 
-#pragma omp parallel for private(i)
+#pragma omp parallel for default(shared) private(i)
     for (i = 0; i < len; ++i) {
         mpz_t val;
 
@@ -353,6 +368,8 @@ static PyMethodDef
 FastutilsMethods[] = {
     {"genparams", fastutils_genparams, METH_VARARGS,
      "Generate MLM parameters."},
+    {"loadparams", fastutils_loadparams, METH_VARARGS,
+     "Load MLM parameters."},
     {"encode", fastutils_encode, METH_VARARGS,
      "Encode a value."},
     {"encode_list", fastutils_encode_list, METH_VARARGS,
