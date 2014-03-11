@@ -91,20 +91,9 @@ class Obfuscator(object):
         end = time.time()
         self.logger('Obfuscation took: %f seconds' % (end - start))
 
-    def _mult_matrices(self, A, B):
-        rows = []
-        for row in A:
-            elems = []
-            for col in B.transpose():
-                m = [self.ge.mult((row[i], col[i])) for i in xrange(MATRIX_LENGTH)]
-                a = self.ge.add(m)
-                elems.append(a)
-            rows.append(elems)
-        return MS(rows)
-
     def evaluate(self, inp):
         assert self.obfuscation is not None
         comp = MS.identity_matrix()
         for m in self.obfuscation:
-            comp = self._mult_matrices(comp, m.I if inp[m.inp] == '0' else m.J)
+            comp = comp * (m.I if inp[m.inp] == '0' else m.J)
         return 1 if self.ge.is_zero(comp[0][0]) else 0

@@ -22,18 +22,12 @@ class GradedEncoding(object):
     def _set_params(self, secparam, kappa):
         self.secparam = secparam
         self.kappa = kappa
-        if secparam <= 16:
-            # for small security parameters we need alpha = 2 * secparam,
-            # otherwise encoding fails due to message being smaller than the g_i
-            # values
-            self.alpha = secparam << 1
-        else:
-            self.alpha = secparam
+        self.alpha = secparam
         self.beta = secparam
         self.rho = 2 * secparam
-        mu = self.rho + self.alpha + self.secparam
-        rho_f = self.kappa * (mu + self.rho + self.alpha + 2) + self.rho
-        # rho_f = self.kappa * (self.rho + self.alpha + 2) + self.rho
+        # mu = self.rho + self.alpha + self.secparam
+        # rho_f = self.kappa * (mu + self.rho + self.alpha + 2) + self.rho
+        rho_f = self.kappa * (self.rho + self.alpha)
         self.eta = rho_f + self.alpha + 2 * self.beta + self.secparam + 8
         self.nu = self.eta - self.beta - rho_f - self.secparam - 3
         # XXX: use smaller n value for now to speed things up
@@ -153,9 +147,3 @@ class GradedEncoding(object):
         else:
             omega = (self.pzt * c) % self.x0
             return abs(omega) < (self.x0 >> self.nu)
-
-    def add(self, cs):
-        return reduce(operator.add, cs) % self.x0
-
-    def mult(self, cs):
-        return reduce(operator.mul, cs) % self.x0
