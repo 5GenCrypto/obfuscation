@@ -106,15 +106,17 @@ fastutils_genparams(PyObject *self, PyObject *args)
 
     // Generate CRT coefficients
     {
-        mpz_t q;
-        mpz_init(q);
 #pragma omp parallel for default(shared) private(i)
         for (i = 0; i < g_n; ++i) {
-            mpz_div(q, g_x0, g_ps[i]);
+            mpz_t q;
+            mpz_init(q);
+
+            mpz_tdiv_q(q, g_x0, g_ps[i]);
             mpz_invert(g_crt_coeffs[i], q, g_ps[i]);
             mpz_mul(g_crt_coeffs[i], g_crt_coeffs[i], q);
+
+            mpz_clear(q);
         }
-        mpz_clear(q);
     }
 
     // Generate z
@@ -180,99 +182,34 @@ fastutils_loadparams(PyObject *self, PyObject *args)
 }
 
 static void
-crt(mpz_t out, const mpz_t a, const mpz_t b, const mpz_t m, const mpz_t n)
+encode(mpz_t out, const mpz_t in, const long rho)
 {
-    mpz_t g, alpha, beta, q, r, tmp;
+    mpz_t res, m;
+    mpz_t r, tmp;
+    
+    int i;
 
-    mpz_init(g);
-    mpz_init(alpha);
-    mpz_init(beta);
-    mpz_init(q);
+    mpz_init(res);
+    mpz_init(m);
+
     mpz_init(r);
     mpz_init(tmp);
 
-    mpz_gcdext(g, alpha, beta, m, n);
-    mpz_sub(tmp, b, a);
-    mpz_cdiv_qr(q, r, tmp, g);
-    // TODO: check if r != 0
-    mpz_mul(tmp, q, alpha);
-    mpz_mul(tmp, tmp, m);
-    mpz_add(out, a, tmp);
-    mpz_lcm(tmp, m, n);
+    mpz_set_ui(res, 0);
 
-    mpz_mod(out, out, tmp);
-
-    mpz_clear(g);
-    mpz_clear(alpha);
-    mpz_clear(beta);
-    mpz_clear(q);
-    mpz_clear(r);
-    mpz_clear(tmp);
-}
-
-static void
-encode(mpz_t out, const mpz_t in, const long rho)
-{
-    mpz_t m;
-    int i;
-
-    mpz_init(m);
-
-    /* mpz_set_ui(x, 0); */
-
-    /* for (i = 0; i < n; ++i) { */
-    /*     mpz_t msg, r, tmp; */
-
-    /*     mpz_init(msg); */
-    /*     mpz_init(r); */
-    /*     mpz_init(tmp); */
-
-    /*     py_to_mpz(msg, PyList_GET_ITEM(py_msgs, i)); */
-    /*     /\* gmp_fprintf(stderr, "msg[%d] = %Zd\n", i, msg); *\/ */
-
-    /*     genrandom(r, rho); */
-    /*     mpz_addmul(msg, r, gs[i]); */
-    /*     mpz_mul(msg, msg, crt_coeffs[i]); */
-    /*     mpz_add(x, x, msg); */
-
-    /*     mpz_clear(msg); */
-    /*     mpz_clear(r); */
-    /*     mpz_clear(tmp); */
-    /* } */
-
-    /* mpz_mod(x, x, x0); */
-
-    /* gmp_fprintf(stderr, "x = %Zd\n", x); */
-
-/* #pragma omp parallel for private(i) */
     for (i = 0; i < g_n; ++i) {
-        mpz_t r, tmp;
-
-        mpz_init(r);
-        mpz_init(tmp);
-
         genrandom(r, rho);
         mpz_mul(tmp, r, g_gs[i]);
         if (i == 0) {
             mpz_add(tmp, tmp, in);
         }
-        mpz_mul(tmp, tmp, g_zinv);
-        mpz_mod(tmp, tmp, g_ps[i]);
-/* #pragma omp critical */
-        {
-            if (i == 0) {
-                mpz_set(out, tmp);
-                mpz_set(m, g_ps[0]);
-            } else {
-                crt(out, out, tmp, m, g_ps[i]);
-                mpz_lcm(m, m, g_ps[i]);
-            }
-        }
-
-        mpz_clear(r);
-        mpz_clear(tmp);
+        mpz_mul(tmp, tmp, g_crt_coeffs[i]);
+        mpz_add(res, res, tmp);
     }
-    mpz_mod(out, out, m);
+    mpz_mul(res, res, g_zinv);
+    mpz_mod(res, res, g_x0);
+
+    mpz_set(out, res);
 
     mpz_clear(m);
 }
@@ -316,7 +253,7 @@ fastutils_encode_list(PyObject *self, PyObject *args)
     if ((py_outs = PyList_New(len)) == NULL)
         return NULL;
 
-#pragma omp parallel for default(shared) private(i)
+#pragma omp parallel for private(i)
     for (i = 0; i < len; ++i) {
         mpz_t val;
 

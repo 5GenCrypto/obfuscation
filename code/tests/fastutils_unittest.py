@@ -19,8 +19,8 @@ class FastutilsTestCase(unittest.TestCase):
             x0, pzt = fastutils.genparams(n, alpha, beta, eta, kappa)
             zero = fastutils.encode(long(0), rho)
             one = fastutils.encode(long(1), rho)
-            assert fastutils.is_zero(zero, nu)
             assert not fastutils.is_zero(one, nu)
+            assert fastutils.is_zero(zero, nu)
         except ImportError as e:
             self.fail(str(e))
 

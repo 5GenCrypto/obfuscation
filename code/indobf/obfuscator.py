@@ -76,6 +76,7 @@ class Obfuscator(object):
         m = ms2list(layer.I)
         m.extend(ms2list(layer.J))
         half = len(m) / 2
+        # es = [self.ge.encode(i) for i in m]
         es = self.ge.encode_list(m)
         I, J = MS(es[:half]), MS(es[half:])
         end = time.time()
