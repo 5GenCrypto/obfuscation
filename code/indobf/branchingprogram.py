@@ -263,24 +263,16 @@ class BranchingProgram(object):
         self.bp = newbp
 
     def randomize(self, secparam):
-        # self.logger('randomizing with security parameter = %d' % secparam)
         p = random_prime((1 << secparam) - 1, lbound=(1 << secparam - 1))
-        # self.logger('prime = %d' % p)
         MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(p)), MATRIX_LENGTH)
         def random_matrix():
             while True:
                 m = MSZp.random_element()
                 if not m.is_singular():
                     return m, m.inverse()
-        # XXX: random bookend matrices don't work!  Run test-case on not.circuit
-        m0, m0i = MSZp.one(), MSZp.one()
-        # m0, m0i = random_matrix()
-        self.logger('old I = %s' % self.I)
-        self.I = G(m0 * MSZp(self.I) * m0i)
-        self.logger('new I = %s' % self.I)
-        self.logger('old C = %s' % self.C)
-        self.C = G(m0 * MSZp(self.C) * m0i)
-        self.logger('new C = %s' % self.C)
+        m0, m0i = random_matrix()
+        self.I = m0 * MSZp(self.I) * m0i
+        self.C = m0 * MSZp(self.C) * m0i
         self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
         for i in xrange(1, len(self.bp)):
             mi, mii = random_matrix()
@@ -293,7 +285,6 @@ class BranchingProgram(object):
         comp = self._group.identity_matrix()
         for m in self.bp:
             comp = comp * (m.I if inp[m.inp] == '0' else m.J)
-        comp = G(comp)
         if comp == self.I:
             return 0
         elif comp == self.C:
