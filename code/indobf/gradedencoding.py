@@ -16,9 +16,9 @@ class GradedEncoding(object):
         self.alpha = secparam
         self.beta = secparam
         self.rho = secparam
-        # mu = self.rho + self.alpha + self.secparam
-        # self.rho_f = self.kappa * (mu + self.rho + self.alpha + 2) + self.rho
-        self.rho_f = self.kappa * (self.rho + self.alpha)
+        mu = self.rho + self.alpha + self.secparam
+        self.rho_f = self.kappa * (mu + self.rho + self.alpha + 2) + self.rho
+        # self.rho_f = self.kappa * (self.rho + self.alpha)
         self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
         assert self.nu >= self.alpha + self.beta + 5
@@ -69,6 +69,7 @@ class GradedEncoding(object):
         return r
 
     def encode_list(self, vals):
+        self.logger('Encoding values %s' % vals)
         vals = [long(val) for val in vals]
         return fastutils.encode_list(vals, self.rho)
 

@@ -30,7 +30,8 @@ def test_circuit(path, secparam, verbose, params):
     try:
         bp = BranchingProgram(path, type='circuit', verbose=verbose)
     except ParseException as e:
-        raise e
+        print('\x1b[33mParse Error:\x1b[0m %s' % e)
+        return False
     program = bp
     if params.obliviate:
         bp.obliviate()

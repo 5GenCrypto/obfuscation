@@ -5,7 +5,7 @@ from __future__ import print_function
 from indobf.branchingprogram import BranchingProgram
 from indobf.gradedencoding import GradedEncoding
 from indobf.obfuscator import Obfuscator
-import indobf.utils, indobf.test
+from indobf.test import TestParams, test_circuit
 
 from sage.all import *
 
@@ -13,13 +13,13 @@ import argparse, os, sys, time
 
 def bp(args):
     testdir = 'circuits'
-    params = indobf.test.TestParams(obliviate=True, randomize=True)
-    if args.test is not None:
-        indobf.test.test_circuit(args.test, args.secparam, args.verbose, params)
+    params = TestParams(obliviate=True, randomize=args.randomize)
+    if args.test_circuit:
+        test_circuit(args.test_circuit, args.secparam, args.verbose, params)
     if args.test_all:
         for circuit in os.listdir('circuits'):
             path = os.path.join(testdir, circuit)
-            indobf.test.test_circuit(path, args.secparam, args.verbose, params)
+            test_circuit(path, args.secparam, args.verbose, params)
 
 def ge(args):
     fargs = args.formula.split()
@@ -52,8 +52,9 @@ def ge(args):
 
 def obf(args):
     if args.test_circuit:
-        params = indobf.test.TestParams(obliviate=False, randomize=False, obfuscate=True)
-        indobf.test.test_circuit(args.test_circuit, args.secparam, args.verbose, params)
+        params = TestParams(obliviate=False, randomize=args.randomize,
+                            obfuscate=True)
+        test_circuit(args.test_circuit, args.secparam, args.verbose, params)
     else:
         obf = Obfuscator(args.secparam, verbose=args.verbose)
         if args.load_obf is not None:
@@ -96,12 +97,14 @@ def main(argv):
         'bp',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help='commands for circuit -> branching program conversion')
-    parser_bp.add_argument('--test', metavar='FILE', type=str, action='store',
+    parser_bp.add_argument('--test-circuit', metavar='FILE', type=str, action='store',
                            help='test FILE circuit -> bp conversion')
     parser_bp.add_argument('--test-all', action='store_true',
                            help='test circuit -> bp conversion')
     parser_bp.add_argument('--secparam', metavar='N', type=int,
                            action='store', default=8, help="security parameter")
+    parser_bp.add_argument('--randomize', action='store_true',
+                           help='randomize branching program')
     parser_bp.add_argument('-v', '--verbose', action='store_true',
                            help='be verbose')
     parser_bp.set_defaults(func=bp)
@@ -130,6 +133,8 @@ def main(argv):
                             help='load circuit from FILE and obfuscate')
     parser_obf.add_argument('--test-circuit', metavar='FILE', type=str, action='store',
                             help='test FILE -> obfuscation')
+    parser_obf.add_argument('--randomize', action='store_true',
+                            help='randomize branching program')
     parser_obf.add_argument('--save', metavar='DIR', type=str, action='store',
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int,
