@@ -43,14 +43,31 @@ py_to_mpz(mpz_t out, PyObject *in)
 }
 
 static void
-genrandom(mpz_t rnd, const long nbits)
+mpz_mod_near(mpz_t out, mpz_t a, mpz_t b)
+{
+    mpz_t tmp;
+
+    mpz_init(tmp);
+    mpz_mod(out, a, b);
+    mpz_tdiv_q_2exp(tmp, b, 1);
+    if (mpz_cmp(out, tmp) < 0) {
+        mpz_sub(out, out, b);
+    }
+    mpz_clear(tmp);
+}
+
+static void
+mpz_genrandom(mpz_t rnd, const long nbits)
 {
     mpz_t one, rndtmp;
 
     mpz_init_set_ui(one, 1 << (nbits - 1));
     mpz_init(rndtmp);
+
     mpz_urandomb(rndtmp, g_rng, nbits);
+    /* mpz_sub(rnd, rndtmp, one); */
     mpz_ior(rnd, rndtmp, one);
+
     mpz_clear(one);
     mpz_clear(rndtmp);
 }
@@ -88,9 +105,10 @@ fastutils_genparams(PyObject *self, PyObject *args)
 
             mpz_init(p_unif);
 
+            // XXX: not uniform primes
             mpz_urandomb(p_unif, g_rng, eta);
             mpz_nextprime(g_ps[i], p_unif);
-
+            // XXX: not uniform primes
             mpz_urandomb(p_unif, g_rng, alpha);
             mpz_nextprime(g_gs[i], p_unif);
             
@@ -130,6 +148,7 @@ fastutils_genparams(PyObject *self, PyObject *args)
 
         mpz_init_set_ui(zkappa, 1);
 
+        // Compute z^k
         for (i = 0; i < kappa; ++i) {
             mpz_mul(zkappa, zkappa, g_z);
             mpz_mod(zkappa, zkappa, g_x0);
@@ -143,10 +162,11 @@ fastutils_genparams(PyObject *self, PyObject *args)
             mpz_init(tmp);
             mpz_init(rnd);
 
+            // Compute (((g_i)^{-1} mod p_i) * z^k mod p_i) * r_i * (x_0 / p_i)
             mpz_invert(input, g_gs[i], g_ps[i]);
             mpz_mul(input, input, zkappa);
             mpz_mod(input, input, g_ps[i]);
-            genrandom(rnd, beta);
+            mpz_genrandom(rnd, beta);
             mpz_mul(input, input, rnd);
             mpz_div(tmp, g_x0, g_ps[i]);
             mpz_mul(input, input, tmp);
@@ -159,6 +179,8 @@ fastutils_genparams(PyObject *self, PyObject *args)
             mpz_clear(tmp);
             mpz_clear(rnd);
         }
+        mpz_mod(g_pzt, g_pzt, g_x0);
+
         py_pzt = mpz_to_py(g_pzt);
 
         mpz_clear(zkappa);
@@ -194,7 +216,7 @@ encode(mpz_t out, const mpz_t in, const long rho)
     mpz_set_ui(res, 0);
 
     for (i = 0; i < g_n; ++i) {
-        genrandom(r, rho);
+        mpz_genrandom(r, rho);
         mpz_mul(tmp, r, g_gs[i]);
         if (i == 0) {
             mpz_add(tmp, tmp, in);

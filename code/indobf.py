@@ -2,68 +2,24 @@
 
 from __future__ import print_function
 
-from indobf.branchingprogram import BranchingProgram, ParseException
+from indobf.branchingprogram import BranchingProgram
 from indobf.gradedencoding import GradedEncoding
 from indobf.obfuscator import Obfuscator
-import indobf.utils
+import indobf.utils, indobf.test
 
 from sage.all import *
 
 import argparse, os, sys, time
 
-class TestParams(object):
-    def __init__(self, obliviate=False, randomize=False, obfuscate=False):
-        self.obliviate = obliviate
-        self.randomize = randomize
-        self.obfuscate = obfuscate
-
-def test_circuit(path, args, params):
-    testcases = {}
-    print('Testing %s: ' % path, end='')
-    if args.verbose:
-        print()
-    with open(path) as f:
-        for line in f:
-            if line.startswith('#'):
-                if 'TEST' in line:
-                    _, _, inp, outp = line.split()
-                    testcases[inp] = int(outp)
-            else:
-                continue
-    if len(testcases) == 0:
-        print('no test cases')
-        return
-    try:
-        bp = BranchingProgram(path, type='circuit', verbose=args.verbose)
-    except ParseException as e:
-        raise e
-    program = bp
-    if params.obliviate:
-        bp.obliviate()
-    if params.randomize:
-        bp.randomize(args.secparam)
-    if params.obfuscate:
-        obf = Obfuscator(args.secparam, verbose=args.verbose)
-        obf.obfuscate(bp)
-        obf.save("%s.obf" % path)
-        program = obf
-    failed = False
-    for k, v in testcases.items():
-        if program.evaluate(k) != v:
-            print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
-            failed = True
-    if not failed:
-        print('\x1b[32mPass\x1b[0m')
-
 def bp(args):
     testdir = 'circuits'
-    params = TestParams(obliviate=True, randomize=True)
+    params = indobf.test.TestParams(obliviate=True, randomize=True)
     if args.test is not None:
-        test_circuit(args.test, args, params)
+        indobf.test.test_circuit(args.test, args.secparam, args.verbose, params)
     if args.test_all:
         for circuit in os.listdir('circuits'):
             path = os.path.join(testdir, circuit)
-            test_circuit(path, args, params)
+            indobf.test.test_circuit(path, args.secparam, args.verbose, params)
 
 def ge(args):
     fargs = args.formula.split()
@@ -96,8 +52,8 @@ def ge(args):
 
 def obf(args):
     if args.test_circuit:
-        params = TestParams(obliviate=False, randomize=False, obfuscate=True)
-        test_circuit(args.test_circuit, args, params)
+        params = indobf.test.TestParams(obliviate=False, randomize=False, obfuscate=True)
+        indobf.test.test_circuit(args.test_circuit, args.secparam, args.verbose, params)
     else:
         obf = Obfuscator(args.secparam, verbose=args.verbose)
         if args.load_obf is not None:

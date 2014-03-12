@@ -15,12 +15,13 @@ class GradedEncoding(object):
         self.kappa = kappa
         self.alpha = secparam
         self.beta = secparam
-        self.rho = 2 * secparam
+        self.rho = secparam
         # mu = self.rho + self.alpha + self.secparam
-        # rho_f = self.kappa * (mu + self.rho + self.alpha + 2) + self.rho
-        rho_f = self.kappa * (self.rho + self.alpha)
-        self.eta = rho_f + self.alpha + 2 * self.beta + self.secparam + 8
-        self.nu = self.eta - self.beta - rho_f - self.secparam - 3
+        # self.rho_f = self.kappa * (mu + self.rho + self.alpha + 2) + self.rho
+        self.rho_f = self.kappa * (self.rho + self.alpha)
+        self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
+        self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
+        assert self.nu >= self.alpha + self.beta + 5
         # XXX: use smaller n value for now to speed things up
         self.n = self.eta
         # self.n = int(self.eta * math.log(self.secparam, 2))
@@ -34,6 +35,7 @@ class GradedEncoding(object):
         print('  Eta: %d' % self.eta)
         print('  Nu: %d' % self.nu)
         print('  Rho: %d' % self.rho)
+        print('  Rho_f: %d' % self.rho_f)
         print('  N: %d' % self.n)
 
     def __init__(self, verbose=False):

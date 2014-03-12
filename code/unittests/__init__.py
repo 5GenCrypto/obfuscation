@@ -2,8 +2,6 @@
 
 import unittest
 
-import fastutils_unittest
-
 def suite():
     suite = unittest.TestSuite()
     suite.addTests(fastutils_unittest.suite())

@@ -1,50 +1,51 @@
 #!/usr/bin/env sage -python
 
 from __future__ import print_function
-import unittest
-import doctest
 
-from sage.all import *
+from indobf.branchingprogram import BranchingProgram, ParseException
+from indobf.obfuscator import Obfuscator
 
-alpha = 16
-beta = 8
-eta = 138
-kappa = 1
-rho = 16
-n = 138
+class TestParams(object):
+    def __init__(self, obliviate=False, randomize=False, obfuscate=False):
+        self.obliviate = obliviate
+        self.randomize = randomize
+        self.obfuscate = obfuscate
 
-ms = [long(1)] * n
-    
-def crt(a, b, m, n):
-    g, alpha, beta = XGCD(m, n)
-    q, r = Integer(b - a).quo_rem(g)
-    if r != 0:
-        raise ValueError("No solution to crt problem since gcd(%s,%s) does not divide %s-%s" % (
-m, n, a, b))
-    out = (a + q*alpha*m) % lcm(m, n)
-    return out
-
-def crt_list(v, moduli):
-    x = v[0]
-    m = moduli[0]
-    for i in range(1,len(v)):
-        x = crt(x,v[i],m,moduli[i])
-        m = lcm(m,moduli[i])
-        if i == 1:
-            print("x[1] = %d" % x)
-            print("m[1] = %d" % m)
-    return x%m
-
-import fastutils
-x0, ps, gs, z, zinv, pzt \
-  = fastutils.genparams(n, alpha, beta, eta, kappa)
-
-min, max = 1 << rho - 1, (1 << rho) - 1
-rs = [randint(min, max) for _ in xrange(n)]
-rs = [long(r) for r in rs]
-elems = [(r * g + m) * zinv % p for r, g, m, p in zip(rs, gs, ms, ps)]
-
-r_py = crt_list(elems, ps)
-print("*" * 90)
-r_c = fastutils.encode(n, rho, ms, ps, gs, zinv, rs)
-assert r_c == r_py
+def test_circuit(path, secparam, verbose, params):
+    testcases = {}
+    print('Testing %s: ' % path, end='')
+    if verbose:
+        print()
+    with open(path) as f:
+        for line in f:
+            if line.startswith('#'):
+                if 'TEST' in line:
+                    _, _, inp, outp = line.split()
+                    testcases[inp] = int(outp)
+            else:
+                continue
+    if len(testcases) == 0:
+        print('no test cases')
+        return
+    try:
+        bp = BranchingProgram(path, type='circuit', verbose=verbose)
+    except ParseException as e:
+        raise e
+    program = bp
+    if params.obliviate:
+        bp.obliviate()
+    if params.randomize:
+        bp.randomize(secparam)
+    if params.obfuscate:
+        obf = Obfuscator(secparam, verbose=verbose)
+        obf.obfuscate(bp)
+        obf.save("%s.obf" % path)
+        program = obf
+    success = True
+    for k, v in testcases.items():
+        if program.evaluate(k) != v:
+            print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
+            success = False
+    if success:
+        print('\x1b[32mPass\x1b[0m')
+    return success

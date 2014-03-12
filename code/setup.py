@@ -21,7 +21,7 @@ setup(name = __name__,
       url = 'https://github.com/amaloz/ind-obfuscation',
       packages = find_packages(),
       ext_modules = [fastutils],
-      test_suite = 'tests',
+      test_suite = 'unittests',
       classifiers = [
           'Development Status :: 2 - Pre-Alpha',
           'Environment :: Console',
