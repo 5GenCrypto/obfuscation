@@ -38,13 +38,12 @@ def test_circuit(path, secparam, verbose, params):
     if params.obliviate:
         bp.obliviate()
     if params.randomize:
-        prime = random_prime((1 << secparam) - 1, lbound=(1 << secparam - 1))
-        bp.randomize(prime)
+        bp.randomize(secparam)
     else:
         prime = None
     if params.obfuscate:
         obf = Obfuscator(secparam, verbose=verbose)
-        obf.obfuscate(bp, g0=prime)
+        obf.obfuscate(bp)
         obf.save("%s.obf" % path)
         program = obf
     success = True

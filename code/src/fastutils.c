@@ -62,34 +62,36 @@ mpz_genrandom(mpz_t rnd, const long nbits)
 static PyObject *
 fastutils_genparams(PyObject *self, PyObject *args)
 {
-    const long alpha, beta, eta, kappa;
+    const long alpha, beta, eta, kappa, nzs;
     long i;
     PyObject *py_x0, *py_pzt, *py_g0;
 
-    if (!PyArg_ParseTuple(args, "lllllO", &g_n, &alpha, &beta, &eta, &kappa,
-                          &py_g0))
+    if (!PyArg_ParseTuple(args, "llllllO", &g_n, &alpha, &beta, &eta, &kappa,
+                          &nzs, &py_g0))
         return NULL;
 
     mpz_init_set_ui(g_x0, 1);
-    /* mpz_init(g_z); */
     mpz_init_set_ui(g_pzt, 0);
 
+    // XXX: never free'd
     g_ps = (mpz_t *) malloc(sizeof(mpz_t) * g_n);
     g_gs = (mpz_t *) malloc(sizeof(mpz_t) * g_n);
     g_crt_coeffs = (mpz_t *) malloc(sizeof(mpz_t) * g_n);
-    g_zs = (mpz_t *) malloc(sizeof(mpz_t) * kappa);
-    g_zinvs = (mpz_t *) malloc(sizeof(mpz_t) * kappa);
-    // XXX: never free'd
     if (g_ps == NULL || g_gs == NULL || g_crt_coeffs == NULL)
         return NULL;
+
+    g_zs = (mpz_t *) malloc(sizeof(mpz_t) * nzs);
+    g_zinvs = (mpz_t *) malloc(sizeof(mpz_t) * nzs);
     if (g_zs == NULL || g_zinvs == NULL)
         return NULL;
+
     for (i = 0; i < g_n; ++i) {
         mpz_init(g_ps[i]);
         mpz_init(g_gs[i]);
         mpz_init(g_crt_coeffs[i]);
     }
-    for (i = 0; i < kappa; ++i) {
+
+    for (i = 0; i < nzs; ++i) {
         mpz_init(g_zs[i]);
         mpz_init(g_zinvs[i]);
     }
@@ -140,16 +142,11 @@ fastutils_genparams(PyObject *self, PyObject *args)
 
     // Generate z_i's
 #pragma omp parallel for private(i)
-    for (i = 0; i < kappa; ++i) {
+    for (i = 0; i < nzs; ++i) {
         do {
             mpz_urandomm(g_zs[i], g_rng, g_x0);
         } while (mpz_invert(g_zinvs[i], g_zs[i], g_x0) == 0);
     }
-
-    /* // Generate z */
-    /* do { */
-    /*     mpz_urandomm(g_z, g_rng, g_x0); */
-    /* } while (mpz_invert(g_zinv, g_z, g_x0) == 0); */
 
     // Generate pzt
     {
@@ -158,14 +155,10 @@ fastutils_genparams(PyObject *self, PyObject *args)
         mpz_init_set_ui(zkappa, 1);
 
         // Compute z^k
-        for (i = 0; i < kappa; ++i) {
+        for (i = 0; i < nzs; ++i) {
             mpz_mul(zkappa, zkappa, g_zs[i]);
             mpz_mod(zkappa, zkappa, g_x0);
         }
-        /* for (i = 0; i < kappa; ++i) { */
-        /*     mpz_mul(zkappa, zkappa, g_z); */
-        /*     mpz_mod(zkappa, zkappa, g_x0); */
-        /* } */
 
 #pragma omp parallel for private(i)
         for (i = 0; i < g_n; ++i) {
@@ -217,7 +210,7 @@ fastutils_loadparams(PyObject *self, PyObject *args)
 }
 
 static void
-encode(mpz_t out, const mpz_t in, const long rho, const long idx)
+encode(mpz_t out, const mpz_t in, const long rho, const long idx1, const long idx2)
 {
     mpz_t res, r, tmp;
     int i;
@@ -237,7 +230,10 @@ encode(mpz_t out, const mpz_t in, const long rho, const long idx)
         mpz_mul(tmp, tmp, g_crt_coeffs[i]);
         mpz_add(res, res, tmp);
     }
-    mpz_mul(res, res, g_zinvs[idx]);
+    if (idx1 >= 0)
+        mpz_mul(res, res, g_zinvs[idx1]);
+    if (idx2 >= 0)
+        mpz_mul(res, res, g_zinvs[idx2]);
     mpz_mod(res, res, g_x0);
 
     mpz_set(out, res);
@@ -247,41 +243,52 @@ encode(mpz_t out, const mpz_t in, const long rho, const long idx)
     mpz_clear(tmp);
 }
 
-/* static PyObject * */
-/* fastutils_encode(PyObject *self, PyObject *args) */
-/* { */
-/*     const long rho; */
-/*     PyObject *py_msg, *py_out; */
-/*     mpz_t msg; */
-
-/*     if (!PyArg_ParseTuple(args, "Ol", &py_msg, &rho)) */
-/*         return NULL; */
-
-/*     mpz_init(msg); */
-/*     py_to_mpz(msg, py_msg); */
-/*     if (mpz_cmp(msg, g_gs[0]) >= 0) { */
-/*         py_out = NULL; */
-/*         goto cleanup; */
-/*     } */
-/*     encode(msg, msg, rho); */
-/*     py_out = mpz_to_py(msg); */
-
-/*  cleanup: */
-/*     mpz_clear(msg); */
-/*     return py_out; */
-/* } */
-
 static PyObject *
 fastutils_encode_layer(PyObject *self, PyObject *args)
 {
-    const long rho, idx;
-    PyObject *py_vals, *py_outs;
-    Py_ssize_t i, len;
+    const long rho;
+    long zeroidx1 = -1, zeroidx2 = -1, oneidx1 = -1, oneidx2 = -1;
+    PyObject *py_vals, *py_outs, *py_zeroset, *py_oneset;
+    Py_ssize_t i, len, half;
 
-    if (!PyArg_ParseTuple(args, "Oll", &py_vals, &rho, &idx))
+    if (!PyArg_ParseTuple(args, "OlOO", &py_vals, &rho, &py_zeroset, &py_oneset))
+        return NULL;
+    if (!PySet_Check(py_zeroset))
+        return NULL;
+    if (!PySet_Check(py_oneset))
         return NULL;
 
+    len = PySet_Size(py_zeroset);
+    if (len == 0) {
+        return NULL;
+    } else if (len == 1) {
+        zeroidx1 = PyLong_AsLong(PySet_Pop(py_zeroset));
+    } else if (len == 2) {
+        zeroidx1 = PyLong_AsLong(PySet_Pop(py_zeroset));
+        zeroidx2 = PyLong_AsLong(PySet_Pop(py_zeroset));
+    } else {
+        return NULL;
+    }
+
+    len = PySet_Size(py_oneset);
+    if (len == 0) {
+        return NULL;
+    } else if (len == 1) {
+        oneidx1 = PyLong_AsLong(PySet_Pop(py_oneset));
+    } else if (len == 2) {
+        oneidx1 = PyLong_AsLong(PySet_Pop(py_oneset));
+        oneidx2 = PyLong_AsLong(PySet_Pop(py_oneset));
+    } else {
+        return NULL;
+    }
+
+    /* fprintf(stderr, "zero idx1 = %ld\n", zeroidx1); */
+    /* fprintf(stderr, "zero idx2 = %ld\n", zeroidx2); */
+    /* fprintf(stderr, "one idx1 = %ld\n", oneidx1); */
+    /* fprintf(stderr, "one idx2 = %ld\n", oneidx2); */
+    
     len = PySequence_Size(py_vals);
+    half = len >> 1;
 
     if ((py_outs = PyList_New(len)) == NULL)
         return NULL;
@@ -292,7 +299,11 @@ fastutils_encode_layer(PyObject *self, PyObject *args)
 
         mpz_init(val);
         py_to_mpz(val, PyList_GET_ITEM(py_vals, i));
-        encode(val, val, rho, idx);
+        if (i < half) {
+            encode(val, val, rho, zeroidx1, zeroidx2);
+        } else {
+            encode(val, val, rho, oneidx1, oneidx2);
+        }
         PyList_SET_ITEM(py_outs, i, mpz_to_py(val));
         mpz_clear(val);
     }
@@ -321,7 +332,6 @@ fastutils_is_zero(PyObject *self, PyObject *args)
     mpz_mul(c, c, g_pzt);
     mpz_mod(c, c, g_x0);
 
-    /* fprintf(stderr, "omega bitlength = %d\n", mpz_sizeinbase(c, 2)); */
     if (mpz_cmp(c, cmp) < 0)
         ret = 1;
     else

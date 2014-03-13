@@ -90,6 +90,8 @@ class Layer(object):
         self.inp = inp
         self.zero = zero
         self.one = one
+        self.zeroset = set()
+        self.oneset = set()
     def __repr__(self):
         return "%d\nzero:%s\none:%s" % (self.inp, self.zero, self.one)
     def to_raw_string(self):
@@ -142,6 +144,7 @@ class BranchingProgram(object):
         self._verbose = verbose
         self.zero = I
         self.one = C
+        self.rprime = None
         self.logger = utils.make_logger(self._verbose)
         if type not in ('circuit', 'bp'):
             raise ParseException('invalid type argument')
@@ -262,8 +265,9 @@ class BranchingProgram(object):
         assert(len(newbp) == ms_needed)
         self.bp = newbp
 
-    def randomize(self, prime):
-        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), MATRIX_LENGTH)
+    def randomize(self, secparam):
+        self.rprime = random_prime((1 << secparam) - 1, lbound=(1 << secparam - 1))
+        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(self.rprime)), MATRIX_LENGTH)
         def random_matrix():
             while True:
                 m = MSZp.random_element()

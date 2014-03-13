@@ -9,11 +9,11 @@ from indobf.test import TestParams, test_circuit
 def main(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument('--obliviate', action='store_true')
-    parser.add_argument('--randomize', action='store_true')
+    # parser.add_argument('--randomize', action='store_true')
     args = parser.parse_args()
 
     paths = ['circuits/not.circuit', 'circuits/and.circuit']
-    params = TestParams(obliviate=args.obliviate, randomize=args.randomize,
+    params = TestParams(obliviate=args.obliviate, randomize=True,
                         obfuscate=True)
     secparams = [8, 12, 16, 20, 24, 28]
     for path in paths:

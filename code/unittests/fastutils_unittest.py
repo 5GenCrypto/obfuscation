@@ -18,7 +18,7 @@ class FastutilsTestCase(unittest.TestCase):
     def testme(self):
         try:
             import fastutils
-            x0, pzt = fastutils.genparams(n, alpha, beta, eta, kappa, g0)
+            x0, pzt = fastutils.genparams(n, alpha, beta, eta, kappa, kappa, g0)
             # zero = fastutils.encode(long(0), rho)
             # one = fastutils.encode(long(1), rho)
             # assert not fastutils.is_zero(one, nu)
