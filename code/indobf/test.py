@@ -39,7 +39,6 @@ def test_circuit(path, secparam, verbose, params):
         bp.obliviate()
     if params.randomize:
         prime = random_prime((1 << secparam) - 1, lbound=(1 << secparam - 1))
-        print("prime = %d" % prime)
         bp.randomize(prime)
     else:
         prime = None

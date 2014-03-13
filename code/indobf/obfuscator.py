@@ -88,4 +88,7 @@ class Obfuscator(object):
         comp = MS.identity_matrix()
         for m in self.obfuscation:
             comp = comp * (m.I if inp[m.inp] == '0' else m.J)
-        return 0 if self.ge.is_zero(comp[0][1]) and self.ge.is_zero(comp[1][0]) else 1
+        if self.ge.is_zero(comp[0][1]) and self.ge.is_zero(comp[1][0]):
+            return 0
+        else:
+            return 1
