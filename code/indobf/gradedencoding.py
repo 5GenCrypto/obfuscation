@@ -62,18 +62,18 @@ class GradedEncoding(object):
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
-    def encode(self, val):
-        self.logger('Encoding value %d' % val)
-        start = time.time()
-        r = fastutils.encode(long(val), self.rho)
-        end = time.time()
-        self.logger('Took: %f seconds' % (end - start))
-        return r
+    # def encode(self, val):
+    #     self.logger('Encoding value %d' % val)
+    #     start = time.time()
+    #     r = fastutils.encode(long(val), self.rho)
+    #     end = time.time()
+    #     self.logger('Took: %f seconds' % (end - start))
+    #     return r
 
-    def encode_list(self, vals):
+    def encode_layer(self, vals, idx):
         self.logger('Encoding values %s' % vals)
         vals = [long(val) for val in vals]
-        return fastutils.encode_list(vals, self.rho)
+        return fastutils.encode_layer(vals, self.rho, idx)
 
     def is_zero(self, c):
         return fastutils.is_zero(long(c), self.nu)

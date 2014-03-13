@@ -63,13 +63,13 @@ class Obfuscator(object):
         self.ge.load_system_params(self.secparam, len(self.obfuscation), x0,
                                    pzt)
 
-    def _obfuscate_layer(self, layer):
+    def _obfuscate_layer(self, layer, idx):
         self.logger('Obfuscating layer...')
         start = time.time()
         m = ms2list(layer.I)
         m.extend(ms2list(layer.J))
         half = len(m) / 2
-        es = self.ge.encode_list(m)
+        es = self.ge.encode_layer(m, idx)
         I, J = MS(es[:half]), MS(es[half:])
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
@@ -79,7 +79,8 @@ class Obfuscator(object):
         self.ge.gen_system_params(self.secparam, len(bp), g0=g0)
         self.logger('Obfuscating...')
         start = time.time()
-        self.obfuscation = [self._obfuscate_layer(layer) for layer in bp]
+        self.obfuscation = [self._obfuscate_layer(layer, idx) for idx, layer in
+                            enumerate(bp)]
         end = time.time()
         self.logger('Obfuscation took: %f seconds' % (end - start))
 
