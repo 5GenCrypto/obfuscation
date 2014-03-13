@@ -17,18 +17,18 @@ def ms2list(m):
     m = [[int(e) for e in row] for row in m]
     return [int(e) for e in flatten(m)]
 
-ObfLayer = collections.namedtuple('ObfLayer', ['inp', 'I', 'J'])
+ObfLayer = collections.namedtuple('ObfLayer', ['inp', 'zero', 'one'])
 
-def load_obf(directory, inp, I, J):
+def load_obf(directory, inp, zero, one):
     inp = load('%s/%s' % (directory, inp))
-    I = load('%s/%s' % (directory, I))
-    J = load('%s/%s' % (directory, J))
-    return ObfLayer(int(inp), I, J)
+    zero = load('%s/%s' % (directory, zero))
+    one = load('%s/%s' % (directory, one))
+    return ObfLayer(int(inp), zero, one)
 
 def save_obf(layer, directory, idx):
     Integer(layer.inp).save('%s/%d.input' % (directory, idx))
-    layer.I.save('%s/%d.I' % (directory, idx))
-    layer.J.save('%s/%d.J' % (directory, idx))
+    layer.zero.save('%s/%d.zero' % (directory, idx))
+    layer.one.save('%s/%d.one' % (directory, idx))
 
 class Obfuscator(object):
     def __init__(self, secparam, verbose=False):
@@ -55,25 +55,25 @@ class Obfuscator(object):
         pzt = load('%s/pzt.sobj' % directory)
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        Is = sorted(filter(lambda s: 'I' in s, files))
-        Js = sorted(filter(lambda s: 'J' in s, files))
+        zeros = sorted(filter(lambda s: 'zero' in s, files))
+        ones = sorted(filter(lambda s: 'one' in s, files))
         # XXX: will the order be preserved for >= 10 layers?
-        self.obfuscation = [load_obf(directory, inp, I, J) for inp, I, J in
-                            zip(inputs, Is, Js)]
+        self.obfuscation = [load_obf(directory, inp, zero, one) for inp, zero,
+                            one in zip(inputs, zeros, ones)]
         self.ge.load_system_params(self.secparam, len(self.obfuscation), x0,
                                    pzt)
 
     def _obfuscate_layer(self, layer, idx):
         self.logger('Obfuscating layer...')
         start = time.time()
-        m = ms2list(layer.I)
-        m.extend(ms2list(layer.J))
+        m = ms2list(layer.zero)
+        m.extend(ms2list(layer.one))
         half = len(m) / 2
         es = self.ge.encode_layer(m, idx)
-        I, J = MS(es[:half]), MS(es[half:])
+        zero, one = MS(es[:half]), MS(es[half:])
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
-        return ObfLayer(layer.inp, I, J)
+        return ObfLayer(layer.inp, zero, one)
 
     def obfuscate(self, bp, g0=None):
         self.ge.gen_system_params(self.secparam, len(bp), g0=g0)
@@ -88,7 +88,7 @@ class Obfuscator(object):
         assert self.obfuscation is not None
         comp = MS.identity_matrix()
         for m in self.obfuscation:
-            comp = comp * (m.I if inp[m.inp] == '0' else m.J)
+            comp = comp * (m.zero if inp[m.inp] == '0' else m.one)
         if self.ge.is_zero(comp[0][1]) and self.ge.is_zero(comp[1][0]):
             return 0
         else:

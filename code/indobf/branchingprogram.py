@@ -86,25 +86,25 @@ def flatten(l):
     return list(itertools.chain(*l))
 
 class Layer(object):
-    def __init__(self, inp, I, J):
+    def __init__(self, inp, zero, one):
         self.inp = inp
-        self.I = I
-        self.J = J
+        self.zero = zero
+        self.one = one
     def __repr__(self):
-        return "%d\nI:%s\nJ:%s" % (self.inp, self.I, self.J)
+        return "%d\nzero:%s\none:%s" % (self.inp, self.zero, self.one)
     def to_raw_string(self):
-        return "%d %s %s" % (self.inp, self.I.numpy().tostring(),
-                             self.J.numpy().tostring())
+        return "%d %s %s" % (self.inp, self.zero.numpy().tostring(),
+                             self.one.numpy().tostring())
     def conjugate(self, M, Mi):
-        return Layer(self.inp, Mi * self.I * M, Mi * self.J * M)
+        return Layer(self.inp, Mi * self.zero * M, Mi * self.one * M)
     def invert(self):
-        return Layer(self.inp, self.I.inverse(), self.J.inverse())
+        return Layer(self.inp, self.zero.inverse(), self.one.inverse())
     def group(self, group):
-        return Layer(self.inp, group(self.I), group(self.J))
+        return Layer(self.inp, group(self.zero), group(self.one))
     def mult_left(self, M):
-        return Layer(self.inp, M * self.I, M * self.J)
+        return Layer(self.inp, M * self.zero, M * self.one)
     def mult_right(self, M):
-        return Layer(self.inp, self.I * M, self.J * M)
+        return Layer(self.inp, self.zero * M, self.one * M)
 
 def prepend(layers, M):
     return [layers[0].mult_left(M)] + layers[1:]
@@ -140,8 +140,8 @@ class BranchingProgram(object):
         self.depth = None
         self._group = G
         self._verbose = verbose
-        self.I = I
-        self.C = C
+        self.zero = I
+        self.one = C
         self.logger = utils.make_logger(self._verbose)
         if type not in ('circuit', 'bp'):
             raise ParseException('invalid type argument')
@@ -270,8 +270,8 @@ class BranchingProgram(object):
                 if not m.is_singular():
                     return m, m.inverse()
         m0, m0i = random_matrix()
-        self.I = m0 * MSZp(self.I) * m0i
-        self.C = m0 * MSZp(self.C) * m0i
+        self.zero = m0 * MSZp(self.zero) * m0i
+        self.one = m0 * MSZp(self.one) * m0i
         self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
         for i in xrange(1, len(self.bp)):
             mi, mii = random_matrix()
@@ -283,10 +283,10 @@ class BranchingProgram(object):
     def evaluate(self, inp):
         comp = self._group.identity_matrix()
         for m in self.bp:
-            comp = comp * (m.I if inp[m.inp] == '0' else m.J)
-        if comp == self.I:
+            comp = comp * (m.zero if inp[m.inp] == '0' else m.one)
+        if comp == self.zero:
             return 0
-        elif comp == self.C:
+        elif comp == self.one:
             return 1
         else:
             raise Exception('Evaluation failed!')
