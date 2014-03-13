@@ -262,10 +262,8 @@ class BranchingProgram(object):
         assert(len(newbp) == ms_needed)
         self.bp = newbp
 
-    def randomize(self, secparam):
-        p = random_prime((1 << secparam) - 1, lbound=(1 << secparam - 1))
-        # self.logger("randomization p = %d" % p)
-        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(p)), MATRIX_LENGTH)
+    def randomize(self, prime):
+        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), MATRIX_LENGTH)
         def random_matrix():
             while True:
                 m = MSZp.random_element()
@@ -274,8 +272,6 @@ class BranchingProgram(object):
         m0, m0i = random_matrix()
         self.I = m0 * MSZp(self.I) * m0i
         self.C = m0 * MSZp(self.C) * m0i
-        print(self.I)
-        print(self.C)
         self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
         for i in xrange(1, len(self.bp)):
             mi, mii = random_matrix()

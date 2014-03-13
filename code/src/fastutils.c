@@ -42,19 +42,19 @@ py_to_mpz(mpz_t out, PyObject *in)
     (void) mpz_set_pylong(out, in);
 }
 
-static void
-mpz_mod_near(mpz_t out, mpz_t a, mpz_t b)
-{
-    mpz_t tmp;
+/* static void */
+/* mpz_mod_near(mpz_t out, mpz_t a, mpz_t b) */
+/* { */
+/*     mpz_t tmp; */
 
-    mpz_init(tmp);
-    mpz_mod(out, a, b);
-    mpz_tdiv_q_2exp(tmp, b, 1);
-    if (mpz_cmp(out, tmp) < 0) {
-        mpz_sub(out, out, b);
-    }
-    mpz_clear(tmp);
-}
+/*     mpz_init(tmp); */
+/*     mpz_mod(out, a, b); */
+/*     mpz_tdiv_q_2exp(tmp, b, 1); */
+/*     if (mpz_cmp(out, tmp) < 0) { */
+/*         mpz_sub(out, out, b); */
+/*     } */
+/*     mpz_clear(tmp); */
+/* } */
 
 static void
 mpz_genrandom(mpz_t rnd, const long nbits)
@@ -77,14 +77,16 @@ fastutils_genparams(PyObject *self, PyObject *args)
 {
     const long alpha, beta, eta, kappa;
     long i;
-    PyObject *py_x0, *py_pzt;
+    PyObject *py_x0, *py_pzt, *py_g0;
 
-    if (!PyArg_ParseTuple(args, "lllll", &g_n, &alpha, &beta, &eta, &kappa))
+    if (!PyArg_ParseTuple(args, "lllllO", &g_n, &alpha, &beta, &eta, &kappa,
+                          &py_g0))
         return NULL;
 
     mpz_init_set_ui(g_x0, 1);
     mpz_init(g_z);
     mpz_init_set_ui(g_pzt, 0);
+
     g_ps = (mpz_t *) malloc(sizeof(mpz_t) * g_n);
     g_gs = (mpz_t *) malloc(sizeof(mpz_t) * g_n);
     g_crt_coeffs = (mpz_t *) malloc(sizeof(mpz_t) * g_n);
@@ -108,9 +110,13 @@ fastutils_genparams(PyObject *self, PyObject *args)
             // XXX: not uniform primes
             mpz_urandomb(p_unif, g_rng, eta);
             mpz_nextprime(g_ps[i], p_unif);
-            // XXX: not uniform primes
-            mpz_urandomb(p_unif, g_rng, alpha);
-            mpz_nextprime(g_gs[i], p_unif);
+            if (i == 0) {
+                py_to_mpz(g_gs[0], py_g0);
+            } else {
+                // XXX: not uniform primes
+                mpz_urandomb(p_unif, g_rng, alpha);
+                mpz_nextprime(g_gs[i], p_unif);
+            }
             
 #pragma omp critical
             {
@@ -121,6 +127,8 @@ fastutils_genparams(PyObject *self, PyObject *args)
         }
         py_x0 = mpz_to_py(g_x0);
     }
+
+    gmp_fprintf(stderr, "g0 = %Zd\n", g_gs[0]);
 
     // Generate CRT coefficients
     {
@@ -307,7 +315,9 @@ fastutils_is_zero(PyObject *self, PyObject *args)
 
     mpz_mul(c, c, g_pzt);
     mpz_mod(c, c, g_x0);
-    if (mpz_cmpabs(c, cmp) < 0)
+
+    /* fprintf(stderr, "omega bitlength = %d\n", mpz_sizeinbase(c, 2)); */
+    if (mpz_cmp(c, cmp) < 0)
         ret = 1;
     else
         ret = 0;

@@ -48,15 +48,17 @@ class GradedEncoding(object):
             self._print_params()
         fastutils.loadparams(long(x0), long(pzt))
 
-    def gen_system_params(self, secparam, kappa):
+    def gen_system_params(self, secparam, kappa, g0=None):
         self._set_params(secparam, kappa)
         if self._verbose:
             self._print_params()
 
         self.logger('Generating parameters...')
         start = time.time()
+        if g0 is None:
+            g0 = random_prime((1 << secparam) - 1, lbound=(1 << secparam - 1))
         self.x0, self.pzt = fastutils.genparams(self.n, self.alpha, self.beta,
-                                                self.eta, self.kappa)
+                                                self.eta, self.kappa, long(g0))
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 

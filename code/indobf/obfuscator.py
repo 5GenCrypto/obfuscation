@@ -75,8 +75,8 @@ class Obfuscator(object):
         self.logger('Took: %f seconds' % (end - start))
         return ObfLayer(layer.inp, I, J)
 
-    def obfuscate(self, bp):
-        self.ge.gen_system_params(self.secparam, len(bp))
+    def obfuscate(self, bp, g0=None):
+        self.ge.gen_system_params(self.secparam, len(bp), g0=g0)
         self.logger('Obfuscating...')
         start = time.time()
         self.obfuscation = [self._obfuscate_layer(layer) for layer in bp]
@@ -88,4 +88,4 @@ class Obfuscator(object):
         comp = MS.identity_matrix()
         for m in self.obfuscation:
             comp = comp * (m.I if inp[m.inp] == '0' else m.J)
-        return 1 if self.ge.is_zero(comp[0][0]) else 0
+        return 0 if self.ge.is_zero(comp[0][1]) and self.ge.is_zero(comp[1][0]) else 1

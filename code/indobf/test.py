@@ -5,6 +5,8 @@ from __future__ import print_function
 from indobf.branchingprogram import BranchingProgram, ParseException
 from indobf.obfuscator import Obfuscator
 
+from sage.all import random_prime
+
 class TestParams(object):
     def __init__(self, obliviate=False, randomize=False, obfuscate=False):
         self.obliviate = obliviate
@@ -36,10 +38,14 @@ def test_circuit(path, secparam, verbose, params):
     if params.obliviate:
         bp.obliviate()
     if params.randomize:
-        bp.randomize(secparam)
+        prime = random_prime((1 << secparam) - 1, lbound=(1 << secparam - 1))
+        print("prime = %d" % prime)
+        bp.randomize(prime)
+    else:
+        prime = None
     if params.obfuscate:
         obf = Obfuscator(secparam, verbose=verbose)
-        obf.obfuscate(bp)
+        obf.obfuscate(bp, g0=prime)
         obf.save("%s.obf" % path)
         program = obf
     success = True
