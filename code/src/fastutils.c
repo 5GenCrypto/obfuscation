@@ -128,8 +128,6 @@ fastutils_genparams(PyObject *self, PyObject *args)
         py_x0 = mpz_to_py(g_x0);
     }
 
-    gmp_fprintf(stderr, "g0 = %Zd\n", g_gs[0]);
-
     // Generate CRT coefficients
     {
 #pragma omp parallel for default(shared) private(i)
