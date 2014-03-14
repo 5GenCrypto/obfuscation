@@ -1,13 +1,13 @@
 #!/usr/bin/env sage -python
 
-import utils
+from __future__ import print_function
+import itertools
 
 from sage.all import *
 
-import itertools
+import utils
 
 MATRIX_LENGTH = 5
-
 G = MatrixSpace(GF(2), MATRIX_LENGTH)
 
 I = G.one()
@@ -66,6 +66,10 @@ CONJUGATES = {
     'Bi': (Bic, Bici)
 }
 
+# MATRIX_LENGTH = 3
+# G = MatrixSpace(GF(3), MATRIX_LENGTH)
+
+# I = G.one()
 # A = G([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
 # B = G([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
 # C = G([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])
@@ -90,10 +94,11 @@ class Layer(object):
         self.inp = inp
         self.zero = zero
         self.one = one
-        self.zeroset = set()
-        self.oneset = set()
+        self.zeroset = None
+        self.oneset = None
     def __repr__(self):
-        return "%d\nzero:%s\none:%s" % (self.inp, self.zero, self.one)
+        return "%d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
+            self.inp, self.zero, self.one, self.zeroset, self.oneset)
     def to_raw_string(self):
         return "%d %s %s" % (self.inp, self.zero.numpy().tostring(),
                              self.one.numpy().tostring())
@@ -145,6 +150,8 @@ class BranchingProgram(object):
         self.zero = I
         self.one = C
         self.rprime = None
+        self.m0, self.m0i = None, None
+
         self.logger = utils.make_logger(self._verbose)
         if type not in ('circuit', 'bp'):
             raise ParseException('invalid type argument')
@@ -152,6 +159,7 @@ class BranchingProgram(object):
             self.load_circuit(fname)
         else:
             self.load_bp(fname)
+
     def __len__(self):
         return len(self.bp)
     def __iter__(self):
@@ -237,9 +245,6 @@ class BranchingProgram(object):
                     raise("error: unknown type")
         self.bp = bp[-1]
 
-    def load_bp(self, fname):
-        raise NotImplemented()
-
     def save_bp(self, fname):
         with open(fname, mode='wx') as f:
             if self.n_inputs is not None:
@@ -266,28 +271,35 @@ class BranchingProgram(object):
         self.bp = newbp
 
     def randomize(self, secparam):
-        self.rprime = random_prime((1 << secparam) - 1, lbound=(1 << secparam - 1))
-        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(self.rprime)), MATRIX_LENGTH)
+        self.rprime = random_prime((1 << secparam) - 1,
+                                   lbound=(1 << secparam - 1))
+        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(self.rprime)),
+                           MATRIX_LENGTH)
         def random_matrix():
             while True:
                 m = MSZp.random_element()
                 if not m.is_singular():
                     return m, m.inverse()
+        # m0, m0i = MSZp.one(), MSZp.one()
         m0, m0i = random_matrix()
         self.zero = m0 * MSZp(self.zero) * m0i
         self.one = m0 * MSZp(self.one) * m0i
         self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
         for i in xrange(1, len(self.bp)):
             mi, mii = random_matrix()
-            self.bp[i-1] = self.bp[i-1].mult_right(mii)
+            self.bp[i-1] = self.bp[i-1].group(MSZp).mult_right(mii)
             self.bp[i] = self.bp[i].group(MSZp).mult_left(mi)
         self.bp[-1] = self.bp[-1].group(MSZp).mult_right(m0i)
         self._group = MSZp
+        self.m0, self.m0i = m0, m0i
 
     def evaluate(self, inp):
         comp = self._group.identity_matrix()
         for m in self.bp:
             comp = comp * (m.zero if inp[m.inp] == '0' else m.one)
+        print('comp =\n', comp)
+        print('zero =\n', self.zero)
+        print('one =\n', self.one)
         if comp == self.zero:
             return 0
         elif comp == self.one:

@@ -12,17 +12,25 @@ nu = 29
 rho = 16
 n = 80
 
+nzs = 1
+
 g0 = long(129)
 
 class FastutilsTestCase(unittest.TestCase):
     def testme(self):
         try:
             import fastutils
-            x0, pzt = fastutils.genparams(n, alpha, beta, eta, kappa, kappa, g0)
-            # zero = fastutils.encode(long(0), rho)
-            # one = fastutils.encode(long(1), rho)
-            # assert not fastutils.is_zero(one, nu)
-            # assert fastutils.is_zero(zero, nu)
+            x0, pzt = fastutils.genparams(n, alpha, beta, eta, kappa, nzs, g0)
+            a = fastutils.encode_scalar(long(1), rho, 0, -1)
+            b = fastutils.encode_scalar(long(1), rho, 0, -1)
+            # c = fastutils.encode_scalar(long(1), rho, 0, 1)
+            # test = a * b - c
+            test = abs(a - b)
+            print(test)
+            assert fastutils.is_zero(test, nu)
+            test = abs(b - a)
+            print(test)
+            assert fastutils.is_zero(test, nu)
         except ImportError as e:
             self.fail(str(e))
 
