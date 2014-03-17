@@ -61,6 +61,26 @@ mpz_genrandom(mpz_t rnd, const long nbits)
     mpz_clear(rndtmp);
 }
 
+static void
+mpz_mod_near(mpz_t out, const mpz_t a, const mpz_t b)
+{
+    mpz_t res, shift;
+
+    mpz_init(res);
+    mpz_init(shift);
+
+    mpz_mod(res, a, b);
+    mpz_tdiv_q_2exp(shift, b, 1);
+    if (mpz_cmp(res, shift) > 0) {
+        mpz_sub(res, res, b);
+    }
+
+    mpz_set(out, res);
+
+    mpz_clear(res);
+    mpz_clear(shift);
+}
+
 static PyObject *
 fastutils_genparams(PyObject *self, PyObject *args)
 {
@@ -164,26 +184,26 @@ fastutils_genparams(PyObject *self, PyObject *args)
 
 #pragma omp parallel for private(i)
         for (i = 0; i < g_n; ++i) {
-            mpz_t input, x0pi, rnd;
+            mpz_t tmp, x0pi, rnd;
 
-            mpz_init(input);
+            mpz_init(tmp);
             mpz_init(x0pi);
             mpz_init(rnd);
 
             // Compute (((g_i)^{-1} mod p_i) * z^k mod p_i) * r_i * (x_0 / p_i)
-            mpz_invert(input, g_gs[i], g_ps[i]);
-            mpz_mul(input, input, zk);
-            mpz_mod(input, input, g_ps[i]);
+            mpz_invert(tmp, g_gs[i], g_ps[i]);
+            mpz_mul(tmp, tmp, zk);
+            mpz_mod(tmp, tmp, g_ps[i]);
             mpz_genrandom(rnd, beta);
-            mpz_mul(input, input, rnd);
+            mpz_mul(tmp, tmp, rnd);
             mpz_div(x0pi, g_x0, g_ps[i]);
-            mpz_mul(input, input, x0pi);
+            mpz_mul(tmp, tmp, x0pi);
 #pragma omp critical
             {
-                mpz_add(g_pzt, g_pzt, input);
+                mpz_add(g_pzt, g_pzt, tmp);
             }
 
-            mpz_clear(input);
+            mpz_clear(tmp);
             mpz_clear(x0pi);
             mpz_clear(rnd);
         }
@@ -227,6 +247,8 @@ encode(mpz_t out, const mpz_t in, const long rho, const long idx1,
         return FAILURE;
     if (idx1 < 0 && idx2 < 0)
         return FAILURE;
+    if (idx1 == idx2)
+        return FAILURE;
 
     mpz_init(res);
     mpz_init(r);
@@ -243,11 +265,15 @@ encode(mpz_t out, const mpz_t in, const long rho, const long idx1,
         mpz_mul(tmp, tmp, g_crt_coeffs[i]);
         mpz_add(res, res, tmp);
     }
-    if (idx1 >= 0)
-        mpz_mul(res, res, g_zinvs[idx1]);
-    if (idx2 >= 0)
-        mpz_mul(res, res, g_zinvs[idx2]);
     mpz_mod(res, res, g_x0);
+    if (idx1 >= 0) {
+        mpz_mul(res, res, g_zinvs[idx1]);
+        mpz_mod(res, res, g_x0);
+    }
+    if (idx2 >= 0) {
+        mpz_mul(res, res, g_zinvs[idx2]);
+        mpz_mod(res, res, g_x0);
+    }
 
     mpz_set(out, res);
 
@@ -270,11 +296,14 @@ fastutils_encode_scalar(PyObject *self, PyObject *args)
 
     mpz_init(val);
     py_to_mpz(val, py_val);
-    encode(val, val, rho, idx1, idx2);
-    py_out = mpz_to_py(val);
-    mpz_clear(val);
-
-    return py_out;
+    if (encode(val, val, rho, idx1, idx2) == SUCCESS) {
+        py_out = mpz_to_py(val);
+        mpz_clear(val);
+        return py_out;
+    } else {
+        mpz_clear(val);
+        return NULL;
+    }
 }
 
 static PyObject *
@@ -283,6 +312,7 @@ fastutils_encode_vector(PyObject *self, PyObject *args)
     const long rho, idx;
     PyObject *py_vals, *py_outs;
     Py_ssize_t i, len;
+    int err = 0;
 
     if (!PyArg_ParseTuple(args, "Oll", &py_vals, &rho, &idx))
         return NULL;
@@ -299,12 +329,17 @@ fastutils_encode_vector(PyObject *self, PyObject *args)
 
         mpz_init(val);
         py_to_mpz(val, PyList_GET_ITEM(py_vals, i));
-        encode(val, val, rho, idx, -1);
+        if (encode(val, val, rho, idx, -1) == FAILURE) {
+            err = 1;
+        }
         PyList_SET_ITEM(py_outs, i, mpz_to_py(val));
         mpz_clear(val);
     }
 
-    return py_outs;
+    if (err)
+        return NULL;
+    else
+        return py_outs;
 }
 
 static PyObject *
@@ -348,7 +383,7 @@ fastutils_encode_layer(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    len = PySequence_Size(py_vals);
+    len = PyList_GET_SIZE(py_vals);
     half = len >> 1;
 
     if ((py_outs = PyList_New(len)) == NULL)
@@ -377,31 +412,24 @@ fastutils_is_zero(PyObject *self, PyObject *args)
 {
     const long nu;
     PyObject *py_c;
-    mpz_t c, cmp;
+    mpz_t c;
     int ret;
 
     if (!PyArg_ParseTuple(args, "Ol", &py_c, &nu))
         return NULL;
 
     mpz_init(c);
-    mpz_init(cmp);
 
     py_to_mpz(c, py_c);
 
-    mpz_tdiv_q_2exp(cmp, g_x0, nu);
-
     mpz_mul(c, c, g_pzt);
-    mpz_mod(c, c, g_x0);
+    mpz_mod_near(c, c, g_x0);
 
-    fprintf(stderr, "is_zero length = %ld\n", mpz_sizeinbase(c, 2));
+    /* fprintf(stderr, "is_zero length = %ld\n", mpz_sizeinbase(c, 2)); */
 
-    if (mpz_cmpabs(c, cmp) < 0)
-        ret = 1;
-    else
-        ret = 0;
+    ret = (mpz_sizeinbase(c, 2) < (mpz_sizeinbase(g_x0, 2) - nu)) ? 1 : 0;
 
     mpz_clear(c);
-    mpz_clear(cmp);
 
     if (ret)
         Py_RETURN_TRUE;

@@ -150,7 +150,7 @@ class BranchingProgram(object):
         self.zero = I
         self.one = C
         self.rprime = None
-        self.m0, self.m0i = None, None
+        self.m0, self.m0i = self._group.one(), self._group.one()
 
         self.logger = utils.make_logger(self._verbose)
         if type not in ('circuit', 'bp'):
@@ -192,8 +192,11 @@ class BranchingProgram(object):
         if a == 1 and b == 0:
             # NOT gate
             return notgate(bp[in1])
+        elif a == 0 and b == 1:
+            # identity gate
+            return bp[in1]
         else:
-            raise("error: unsupported gate:", line.strip())
+            raise ParseException("error: unsupported gate:", rest.strip())
 
     def load_arity_two_gate(self, rest, bp):
         _, a, b, c, d, _, _, _, in1, in2, _ \
@@ -211,7 +214,7 @@ class BranchingProgram(object):
             raise ParseException("XOR gates not supported for S5 group")
             # return flatten([bp[in1], bp[in2]])
         else:
-            raise ParseException("error: unsupported gate:", line.strip())
+            raise ParseException("error: unsupported gate:", rest.strip())
 
     def load_circuit(self, fname):
         bp = []

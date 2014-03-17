@@ -10,6 +10,7 @@ from sage.all import (flatten, Integer, load, MatrixSpace, randint,
                       random_prime, vector, VectorSpace, ZZ)
 
 import collections, os, sys, time
+import numpy
 
 MS = MatrixSpace(ZZ, MATRIX_LENGTH)
 
@@ -123,8 +124,8 @@ class Obfuscator(object):
                         last = last + 2
         return last
 
-    def _construct_bookend_vectors(self, bp, p, sidx, tidx):
-        VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(p)), MATRIX_LENGTH)
+    def _construct_bookend_vectors(self, bp, prime, sidx, tidx):
+        VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), MATRIX_LENGTH)
         s = VSZp.random_element()
         t = VSZp.random_element()
         p = s * t
@@ -133,12 +134,12 @@ class Obfuscator(object):
         t = bp.m0 * t
         senc = fastutils.encode_vector([long(i) for i in s], self.rho, sidx)
         tenc = fastutils.encode_vector([long(i) for i in t], self.rho, tidx)
-        self.s, self.t = s, t
-        self.p = p
         return senc, tenc, penc
 
     def _obfuscate_layer(self, layer):
-        self.logger('Obfuscating layer...')
+        self.logger('Obfuscating\n%s with set %s' % (layer.zero, layer.zeroset))
+        self.logger('Obfuscating\n%s with set %s' % (layer.one, layer.oneset))
+
         start = time.time()
         m = ms2list(layer.zero)
         m.extend(ms2list(layer.one))
@@ -147,13 +148,15 @@ class Obfuscator(object):
                                     list(layer.oneset))
         zero, one = MS(es[:half]), MS(es[half:])
         end = time.time()
-        self.logger('Took: %f seconds' % (end - start))
+        self.logger('Obfuscating layer took: %f seconds' % (end - start))
         return ObfLayer(layer.inp, zero, one)
 
     def obfuscate(self, bp):
-        self._set_params(len(bp))
+        # add two to kappa due to the bookend vectors
+        self._set_params(len(bp) + 2)
         # set prime to encode under
         p = long(bp.rprime if bp.rprime else random_prime((1 << self.secparam) - 1))
+        self.prime = p
 
         nzs = self._set_straddling_sets(bp)
         # take bookend vectors into account
@@ -187,21 +190,16 @@ class Obfuscator(object):
     def evaluate(self, inp):
         assert self.obfuscation is not None
 
-        print("INPUT:", inp)
-        comp = self._bp._group.one()
-        for m in self._bp:
-            comp = comp * (m.zero if inp[m.inp] == '0' else m.one)
-        p = vector(self.s) * comp * vector(self.t)
-        other = self.p
-        print("OUTPUT:", p - other)
+        start = time.time()
 
         comp = MS.identity_matrix()
         for m in self.obfuscation:
             comp = comp * (m.zero if inp[m.inp] == '0' else m.one)
-        p = vector(self.s_enc) * comp * vector(self.t_enc)
+        comp = numpy.array(comp)
+        p = long((numpy.dot(numpy.dot(self.s_enc, comp), self.t_enc)) % self.x0)
+
         other = self.p_enc
         for m in self._bp:
-            print(m.zeroset, m.oneset)
             if len(m.zeroset) == 1:
                 idx1 = list(m.zeroset)[0]
                 idx2 = -1
@@ -209,8 +207,13 @@ class Obfuscator(object):
                 idx1 = list(m.zeroset)[0]
                 idx2 = list(m.zeroset)[1]
             other = other * fastutils.encode_scalar(long(1), self.rho, idx1, idx2)
-        return not (self._is_zero(p - other) or self._is_zero(other - p))
-        # if self._is_zero(comp[0][1]) and self._is_zero(comp[1][0]):
-        #     return 0
-        # else:
-        #     return 1
+
+        test = p - other
+
+        result = 0 if self._is_zero(test) else 1
+
+        end = time.time()
+
+        self.logger('Evaluation took: %f seconds' % (end - start))
+
+        return result
