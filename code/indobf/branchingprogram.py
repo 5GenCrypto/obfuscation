@@ -108,6 +108,8 @@ class Layer(object):
         return Layer(self.inp, self.zero.inverse(), self.one.inverse())
     def group(self, group):
         return Layer(self.inp, group(self.zero), group(self.one))
+    def mult_scalar(self, alphas):
+        return Layer(self.inp, alphas[0] * self.zero, alphas[1] * self.one)
     def mult_left(self, M):
         return Layer(self.inp, M * self.zero, M * self.one)
     def mult_right(self, M):
@@ -149,7 +151,7 @@ class BranchingProgram(object):
         self._verbose = verbose
         self.zero = I
         self.one = C
-        self.rprime = None
+        self.randomized = False
         self.m0, self.m0i = self._group.one(), self._group.one()
 
         self.logger = utils.make_logger(self._verbose)
@@ -270,20 +272,22 @@ class BranchingProgram(object):
         for _ in xrange((ms_needed - len(newbp)) // self.n_inputs):
             for i in xrange(self.n_inputs):
                 newbp.append(Layer(i, I, I))
-        assert(len(newbp) == ms_needed)
+        assert len(newbp) == ms_needed
         self.bp = newbp
 
-    def randomize(self, secparam):
-        self.rprime = random_prime((1 << secparam) - 1,
-                                   lbound=(1 << secparam - 1))
-        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(self.rprime)),
-                           MATRIX_LENGTH)
+    def randomize(self, prime, alphas=None):
+        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), MATRIX_LENGTH)
+
+        if alphas:
+            assert len(alphas) == len(self.bp)
+            for i, alpha in enumerate(alphas):
+                self.bp[i] = self.bp[i].group(MSZp).mult_scalar(alpha)
+
         def random_matrix():
             while True:
                 m = MSZp.random_element()
                 if not m.is_singular():
                     return m, m.inverse()
-        # m0, m0i = MSZp.one(), MSZp.one()
         m0, m0i = random_matrix()
         self.zero = m0 * MSZp(self.zero) * m0i
         self.one = m0 * MSZp(self.one) * m0i
@@ -295,6 +299,7 @@ class BranchingProgram(object):
         self.bp[-1] = self.bp[-1].group(MSZp).mult_right(m0i)
         self._group = MSZp
         self.m0, self.m0i = m0, m0i
+        self.randomized = True
 
     def evaluate(self, inp):
         comp = self._group.identity_matrix()

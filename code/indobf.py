@@ -13,7 +13,7 @@ import argparse, os, sys, time
 
 def bp(args):
     testdir = 'circuits'
-    params = TestParams(obliviate=True, randomize=args.randomize)
+    params = TestParams(obliviate=True)
     if args.test_circuit:
         test_circuit(args.test_circuit, args.secparam, args.verbose, params)
     if args.test_all:
@@ -22,16 +22,13 @@ def bp(args):
             test_circuit(path, args.secparam, args.verbose, params)
     if args.load_circuit:
         bp = BranchingProgram(args.load_circuit, type='circuit')
-        if args.randomize:
-            bp.randomize(args.secparam)
     if args.eval:
         r = bp.evaluate(args.eval)
         print('Output = %d' % r)
 
 def obf(args):
     if args.test_circuit:
-        params = TestParams(obliviate=False, randomize=args.randomize,
-                            obfuscate=True)
+        params = TestParams(obliviate=False, obfuscate=True)
         test_circuit(args.test_circuit, args.secparam, args.verbose, params)
     else:
         obf = Obfuscator(args.secparam, verbose=args.verbose)
@@ -44,8 +41,6 @@ def obf(args):
         elif args.load_circuit is not None:
             print("Converting '%s' -> bp..." % args.load_circuit)
             bp = BranchingProgram(args.load_circuit, type='circuit')
-            if args.randomize:
-                bp.randomize(args.secparam)
             print('Obfuscating BP of length %d...' % len(bp))
             start = time.time()
             obf.obfuscate(bp)
@@ -85,9 +80,6 @@ def main(argv):
                            help='test circuit -> bp conversion')
     parser_bp.add_argument('--secparam', metavar='N', type=int,
                            action='store', default=8, help="security parameter")
-    parser_bp.add_argument('--no-randomize', dest='randomize',
-                           action='store_false', default=True,
-                           help='disable randomizing branching program')
     parser_bp.add_argument('-v', '--verbose', action='store_true',
                            help='be verbose')
     parser_bp.set_defaults(func=bp)
@@ -104,9 +96,6 @@ def main(argv):
                             help='load circuit from FILE and obfuscate')
     parser_obf.add_argument('--test-circuit', metavar='FILE', type=str, action='store',
                             help='test FILE -> obfuscation')
-    parser_obf.add_argument('--no-randomize', dest='randomize',
-                            action='store_false', default=True,
-                            help='disable randomizing branching program')
     parser_obf.add_argument('--save', metavar='DIR', type=str, action='store',
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int,

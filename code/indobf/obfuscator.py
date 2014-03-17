@@ -7,7 +7,7 @@ from branchingprogram import (BranchingProgram, MATRIX_LENGTH)
 import utils, fastutils
 
 from sage.all import (flatten, Integer, load, MatrixSpace, randint,
-                      random_prime, vector, VectorSpace, ZZ)
+                      random_prime, vector, VectorSpace, Zmod, ZZ)
 
 import collections, os, sys, time
 import numpy
@@ -34,6 +34,18 @@ def save_layer(layer, directory, idx):
 
 class Obfuscator(object):
 
+    def _print_params(self):
+        self.logger('Graded encoding parameters:')
+        self.logger('  Lambda: %d' % self.secparam)
+        self.logger('  Kappa: %d' % self.kappa)
+        self.logger('  Alpha: %d' % self.alpha)
+        self.logger('  Beta: %d' % self.beta)
+        self.logger('  Eta: %d' % self.eta)
+        self.logger('  Nu: %d' % self.nu)
+        self.logger('  Rho: %d' % self.rho)
+        self.logger('  Rho_f: %d' % self.rho_f)
+        self.logger('  N: %d' % self.n)
+
     def _set_params(self, kappa):
         self.kappa = kappa
         self.alpha = self.secparam
@@ -48,18 +60,6 @@ class Obfuscator(object):
         # self.n = int(self.eta * math.log(self.secparam, 2))
         self._print_params()
 
-    def _print_params(self):
-        self.logger('Graded encoding parameters:')
-        self.logger('  Lambda: %d' % self.secparam)
-        self.logger('  Kappa: %d' % self.kappa)
-        self.logger('  Alpha: %d' % self.alpha)
-        self.logger('  Beta: %d' % self.beta)
-        self.logger('  Eta: %d' % self.eta)
-        self.logger('  Nu: %d' % self.nu)
-        self.logger('  Rho: %d' % self.rho)
-        self.logger('  Rho_f: %d' % self.rho_f)
-        self.logger('  N: %d' % self.n)
-    
     def __init__(self, secparam, verbose=False):
         self.secparam = secparam
         self.obfuscation = None
@@ -158,27 +158,34 @@ class Obfuscator(object):
         return ObfLayer(layer.inp, zero, one)
 
     def obfuscate(self, bp):
+        if bp.randomized:
+            raise Exception('Input BP must not be randomized!')
+
         # add two to kappa due to the bookend vectors
         self._set_params(len(bp) + 2)
-        # set prime to encode under
-        p = long(bp.rprime if bp.rprime else random_prime((1 << self.secparam) - 1))
+            
+        prime = long(random_prime((1 << self.secparam) - 1,
+                                  lbound=(1 << self.secparam - 1)))
+        # R = Zmod(prime)
+        # alphas = [(R.random_element(), R.random_element()) for _ in xrange(len(bp))]
+        bp.randomize(prime, alphas=None)
 
         nzs = self._set_straddling_sets(bp)
         # take bookend vectors into account
         nzs = nzs + 2
-        print('Number of Zs: %d' % nzs)
 
         self.logger('Generating MLM parameters...')
         start = time.time()
         self.x0, self.pzt = fastutils.genparams(self.n, self.alpha, self.beta,
-                                                self.eta, self.kappa, nzs, p)
+                                                self.eta, self.kappa, nzs,
+                                                prime)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
         self.logger('Constructing bookend vectors...')
         start = time.time()
         self.s_enc, self.t_enc, self.p_enc \
-            = self._construct_bookend_vectors(bp, p, nzs)
+            = self._construct_bookend_vectors(bp, prime, nzs)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 

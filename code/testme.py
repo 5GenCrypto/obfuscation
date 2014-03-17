@@ -12,8 +12,7 @@ def main(argv):
     args = parser.parse_args()
 
     paths = ['circuits/not.circuit', 'circuits/and.circuit']
-    params = TestParams(obliviate=args.obliviate, randomize=True,
-                        obfuscate=True)
+    params = TestParams(obliviate=args.obliviate, obfuscate=True)
     secparams = [8, 12, 16, 20, 24, 28]
     for path in paths:
         print('Testing circuit "%s"' % path)
