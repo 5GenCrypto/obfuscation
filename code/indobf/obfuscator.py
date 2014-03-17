@@ -156,24 +156,24 @@ class Obfuscator(object):
         self._set_params(len(bp) + 2)
         # set prime to encode under
         p = long(bp.rprime if bp.rprime else random_prime((1 << self.secparam) - 1))
-        self.prime = p
 
-        nzs = self._set_straddling_sets(bp)
+        self.nzs = self._set_straddling_sets(bp)
         # take bookend vectors into account
-        nzs = nzs + 2
-        print('Number of Zs: %d' % nzs)
+        self.nzs = self.nzs + 2
+        print('Number of Zs: %d' % self.nzs)
 
         self.logger('Generating MLM parameters...')
         start = time.time()
         self.x0, self.pzt = fastutils.genparams(self.n, self.alpha, self.beta,
-                                                self.eta, self.kappa, nzs, p)
+                                                self.eta, self.kappa, self.nzs,
+                                                p)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
         self.logger('Constructing bookend vectors...')
         start = time.time()
         self.s_enc, self.t_enc, self.p_enc \
-            = self._construct_bookend_vectors(bp, p, nzs - 2, nzs - 1)
+            = self._construct_bookend_vectors(bp, p, self.nzs - 2, self.nzs - 1)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
@@ -182,7 +182,6 @@ class Obfuscator(object):
         self.obfuscation = [self._obfuscate_layer(layer) for layer in bp]
         end = time.time()
         self.logger('Obfuscation took: %f seconds' % (end - start))
-        self._bp = bp
 
     def _is_zero(self, c):
         return fastutils.is_zero(long(c), self.nu)
@@ -195,22 +194,15 @@ class Obfuscator(object):
         comp = MS.identity_matrix()
         for m in self.obfuscation:
             comp = comp * (m.zero if inp[m.inp] == '0' else m.one)
+        # need to use numpy arrays here, as sage constructs cause weird issues
         comp = numpy.array(comp)
-        p = long((numpy.dot(numpy.dot(self.s_enc, comp), self.t_enc)) % self.x0)
+        p1 = long((numpy.dot(numpy.dot(self.s_enc, comp), self.t_enc)) % self.x0)
 
-        other = self.p_enc
-        for m in self._bp:
-            if len(m.zeroset) == 1:
-                idx1 = list(m.zeroset)[0]
-                idx2 = -1
-            else:
-                idx1 = list(m.zeroset)[0]
-                idx2 = list(m.zeroset)[1]
-            other = other * fastutils.encode_scalar(long(1), self.rho, idx1, idx2)
+        p2 = self.p_enc
+        for i in xrange(self.nzs - 2):
+            p2 = p2 * fastutils.encode_scalar(1L, self.rho, i, -1)
 
-        test = p - other
-
-        result = 0 if self._is_zero(test) else 1
+        result = 0 if self._is_zero(p1 - p2) else 1
 
         end = time.time()
 
