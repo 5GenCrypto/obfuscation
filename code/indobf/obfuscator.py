@@ -82,8 +82,13 @@ class Obfuscator(object):
 
     def load(self, directory):
         assert self.obfuscation is None
-        x0 = load('%s/x0.sobj' % directory)
-        pzt = load('%s/pzt.sobj' % directory)
+        x0 = long(load('%s/x0.sobj' % directory))
+        pzt = long(load('%s/pzt.sobj' % directory))
+        self.p_enc = long(load('%s/p_enc.sobj' % directory))
+        # XXX: need to convert these to longs?
+        self.s_enc = load('%s/s_enc.sobj' % directory)
+        self.t_enc = load('%s/t_enc.sobj' % directory)
+
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
         zeros = sorted(filter(lambda s: 'zero' in s, files))
@@ -91,7 +96,7 @@ class Obfuscator(object):
         self.obfuscation = [load_layer(directory, inp, zero, one) for inp, zero,
                             one in zip(inputs, zeros, ones)]
         self._set_params(len(self.obfuscation))
-        fastutils.loadparams(long(x0), long(pzt))
+        fastutils.loadparams(x0, pzt)
 
     def _set_straddling_sets(self, bp):
         # REFACTOR: Ugly, ugly code...
@@ -124,14 +129,15 @@ class Obfuscator(object):
                         last = last + 2
         return last
 
-    def _construct_bookend_vectors(self, bp, prime, sidx, tidx):
+    def _construct_bookend_vectors(self, bp, prime, nzs):
+        sidx, tidx = nzs - 2, nzs - 1
         VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), MATRIX_LENGTH)
-        s = VSZp.random_element()
-        t = VSZp.random_element()
+        s = VSZp.random_element() * bp.m0i
+        t = bp.m0 * VSZp.random_element()
         p = s * t
-        penc = fastutils.encode_scalar(long(p), self.rho, sidx, tidx);
-        s = s * bp.m0i
-        t = bp.m0 * t
+        penc = fastutils.encode_scalar(long(p), self.rho, sidx, tidx)
+        for i in xrange(nzs - 2):
+            penc = penc * fastutils.encode_scalar(1L, self.rho, i, -1)
         senc = fastutils.encode_vector([long(i) for i in s], self.rho, sidx)
         tenc = fastutils.encode_vector([long(i) for i in t], self.rho, tidx)
         return senc, tenc, penc
@@ -157,23 +163,22 @@ class Obfuscator(object):
         # set prime to encode under
         p = long(bp.rprime if bp.rprime else random_prime((1 << self.secparam) - 1))
 
-        self.nzs = self._set_straddling_sets(bp)
+        nzs = self._set_straddling_sets(bp)
         # take bookend vectors into account
-        self.nzs = self.nzs + 2
-        print('Number of Zs: %d' % self.nzs)
+        nzs = nzs + 2
+        print('Number of Zs: %d' % nzs)
 
         self.logger('Generating MLM parameters...')
         start = time.time()
         self.x0, self.pzt = fastutils.genparams(self.n, self.alpha, self.beta,
-                                                self.eta, self.kappa, self.nzs,
-                                                p)
+                                                self.eta, self.kappa, nzs, p)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
         self.logger('Constructing bookend vectors...')
         start = time.time()
         self.s_enc, self.t_enc, self.p_enc \
-            = self._construct_bookend_vectors(bp, p, self.nzs - 2, self.nzs - 1)
+            = self._construct_bookend_vectors(bp, p, nzs)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
@@ -196,13 +201,9 @@ class Obfuscator(object):
             comp = comp * (m.zero if inp[m.inp] == '0' else m.one)
         # need to use numpy arrays here, as sage constructs cause weird issues
         comp = numpy.array(comp)
-        p1 = long((numpy.dot(numpy.dot(self.s_enc, comp), self.t_enc)) % self.x0)
+        p = long((numpy.dot(numpy.dot(self.s_enc, comp), self.t_enc)) % self.x0)
 
-        p2 = self.p_enc
-        for i in xrange(self.nzs - 2):
-            p2 = p2 * fastutils.encode_scalar(1L, self.rho, i, -1)
-
-        result = 0 if self._is_zero(p1 - p2) else 1
+        result = 0 if self._is_zero(p - self.p_enc) else 1
 
         end = time.time()
 
