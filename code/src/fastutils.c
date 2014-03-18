@@ -67,6 +67,25 @@ check_pylist(PyObject *list)
     return SUCCESS;
 }
 
+inline static int
+extract_indices(PyObject *py_list, int *idx1, int *idx2)
+{
+    *idx1 = -1;
+    *idx2 = -1;
+    switch (PyList_GET_SIZE(py_list)) {
+    case 2:
+        *idx2 = PyLong_AsLong(PyList_GET_ITEM(py_list, 1));
+        /* fallthrough */
+    case 1:
+        *idx1 = PyLong_AsLong(PyList_GET_ITEM(py_list, 0));
+        break;
+    default:
+        break;
+    }
+    return SUCCESS;
+}
+
+
 static void
 mpz_genrandom(mpz_t rnd, const long nbits)
 {
@@ -106,13 +125,19 @@ static PyObject *
 fastutils_genparams(PyObject *self, PyObject *args)
 {
     const long alpha, beta, eta, kappa;
-    long i;
-    PyObject *py_x0, *py_pzt, *py_g0;
+    PyObject *py_x0, *py_pzt, *py_gs;
+    Py_ssize_t gs_len;
     mpz_t *zs;
+    long i;
 
     if (!PyArg_ParseTuple(args, "lllllllO", &g_n, &alpha, &beta, &eta, &kappa,
-                          &g_rho, &g_nzs, &py_g0))
+                          &g_rho, &g_nzs, &py_gs))
         return NULL;
+    if (check_pylist(py_gs) == FAILURE) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "eighth argument must be a list of longs");
+        return NULL;
+    }
 
     mpz_init_set_ui(g_x0, 1);
     mpz_init_set_ui(g_pzt, 0);
@@ -139,6 +164,8 @@ fastutils_genparams(PyObject *self, PyObject *args)
         mpz_init(g_zinvs[i]);
     }
 
+    gs_len = PyList_GET_SIZE(py_gs);
+
     // Generate p_i's and g_'s, as well as compute x0
     {
 #pragma omp parallel for private(i)
@@ -150,8 +177,8 @@ fastutils_genparams(PyObject *self, PyObject *args)
             // XXX: not uniform primes
             mpz_urandomb(p_unif, g_rng, eta);
             mpz_nextprime(g_ps[i], p_unif);
-            if (i == 0) {
-                py_to_mpz(g_gs[0], py_g0);
+            if (i < gs_len) {
+                py_to_mpz(g_gs[i], PyList_GET_ITEM(py_gs, i));
             } else {
                 // XXX: not uniform primes
                 mpz_urandomb(p_unif, g_rng, alpha);
@@ -267,10 +294,10 @@ fastutils_loadparams(PyObject *self, PyObject *args)
 
 static int
 encode(mpz_t out, const mpz_t in, const long idx1,
-       const long idx2)
+       const long idx2, const long slot)
 {
     mpz_t res, r, tmp;
-    int i;
+    long i;
 
     if (idx1 >= g_nzs || idx2 >= g_nzs)
         return FAILURE;
@@ -288,7 +315,7 @@ encode(mpz_t out, const mpz_t in, const long idx1,
     for (i = 0; i < g_n; ++i) {
         mpz_genrandom(r, g_rho);
         mpz_mul(tmp, r, g_gs[i]);
-        if (i == 0) {
+        if (i == slot) {
             mpz_add(tmp, tmp, in);
         }
         mpz_mul(tmp, tmp, g_crt_coeffs[i]);
@@ -316,13 +343,14 @@ encode(mpz_t out, const mpz_t in, const long idx1,
 static PyObject *
 fastutils_encode_scalar(PyObject *self, PyObject *args)
 {
-    long idx1 = -1, idx2 = -1;
     PyObject *py_val = NULL, *py_list = NULL, *py_out = NULL;
+    int idx1, idx2;
+    long slot;
     mpz_t val;
 
     mpz_init(val);
 
-    if (!PyArg_ParseTuple(args, "OO", &py_val, &py_list))
+    if (!PyArg_ParseTuple(args, "OlO", &py_val, &slot, &py_list))
         goto error;
     if (!PyLong_Check(py_val)) {
         PyErr_SetString(PyExc_RuntimeError, "first argument must be a long");
@@ -333,21 +361,14 @@ fastutils_encode_scalar(PyObject *self, PyObject *args)
         goto error;
     }
 
-    switch (PyList_GET_SIZE(py_list)) {
-    case 2:
-        idx2 = PyLong_AsLong(PyList_GET_ITEM(py_list, 1));
-        /* fallthrough */
-    case 1:
-        idx1 = PyLong_AsLong(PyList_GET_ITEM(py_list, 0));
-        break;
-    default:
+    if (extract_indices(py_list, &idx1, &idx2) == FAILURE) {
         PyErr_SetString(PyExc_RuntimeError,
                         "third argument must be a list of length 1 or 2");
         goto error;
     }
 
     py_to_mpz(val, py_val);
-    if (encode(val, val, idx1, idx2) == SUCCESS) {
+    if (encode(val, val, idx1, idx2, slot) == SUCCESS) {
         py_out = mpz_to_py(val);
     } else {
         PyErr_SetString(PyExc_RuntimeError, "encoding failed");
@@ -363,21 +384,34 @@ fastutils_encode_scalar(PyObject *self, PyObject *args)
 static PyObject *
 fastutils_encode_vector(PyObject *self, PyObject *args)
 {
-    const long idx;
-    PyObject *py_vals = NULL, *py_outs = NULL;
+    const long slot;
+    PyObject *py_vals = NULL, *py_list = NULL, *py_outs = NULL;
     Py_ssize_t i, len;
-    int err = 0;
+    int idx1, idx2, err = 0;
 
-    // TODO: check that vals contains only longs
+    if (!PyArg_ParseTuple(args, "OlO", &py_vals, &slot, &py_list)) {
+        return NULL;
+    }
+    if (check_pylist(py_vals) == FAILURE) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "first argument must be a list of longs");
+        return NULL;
+    }
+    if (!PyList_Check(py_list)) {
+        PyErr_SetString(PyExc_RuntimeError, "third argument must be a list");
+        return NULL;
+    }
 
-    if (!PyArg_ParseTuple(args, "Ol", &py_vals, &idx))
+    if (extract_indices(py_list, &idx1, &idx2) == FAILURE) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "third argument must be a list of length 1 or 2");
         return NULL;
-    if (!PyList_Check(py_vals))
-        return NULL;
+    }
 
     len = PyList_GET_SIZE(py_vals);
-    if ((py_outs = PyList_New(len)) == NULL)
+    if ((py_outs = PyList_New(len)) == NULL) {
         return NULL;
+    }
 
 #pragma omp parallel for private(i)
     for (i = 0; i < len; ++i) {
@@ -385,7 +419,7 @@ fastutils_encode_vector(PyObject *self, PyObject *args)
 
         mpz_init(val);
         py_to_mpz(val, PyList_GET_ITEM(py_vals, i));
-        if (encode(val, val, idx, -1) == FAILURE) {
+        if (encode(val, val, idx1, idx2, slot) == FAILURE) {
             err = 1;
         }
         PyList_SET_ITEM(py_outs, i, mpz_to_py(val));
@@ -401,44 +435,27 @@ fastutils_encode_vector(PyObject *self, PyObject *args)
 static PyObject *
 fastutils_encode_layer(PyObject *self, PyObject *args)
 {
-    long zeroidx1 = -1, zeroidx2 = -1, oneidx1 = -1, oneidx2 = -1;
     PyObject *py_vals, *py_outs, *py_zeros, *py_ones;
     Py_ssize_t i, len, half;
+    int zeroidx1, zeroidx2, oneidx1, oneidx2;
+    long slot;
 
-    if (!PyArg_ParseTuple(args, "OOO", &py_vals, &py_zeros, &py_ones))
+    if (!PyArg_ParseTuple(args, "OlOO", &py_vals, &slot, &py_zeros, &py_ones))
         return NULL;
     if (check_pylist(py_vals) == FAILURE) {
-        PyErr_SetString(PyExc_RuntimeError, "first argument must be a list of longs");
-        return NULL;
-    }
-    /* if (check_pylist(py_zeros) == FAILURE) { */
-    /*     PyErr_SetString(PyExc_RuntimeError, "second argument must be a list of longs"); */
-    /*     return NULL; */
-    /* } */
-    /* if (check_pylist(py_ones) == FAILURE) { */
-    /*     PyErr_SetString(PyExc_RuntimeError, "third argument must be a list of longs"); */
-    /*     return NULL; */
-    /* } */
-
-    switch (PyList_GET_SIZE(py_zeros)) {
-    case 2:
-        zeroidx2 = PyLong_AsLong(PyList_GET_ITEM(py_zeros, 1));
-        /* fallthrough */
-    case 1:
-        zeroidx1 = PyLong_AsLong(PyList_GET_ITEM(py_zeros, 0));
-        break;
-    default:
+        PyErr_SetString(PyExc_RuntimeError,
+                        "first argument must be a list of longs");
         return NULL;
     }
 
-    switch (PyList_GET_SIZE(py_ones)) {
-    case 2:
-        oneidx2 = PyLong_AsLong(PyList_GET_ITEM(py_ones, 1));
-        /* fallthrough */
-    case 1:
-        oneidx1 = PyLong_AsLong(PyList_GET_ITEM(py_ones, 0));
-        break;
-    default:
+    if (extract_indices(py_zeros, &zeroidx1, &zeroidx2) == FAILURE) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "second argument must be a list of length 1 or 2");
+        return NULL;
+    }
+    if (extract_indices(py_ones, &oneidx1, &oneidx2) == FAILURE) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "third argument must be a list of length 1 or 2");
         return NULL;
     }
 
@@ -455,9 +472,9 @@ fastutils_encode_layer(PyObject *self, PyObject *args)
         mpz_init(val);
         py_to_mpz(val, PyList_GET_ITEM(py_vals, i));
         if (i < half) {
-            encode(val, val, zeroidx1, zeroidx2);
+            encode(val, val, zeroidx1, zeroidx2, slot);
         } else {
-            encode(val, val, oneidx1, oneidx2);
+            encode(val, val, oneidx1, oneidx2, slot);
         }
         PyList_SET_ITEM(py_outs, i, mpz_to_py(val));
         mpz_clear(val);

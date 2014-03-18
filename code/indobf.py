@@ -27,6 +27,9 @@ def bp(args):
         print('Output = %d' % r)
 
 def obf(args):
+    if args.disable_bookends:
+        args.disable_mbundling = True
+
     if args.test_circuit:
         params = TestParams(obliviate=False, obfuscate=True,
                             disable_mbundling=args.disable_mbundling,
@@ -34,13 +37,13 @@ def obf(args):
         test_circuit(args.test_circuit, args.secparam, args.verbose, params)
     else:
         obf = Obfuscator(verbose=args.verbose)
-        if args.load_obf is not None:
+        if args.load_obf:
             print("Loading obfuscation from '%s'..." % args.load_obf)
             start = time.time()
             obf.load(args.load_obf)
             end = time.time()
             print("Loading took: %f seconds" % (end - start))
-        elif args.load_circuit is not None:
+        elif args.load_circuit:
             print("Converting '%s' -> bp..." % args.load_circuit)
             bp = BranchingProgram(args.load_circuit, type='circuit')
             print('Obfuscating BP of length %d...' % len(bp))
@@ -51,9 +54,11 @@ def obf(args):
         else:
             print('One of --load-obf, --load-circuit, --test-circuit must be used!')
             sys.exit(1)
+
         if args.save is not None:
             print("Saving obfuscation to '%s'..." % args.save)
             obf.save(args.save)
+
         if args.eval is not None:
             print("Evaluating on input '%s'..." % args.eval)
             start = time.time()

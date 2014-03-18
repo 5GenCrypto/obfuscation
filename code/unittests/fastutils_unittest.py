@@ -13,66 +13,75 @@ import unittest
 # rho = alpha
 # n = eta
 
-# kappa = 2
-# alpha = 8
-# beta = alpha
-# eta = 76
-# nu = 21
-# rho = alpha
-# n = eta
-
-kappa = 3
+kappa = 2
 alpha = 8
 beta = alpha
-eta = 94
+eta = 76
 nu = 21
 rho = alpha
 n = eta
 
-g0 = long(181)
+# kappa = 3
+# alpha = 8
+# beta = alpha
+# eta = 94
+# nu = 21
+# rho = alpha
+# n = eta
+
+gs = [long(181), long(191)]
 
 class FastutilsTestCase(unittest.TestCase):
     def testme(self):
         try:
             import fastutils
 
-            nzs = 3
+            nzs = 2
 
             # assert kappa == nzs
 
-            x0, pzt = fastutils.genparams(n, alpha, beta, eta, kappa, rho, nzs, g0)
+            x0, pzt = fastutils.genparams(n, alpha, beta, eta, kappa, rho, nzs, gs)
 
-            # p = 143L
-            s = [55L, 103L, 50L, 93L, 151L]
-            t = [59L, 180L, 57L, 168L, 34L]
-            p = long(numpy.dot(s, t) % g0)
-            assert p == 143L
+            a1 = fastutils.encode_scalar(173L, 0, [0, 1]);
+            b1 = fastutils.encode_scalar(173L, 0, [0, 1]);
 
-            M = numpy.matrix([[1L, 0L, 0L, 0L, 0L],
-                              [0L, 1L, 0L, 0L, 0L],
-                              [0L, 0L, 1L, 0L, 0L],
-                              [0L, 0L, 0L, 1L, 0L],
-                              [0L, 0L, 0L, 0L, 1L]])
+            assert fastutils.is_zero(long(a1 - b1), nu)
 
-            l = M.flatten().tolist()[0]
-            Menc = fastutils.encode_vector(l, 0)
-            Menc = numpy.array(Menc).reshape((5, 5))
+            # p1 = 143L
+            # s1 = [55L, 103L, 50L, 93L, 151L]
+            # t1 = [59L, 180L, 57L, 168L, 34L]
 
-            print(type(Menc))
+            # p2 = 76L
+            # s2 = [159L, 101L, 21L, 165L, 90L]
+            # t2 = [134L, 57L, 131L, 171L, 84L]
 
-            penc = fastutils.encode_scalar(p, [1, 2])
-            senc = fastutils.encode_vector(s, 1)
-            tenc = fastutils.encode_vector(t, 2)
-            one = fastutils.encode_scalar(1L, [0])
+            # M = numpy.matrix([[1L, 0L, 0L, 0L, 0L],
+            #                   [0L, 1L, 0L, 0L, 0L],
+            #                   [0L, 0L, 1L, 0L, 0L],
+            #                   [0L, 0L, 0L, 1L, 0L],
+            #                   [0L, 0L, 0L, 0L, 1L]])
 
-            a = numpy.dot(numpy.dot(senc, Menc), tenc) % x0
-            b = (penc * fastutils.encode_scalar(1L, [0])) % x0
+            # l = M.flatten().tolist()[0]
+            # M1enc = fastutils.encode_vector(l, 0, [0])
+            # M1enc = numpy.array(M1enc).reshape((5, 5))
 
-            test = a - b
+            # p1enc = fastutils.encode_scalar(p1, 0, [1, 2])
+            # s1enc = fastutils.encode_vector(s1, 0, [1])
+            # t1enc = fastutils.encode_vector(t1, 0, [2])
 
-            print()
-            print('test length    = %d' % long(test).bit_length())
-            assert fastutils.is_zero(long(test), nu)
+            # M2enc = fastutils.encode_vector(l, 1, [0])
+            # M2enc = numpy.array(M2enc).reshape((5, 5))
+
+            # p2enc = fastutils.encode_scalar(p2, 1, [1, 2])
+            # s2enc = fastutils.encode_vector(s2, 1, [1])
+            # t2enc = fastutils.encode_vector(t2, 1, [2])
+
+
+            # a = numpy.dot(numpy.dot(s1enc, M1enc), t1enc) % x0
+            # b = (p1enc * fastutils.encode_scalar(1L, 0, [0])) % x0
+
+            # assert fastutils.is_zero(long(a - b), nu)
+
         except ImportError as e:
             self.fail(str(e))
 

@@ -72,9 +72,9 @@ class Obfuscator(object):
         self._disable_bookends = disable_bookends
         self.logger = utils.make_logger(self._verbose)
         if self._disable_mbundling:
-            self.logger('Multiplicative bundling disabled')
+            self.logger('* Multiplicative bundling disabled')
         if self._disable_bookends:
-            self.logger('Bookends disabled')
+            self.logger('* Bookends disabled')
 
     def save(self, directory):
         assert self.obfuscation is not None
@@ -142,12 +142,12 @@ class Obfuscator(object):
         s = VSZp.random_element() * bp.m0i
         t = bp.m0 * VSZp.random_element()
         p = s * t
-        penc = fastutils.encode_scalar(long(p), [sidx, tidx])
+        penc = fastutils.encode_scalar(long(p), 0, [sidx, tidx])
         if self._disable_mbundling:
             for i in xrange(nzs - 2):
-                penc *= fastutils.encode_scalar(1L, [i])
-        senc = fastutils.encode_vector([long(i) for i in s], sidx)
-        tenc = fastutils.encode_vector([long(i) for i in t], tidx)
+                penc *= fastutils.encode_scalar(1L, 0, [i])
+        senc = fastutils.encode_vector([long(i) for i in s], 0, [sidx])
+        tenc = fastutils.encode_vector([long(i) for i in t], 0, [tidx])
         return senc, tenc, penc
 
     def _obfuscate_layer(self, layer):
@@ -158,7 +158,7 @@ class Obfuscator(object):
         m = ms2list(layer.zero)
         m.extend(ms2list(layer.one))
         half = len(m) / 2
-        es = fastutils.encode_layer(m, layer.zeroset, layer.oneset)
+        es = fastutils.encode_layer(m, 0, layer.zeroset, layer.oneset)
         zero, one = MS(es[:half]), MS(es[half:])
         end = time.time()
         self.logger('Obfuscating layer took: %f seconds' % (end - start))
@@ -183,7 +183,8 @@ class Obfuscator(object):
             alphas = None
         else:
             R = Zmod(prime)
-            alphas = [(R.random_element(), R.random_element()) for _ in xrange(len(bp))]
+            alphas = [(R.random_element(), R.random_element())
+                      for _ in xrange(len(bp))]
         bp.randomize(prime, alphas=alphas)
 
         nzs = self._set_straddling_sets(bp)
@@ -196,7 +197,7 @@ class Obfuscator(object):
         start = time.time()
         self.x0, self.pzt = fastutils.genparams(self.n, self.alpha, self.beta,
                                                 self.eta, self.kappa, self.rho,
-                                                nzs, prime)
+                                                nzs, [prime])
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
@@ -204,8 +205,8 @@ class Obfuscator(object):
             self.a0s_enc = []
             self.a1s_enc = []
             for layer, (a0, a1) in zip(bp, alphas):
-                a0enc = fastutils.encode_scalar(long(a0), layer.zeroset)
-                a1enc = fastutils.encode_scalar(long(a1), layer.oneset)
+                a0enc = fastutils.encode_scalar(long(a0), 0, layer.zeroset)
+                a1enc = fastutils.encode_scalar(long(a1), 0, layer.oneset)
                 self.a0s_enc.append(a0enc)
                 self.a1s_enc.append(a1enc)
 
