@@ -8,9 +8,12 @@ from indobf.obfuscator import Obfuscator
 from sage.all import random_prime
 
 class TestParams(object):
-    def __init__(self, obliviate=False, obfuscate=False):
+    def __init__(self, obliviate=False, obfuscate=False,
+                 disable_mbundling=False, disable_bookends=False):
         self.obliviate = obliviate
         self.obfuscate = obfuscate
+        self.disable_mbundling = disable_mbundling
+        self.disable_bookends = disable_bookends
 
 def test_circuit(path, secparam, verbose, params):
     testcases = {}
@@ -37,10 +40,17 @@ def test_circuit(path, secparam, verbose, params):
     if params.obliviate:
         bp.obliviate()
     if params.obfuscate:
-        obf = Obfuscator(secparam, verbose=verbose)
-        obf.obfuscate(bp)
-        obf.save("%s.obf" % path)
-        program = obf
+        kwargs = {
+            'verbose': verbose,
+            'disable_mbundling': params.disable_mbundling,
+            'disable_bookends': params.disable_bookends
+        }
+        obf = Obfuscator(**kwargs)
+        obf.obfuscate(bp, secparam)
+        obf.save('%s.obf' % path)
+        program = Obfuscator(**kwargs)
+
+        program.load('%s.obf' % path)
     else:
         prime = long(random_prime((1 << secparam) - 1, lbound=(1 << secparam - 1)))
         bp.randomize(prime, alphas=None)

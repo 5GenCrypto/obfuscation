@@ -19,6 +19,9 @@ def ms2list(m):
     m = [[long(e) for e in row] for row in m]
     return [long(e) for e in flatten(m)]
 
+def to_long(l):
+    return [long(e) for e in l]
+
 ObfLayer = collections.namedtuple('ObfLayer', ['inp', 'zero', 'one'])
 
 def load_layer(directory, inp, zero, one):
@@ -36,7 +39,7 @@ class Obfuscator(object):
 
     def _print_params(self):
         self.logger('Graded encoding parameters:')
-        self.logger('  Lambda: %d' % self.secparam)
+        self.logger('  Security Parameter: %d' % self.secparam)
         self.logger('  Kappa: %d' % self.kappa)
         self.logger('  Alpha: %d' % self.alpha)
         self.logger('  Beta: %d' % self.beta)
@@ -46,7 +49,8 @@ class Obfuscator(object):
         self.logger('  Rho_f: %d' % self.rho_f)
         self.logger('  N: %d' % self.n)
 
-    def _set_params(self, kappa):
+    def _set_params(self, secparam, kappa):
+        self.secparam = secparam
         self.kappa = kappa
         self.alpha = self.secparam
         self.beta = self.secparam
@@ -57,41 +61,54 @@ class Obfuscator(object):
         assert self.nu >= self.alpha + self.beta + 5
         # XXX: use smaller n value for now to speed things up
         self.n = self.eta
-        # self.n = int(self.eta * math.log(self.secparam, 2))
+        # self.n = int(self.eta * numpy.log2(self.secparam))
         self._print_params()
 
-    def __init__(self, secparam, verbose=False):
-        self.secparam = secparam
+    def __init__(self, verbose=False, disable_mbundling=False,
+                 disable_bookends=False):
         self.obfuscation = None
         self._verbose = verbose
+        self._disable_mbundling = disable_mbundling
+        self._disable_bookends = disable_bookends
         self.logger = utils.make_logger(self._verbose)
-        self.logger('Obfuscation parameters:')
-        self.logger('  Security Parameter: %d' % self.secparam)
+        if self._disable_mbundling:
+            self.logger('Multiplicative bundling disabled')
+        if self._disable_bookends:
+            self.logger('Bookends disabled')
 
     def save(self, directory):
         assert self.obfuscation is not None
         if not os.path.exists(directory):
             os.mkdir(directory)
+        Integer(self.nu).save('%s/nu' % directory)
         Integer(self.x0).save('%s/x0' % directory)
         Integer(self.pzt).save('%s/pzt' % directory)
-        Integer(self.p_enc).save('%s/p_enc' % directory)
-        vector(self.s_enc).save('%s/s_enc' % directory)
-        vector(self.t_enc).save('%s/t_enc' % directory)
-        vector(self.a0s_enc).save('%s/a0s_enc' % directory)
-        vector(self.a1s_enc).save('%s/a1s_enc' % directory)
+        if not self._disable_bookends:
+            Integer(self.p_enc).save('%s/p_enc' % directory)
+            vector(self.s_enc).save('%s/s_enc' % directory)
+            vector(self.t_enc).save('%s/t_enc' % directory)
+        if not self._disable_mbundling:
+            vector(self.a0s_enc).save('%s/a0s_enc' % directory)
+            vector(self.a1s_enc).save('%s/a1s_enc' % directory)
         for idx, layer in enumerate(self.obfuscation):
             save_layer(layer, directory, idx)
 
     def load(self, directory):
         assert self.obfuscation is None
-        x0 = long(load('%s/x0.sobj' % directory))
+        self.nu = int(load('%s/nu.sobj' % directory))
+        self.x0 = long(load('%s/x0.sobj' % directory))
         pzt = long(load('%s/pzt.sobj' % directory))
-        self.p_enc = long(load('%s/p_enc.sobj' % directory))
-        # XXX: need to convert these to longs?
-        self.s_enc = load('%s/s_enc.sobj' % directory)
-        self.t_enc = load('%s/t_enc.sobj' % directory)
-        self.a0s_enc = load('%s/a0s_enc.sobj' % directory)
-        self.a1s_enc = load('%s/a1s_enc.sobj' % directory)
+        if not self._disable_bookends:
+            self.p_enc = long(load('%s/p_enc.sobj' % directory))
+            self.s_enc = load('%s/s_enc.sobj' % directory)
+            self.s_enc = [long(e) for e in self.s_enc]
+            self.t_enc = load('%s/t_enc.sobj' % directory)
+            self.t_enc = [long(e) for e in self.t_enc]
+        if not self._disable_mbundling:
+            self.a0s_enc = load('%s/a0s_enc.sobj' % directory)
+            self.a0s_enc = [long(e) for e in self.a0s_enc]
+            self.a1s_enc = load('%s/a1s_enc.sobj' % directory)
+            self.a1s_enc = [long(e) for e in self.a1s_enc]
 
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
@@ -99,39 +116,25 @@ class Obfuscator(object):
         ones = sorted(filter(lambda s: 'one' in s, files))
         self.obfuscation = [load_layer(directory, inp, zero, one) for inp, zero,
                             one in zip(inputs, zeros, ones)]
-        self._set_params(len(self.obfuscation))
-        fastutils.loadparams(x0, pzt)
+        fastutils.loadparams(self.x0, pzt)
 
     def _set_straddling_sets(self, bp):
-        # REFACTOR: Ugly, ugly code...
         inpdir = {}
         for layer in bp:
-            if layer.inp not in inpdir:
-                inpdir[layer.inp] = [layer]
-            else:
-                inpdir[layer.inp].append(layer)
-        last = 0
-        for v in inpdir.itervalues():
-            if len(v) == 1:
-                layer = v[0]
-                layer.zeroset = set({last})
-                layer.oneset = set({last})
-                last = last + 1
-            else:
-                for idx, layer in enumerate(v):
-                    if idx == 0:
-                        layer.zeroset = set({last})
-                        layer.oneset = set({last, last + 1})
-                        last = last + 2
-                    elif idx == len(v) - 1:
-                        layer.zeroset = set({last - 1, last})
-                        layer.oneset = set({last})
-                        last = last + 1
-                    else:
-                        layer.zeroset = set({last - 1, last})
-                        layer.oneset = set({last, last + 1})
-                        last = last + 2
-        return last
+            inpdir.setdefault(layer.inp, []).append(layer)
+        n = 0
+        for layers in inpdir.itervalues():
+            max = len(layers) - 1
+            for i, layer in enumerate(layers):
+                if i < max:
+                    layer.zeroset = [n - 1, n]  if i else [n]
+                    layer.oneset = [n, n + 1]
+                    n += 2
+                else:
+                    layer.zeroset = [n - 1, n] if max else [n]
+                    layer.oneset = [n]
+                    n += 1
+        return n
 
     def _construct_bookend_vectors(self, bp, prime, nzs):
         sidx, tidx = nzs - 2, nzs - 1
@@ -140,6 +143,9 @@ class Obfuscator(object):
         t = bp.m0 * VSZp.random_element()
         p = s * t
         penc = fastutils.encode_scalar(long(p), [sidx, tidx])
+        if self._disable_mbundling:
+            for i in xrange(nzs - 2):
+                penc *= fastutils.encode_scalar(1L, [i])
         senc = fastutils.encode_vector([long(i) for i in s], sidx)
         tenc = fastutils.encode_vector([long(i) for i in t], tidx)
         return senc, tenc, penc
@@ -152,29 +158,39 @@ class Obfuscator(object):
         m = ms2list(layer.zero)
         m.extend(ms2list(layer.one))
         half = len(m) / 2
-        es = fastutils.encode_layer(m, list(layer.zeroset), list(layer.oneset))
+        es = fastutils.encode_layer(m, layer.zeroset, layer.oneset)
         zero, one = MS(es[:half]), MS(es[half:])
         end = time.time()
         self.logger('Obfuscating layer took: %f seconds' % (end - start))
         return ObfLayer(layer.inp, zero, one)
 
-    def obfuscate(self, bp):
+    def obfuscate(self, bp, secparam):
         if bp.randomized:
             raise Exception('Input BP must not be randomized!')
 
-        # add two to kappa due to the bookend vectors
-        self._set_params(len(bp) + 2)
+        if self._disable_bookends:
+            kappa = len(bp)
+        else:
+            # add two to kappa due to the bookend vectors
+            kappa = len(bp) + 2
 
-        prime = long(random_prime((1 << self.secparam) - 1,
-                                  lbound=(1 << self.secparam - 1)))
+        self._set_params(secparam, kappa)
 
-        R = Zmod(prime)
-        alphas = [(R.random_element(), R.random_element()) for _ in xrange(len(bp))]
+        prime = long(random_prime((1 << secparam) - 1,
+                                  lbound=(1 << secparam - 1)))
+
+        if self._disable_mbundling:
+            alphas = None
+        else:
+            R = Zmod(prime)
+            alphas = [(R.random_element(), R.random_element()) for _ in xrange(len(bp))]
         bp.randomize(prime, alphas=alphas)
 
         nzs = self._set_straddling_sets(bp)
         # take bookend vectors into account
-        nzs = nzs + 2
+        if not self._disable_bookends:
+            nzs = nzs + 2
+        self.logger('Number of Zs: %d' % nzs)
 
         self.logger('Generating MLM parameters...')
         start = time.time()
@@ -184,20 +200,22 @@ class Obfuscator(object):
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
-        self.a0s_enc = []
-        self.a1s_enc = []
-        for layer, (a0, a1) in zip(bp, alphas):
-            a0enc = fastutils.encode_scalar(long(a0), list(layer.zeroset))
-            a1enc = fastutils.encode_scalar(long(a1), list(layer.oneset))
-            self.a0s_enc.append(a0enc)
-            self.a1s_enc.append(a1enc)
+        if not self._disable_mbundling:
+            self.a0s_enc = []
+            self.a1s_enc = []
+            for layer, (a0, a1) in zip(bp, alphas):
+                a0enc = fastutils.encode_scalar(long(a0), layer.zeroset)
+                a1enc = fastutils.encode_scalar(long(a1), layer.oneset)
+                self.a0s_enc.append(a0enc)
+                self.a1s_enc.append(a1enc)
 
-        self.logger('Constructing bookend vectors...')
-        start = time.time()
-        self.s_enc, self.t_enc, self.p_enc \
-            = self._construct_bookend_vectors(bp, prime, nzs)
-        end = time.time()
-        self.logger('Took: %f seconds' % (end - start))
+        if not self._disable_bookends:
+            self.logger('Constructing bookend vectors...')
+            start = time.time()
+            self.s_enc, self.t_enc, self.p_enc \
+                = self._construct_bookend_vectors(bp, prime, nzs)
+            end = time.time()
+            self.logger('Took: %f seconds' % (end - start))
 
         self.logger('Obfuscating...')
         start = time.time()
@@ -213,18 +231,22 @@ class Obfuscator(object):
 
         start = time.time()
 
-        comp = MS.identity_matrix()
+        p1 = MS.identity_matrix()
         for m in self.obfuscation:
-            comp = comp * (m.zero if inp[m.inp] == '0' else m.one)
-        # need to use numpy arrays here, as sage constructs cause weird issues
-        comp = numpy.array(comp)
-        p1 = long((numpy.dot(numpy.dot(self.s_enc, comp), self.t_enc)) % self.x0)
+            p1 = p1 * (m.zero if inp[m.inp] == '0' else m.one)
+        if self._disable_bookends:
+            result = 0 if self._is_zero(p1[0][1]) and self._is_zero(p1[1][0]) else 1
+        else:
+            # need to use numpy arrays here, as sage constructs cause weird issues
+            p1 = long((numpy.dot(numpy.dot(self.s_enc, numpy.array(p1)),
+                                 self.t_enc)) % self.x0)
 
-        p2 = self.p_enc
-        for i, m in enumerate(self.obfuscation):
-            p2 = p2 * (self.a0s_enc[i] if inp[m.inp] == '0' else self.a1s_enc[i])
+            p2 = self.p_enc
+            if not self._disable_mbundling:
+                for i, m in enumerate(self.obfuscation):
+                    p2 = p2 * (self.a0s_enc[i] if inp[m.inp] == '0' else self.a1s_enc[i])
         
-        result = 0 if self._is_zero(p1 - p2) else 1
+            result = 0 if self._is_zero(p1 - p2) else 1
 
         end = time.time()
 

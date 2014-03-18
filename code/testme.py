@@ -11,10 +11,11 @@ def main(argv):
     parser.add_argument('--obliviate', action='store_true')
     args = parser.parse_args()
 
-    paths = ['circuits/not.circuit', 'circuits/and.circuit']
+    paths = ['not.circuit', 'and.circuit', 'twoand.circuit']
     params = TestParams(obliviate=args.obliviate, obfuscate=True)
-    secparams = [8, 12, 16, 20, 24, 28]
+    secparams = [8, 16, 24, 28, 32, 40]
     for path in paths:
+        path = 'circuits/%s' % path
         print('Testing circuit "%s"' % path)
         for secparam in secparams:
             print('Security parameter = %d' % secparam)

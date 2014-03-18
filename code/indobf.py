@@ -28,10 +28,12 @@ def bp(args):
 
 def obf(args):
     if args.test_circuit:
-        params = TestParams(obliviate=False, obfuscate=True)
+        params = TestParams(obliviate=False, obfuscate=True,
+                            disable_mbundling=args.disable_mbundling,
+                            disable_bookends=args.disable_bookends)
         test_circuit(args.test_circuit, args.secparam, args.verbose, params)
     else:
-        obf = Obfuscator(args.secparam, verbose=args.verbose)
+        obf = Obfuscator(verbose=args.verbose)
         if args.load_obf is not None:
             print("Loading obfuscation from '%s'..." % args.load_obf)
             start = time.time()
@@ -43,7 +45,7 @@ def obf(args):
             bp = BranchingProgram(args.load_circuit, type='circuit')
             print('Obfuscating BP of length %d...' % len(bp))
             start = time.time()
-            obf.obfuscate(bp)
+            obf.obfuscate(bp, args.secparam)
             end = time.time()
             print("Obfuscation took: %f seconds" % (end - start))
         else:
@@ -100,6 +102,10 @@ def main(argv):
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int,
                              action='store', default=8, help="security parameter")
+    parser_obf.add_argument('--disable-mbundling', action='store_true',
+                             help='disable multiplicative bundling')
+    parser_obf.add_argument('--disable-bookends', action='store_true',
+                             help='disable booken vectors')
     parser_obf.add_argument('-v', '--verbose', action='store_true',
                             help='be verbose')
     parser_obf.set_defaults(func=obf)

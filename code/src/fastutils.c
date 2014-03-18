@@ -47,6 +47,26 @@ py_to_mpz(mpz_t out, PyObject *in)
     (void) mpz_set_pylong(out, in);
 }
 
+inline static int
+check_pylist(PyObject *list)
+{
+    PyObject *item;
+    Py_ssize_t i, len;
+
+    if (!PyList_Check(list)) {
+        return FAILURE;
+    }
+
+    len = PyList_GET_SIZE(list);
+    for (i = 0; i < len; ++i) {
+        item = PyList_GET_ITEM(list, i);
+        if (!PyLong_Check(item)) {
+            return FAILURE;
+        }
+    }
+    return SUCCESS;
+}
+
 static void
 mpz_genrandom(mpz_t rnd, const long nbits)
 {
@@ -226,10 +246,18 @@ fastutils_genparams(PyObject *self, PyObject *args)
 static PyObject *
 fastutils_loadparams(PyObject *self, PyObject *args)
 {
-    PyObject *py_x0, *py_pzt;
+    PyObject *py_x0 = NULL, *py_pzt = NULL;
 
     if (!PyArg_ParseTuple(args, "OO", &py_x0, &py_pzt))
         return NULL;
+    if (!PyLong_Check(py_x0)) {
+        PyErr_SetString(PyExc_RuntimeError, "first argument must be a long");
+        return NULL;
+    }
+    if (!PyLong_Check(py_pzt)) {
+        PyErr_SetString(PyExc_RuntimeError, "second argument must be a long");
+        return NULL;
+    }
 
     py_to_mpz(g_x0, py_x0);
     py_to_mpz(g_pzt, py_pzt);
@@ -379,12 +407,18 @@ fastutils_encode_layer(PyObject *self, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "OOO", &py_vals, &py_zeros, &py_ones))
         return NULL;
-    if (!PyList_Check(py_vals))
+    if (check_pylist(py_vals) == FAILURE) {
+        PyErr_SetString(PyExc_RuntimeError, "first argument must be a list of longs");
         return NULL;
-    if (!PyList_Check(py_zeros))
-        return NULL;
-    if (!PyList_Check(py_ones))
-        return NULL;
+    }
+    /* if (check_pylist(py_zeros) == FAILURE) { */
+    /*     PyErr_SetString(PyExc_RuntimeError, "second argument must be a list of longs"); */
+    /*     return NULL; */
+    /* } */
+    /* if (check_pylist(py_ones) == FAILURE) { */
+    /*     PyErr_SetString(PyExc_RuntimeError, "third argument must be a list of longs"); */
+    /*     return NULL; */
+    /* } */
 
     switch (PyList_GET_SIZE(py_zeros)) {
     case 2:
@@ -436,12 +470,16 @@ static PyObject *
 fastutils_is_zero(PyObject *self, PyObject *args)
 {
     const long nu;
-    PyObject *py_c;
+    PyObject *py_c = NULL;
     mpz_t c;
     int ret;
 
     if (!PyArg_ParseTuple(args, "Ol", &py_c, &nu))
         return NULL;
+    if (!PyLong_Check(py_c)) {
+        PyErr_SetString(PyExc_RuntimeError, "first argument must be a long");
+        return NULL;
+    }
 
     mpz_init(c);
 
