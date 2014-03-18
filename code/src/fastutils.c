@@ -18,6 +18,7 @@ static mpz_t g_pzt;
 static mpz_t *g_crt_coeffs;
 static mpz_t *g_zinvs;
 static long g_nzs;
+static long g_rho;
 
 /* static double */
 /* current_time(void) */
@@ -89,8 +90,8 @@ fastutils_genparams(PyObject *self, PyObject *args)
     PyObject *py_x0, *py_pzt, *py_g0;
     mpz_t *zs;
 
-    if (!PyArg_ParseTuple(args, "llllllO", &g_n, &alpha, &beta, &eta, &kappa,
-                          &g_nzs, &py_g0))
+    if (!PyArg_ParseTuple(args, "lllllllO", &g_n, &alpha, &beta, &eta, &kappa,
+                          &g_rho, &g_nzs, &py_g0))
         return NULL;
 
     mpz_init_set_ui(g_x0, 1);
@@ -237,7 +238,7 @@ fastutils_loadparams(PyObject *self, PyObject *args)
 }
 
 static int
-encode(mpz_t out, const mpz_t in, const long rho, const long idx1,
+encode(mpz_t out, const mpz_t in, const long idx1,
        const long idx2)
 {
     mpz_t res, r, tmp;
@@ -257,7 +258,7 @@ encode(mpz_t out, const mpz_t in, const long rho, const long idx1,
     mpz_set_ui(res, 0);
 
     for (i = 0; i < g_n; ++i) {
-        mpz_genrandom(r, rho);
+        mpz_genrandom(r, g_rho);
         mpz_mul(tmp, r, g_gs[i]);
         if (i == 0) {
             mpz_add(tmp, tmp, in);
@@ -287,34 +288,61 @@ encode(mpz_t out, const mpz_t in, const long rho, const long idx1,
 static PyObject *
 fastutils_encode_scalar(PyObject *self, PyObject *args)
 {
-    const long rho, idx1, idx2;
-    PyObject *py_val, *py_out;
+    long idx1 = -1, idx2 = -1;
+    PyObject *py_val = NULL, *py_list = NULL, *py_out = NULL;
     mpz_t val;
 
-    if (!PyArg_ParseTuple(args, "Olll", &py_val, &rho, &idx1, &idx2))
-        return NULL;
-
     mpz_init(val);
-    py_to_mpz(val, py_val);
-    if (encode(val, val, rho, idx1, idx2) == SUCCESS) {
-        py_out = mpz_to_py(val);
-        mpz_clear(val);
-        return py_out;
-    } else {
-        mpz_clear(val);
-        return NULL;
+
+    if (!PyArg_ParseTuple(args, "OO", &py_val, &py_list))
+        goto error;
+    if (!PyLong_Check(py_val)) {
+        PyErr_SetString(PyExc_RuntimeError, "first argument must be a long");
+        goto error;
     }
+    if (!PyList_Check(py_list)) {
+        PyErr_SetString(PyExc_RuntimeError, "third argument must be a list");
+        goto error;
+    }
+
+    switch (PyList_GET_SIZE(py_list)) {
+    case 2:
+        idx2 = PyLong_AsLong(PyList_GET_ITEM(py_list, 1));
+        /* fallthrough */
+    case 1:
+        idx1 = PyLong_AsLong(PyList_GET_ITEM(py_list, 0));
+        break;
+    default:
+        PyErr_SetString(PyExc_RuntimeError,
+                        "third argument must be a list of length 1 or 2");
+        goto error;
+    }
+
+    py_to_mpz(val, py_val);
+    if (encode(val, val, idx1, idx2) == SUCCESS) {
+        py_out = mpz_to_py(val);
+    } else {
+        PyErr_SetString(PyExc_RuntimeError, "encoding failed");
+        goto error;
+    }
+
+ error:
+    mpz_clear(val);
+
+    return py_out;
 }
 
 static PyObject *
 fastutils_encode_vector(PyObject *self, PyObject *args)
 {
-    const long rho, idx;
-    PyObject *py_vals, *py_outs;
+    const long idx;
+    PyObject *py_vals = NULL, *py_outs = NULL;
     Py_ssize_t i, len;
     int err = 0;
 
-    if (!PyArg_ParseTuple(args, "Oll", &py_vals, &rho, &idx))
+    // TODO: check that vals contains only longs
+
+    if (!PyArg_ParseTuple(args, "Ol", &py_vals, &idx))
         return NULL;
     if (!PyList_Check(py_vals))
         return NULL;
@@ -329,7 +357,7 @@ fastutils_encode_vector(PyObject *self, PyObject *args)
 
         mpz_init(val);
         py_to_mpz(val, PyList_GET_ITEM(py_vals, i));
-        if (encode(val, val, rho, idx, -1) == FAILURE) {
+        if (encode(val, val, idx, -1) == FAILURE) {
             err = 1;
         }
         PyList_SET_ITEM(py_outs, i, mpz_to_py(val));
@@ -345,12 +373,11 @@ fastutils_encode_vector(PyObject *self, PyObject *args)
 static PyObject *
 fastutils_encode_layer(PyObject *self, PyObject *args)
 {
-    const long rho;
     long zeroidx1 = -1, zeroidx2 = -1, oneidx1 = -1, oneidx2 = -1;
     PyObject *py_vals, *py_outs, *py_zeros, *py_ones;
     Py_ssize_t i, len, half;
 
-    if (!PyArg_ParseTuple(args, "OlOO", &py_vals, &rho, &py_zeros, &py_ones))
+    if (!PyArg_ParseTuple(args, "OOO", &py_vals, &py_zeros, &py_ones))
         return NULL;
     if (!PyList_Check(py_vals))
         return NULL;
@@ -359,27 +386,25 @@ fastutils_encode_layer(PyObject *self, PyObject *args)
     if (!PyList_Check(py_ones))
         return NULL;
 
-    len = PyList_GET_SIZE(py_zeros);
-    if (len == 0) {
-        return NULL;
-    } else if (len == 1) {
-        zeroidx1 = PyLong_AsLong(PyList_GET_ITEM(py_zeros, 0));
-    } else if (len == 2) {
-        zeroidx1 = PyLong_AsLong(PyList_GET_ITEM(py_zeros, 0));
+    switch (PyList_GET_SIZE(py_zeros)) {
+    case 2:
         zeroidx2 = PyLong_AsLong(PyList_GET_ITEM(py_zeros, 1));
-    } else {
+        /* fallthrough */
+    case 1:
+        zeroidx1 = PyLong_AsLong(PyList_GET_ITEM(py_zeros, 0));
+        break;
+    default:
         return NULL;
     }
 
-    len = PyList_GET_SIZE(py_ones);
-    if (len == 0) {
-        return NULL;
-    } else if (len == 1) {
-        oneidx1 = PyLong_AsLong(PyList_GET_ITEM(py_ones, 0));
-    } else if (len == 2) {
-        oneidx1 = PyLong_AsLong(PyList_GET_ITEM(py_ones, 0));
+    switch (PyList_GET_SIZE(py_ones)) {
+    case 2:
         oneidx2 = PyLong_AsLong(PyList_GET_ITEM(py_ones, 1));
-    } else {
+        /* fallthrough */
+    case 1:
+        oneidx1 = PyLong_AsLong(PyList_GET_ITEM(py_ones, 0));
+        break;
+    default:
         return NULL;
     }
 
@@ -396,9 +421,9 @@ fastutils_encode_layer(PyObject *self, PyObject *args)
         mpz_init(val);
         py_to_mpz(val, PyList_GET_ITEM(py_vals, i));
         if (i < half) {
-            encode(val, val, rho, zeroidx1, zeroidx2);
+            encode(val, val, zeroidx1, zeroidx2);
         } else {
-            encode(val, val, rho, oneidx1, oneidx2);
+            encode(val, val, oneidx1, oneidx2);
         }
         PyList_SET_ITEM(py_outs, i, mpz_to_py(val));
         mpz_clear(val);
@@ -424,8 +449,6 @@ fastutils_is_zero(PyObject *self, PyObject *args)
 
     mpz_mul(c, c, g_pzt);
     mpz_mod_near(c, c, g_x0);
-
-    /* fprintf(stderr, "is_zero length = %ld\n", mpz_sizeinbase(c, 2)); */
 
     ret = (mpz_sizeinbase(c, 2) < (mpz_sizeinbase(g_x0, 2) - nu)) ? 1 : 0;
 

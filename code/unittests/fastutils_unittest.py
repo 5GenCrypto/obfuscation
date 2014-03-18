@@ -40,7 +40,7 @@ class FastutilsTestCase(unittest.TestCase):
 
             # assert kappa == nzs
 
-            x0, pzt = fastutils.genparams(n, alpha, beta, eta, kappa, nzs, g0)
+            x0, pzt = fastutils.genparams(n, alpha, beta, eta, kappa, rho, nzs, g0)
 
             # p = 143L
             s = [55L, 103L, 50L, 93L, 151L]
@@ -55,18 +55,18 @@ class FastutilsTestCase(unittest.TestCase):
                               [0L, 0L, 0L, 0L, 1L]])
 
             l = M.flatten().tolist()[0]
-            Menc = fastutils.encode_vector(l, rho, 0)
+            Menc = fastutils.encode_vector(l, 0)
             Menc = numpy.array(Menc).reshape((5, 5))
 
             print(type(Menc))
 
-            penc = fastutils.encode_scalar(p, rho, 1, 2)
-            senc = fastutils.encode_vector(s, rho, 1)
-            tenc = fastutils.encode_vector(t, rho, 2)
-            one = fastutils.encode_scalar(1L, rho, 0, -1)
+            penc = fastutils.encode_scalar(p, [1, 2])
+            senc = fastutils.encode_vector(s, 1)
+            tenc = fastutils.encode_vector(t, 2)
+            one = fastutils.encode_scalar(1L, [0])
 
             a = numpy.dot(numpy.dot(senc, Menc), tenc) % x0
-            b = (penc * fastutils.encode_scalar(1L, rho, 0, -1)) % x0
+            b = (penc * fastutils.encode_scalar(1L, [0])) % x0
 
             test = a - b
 

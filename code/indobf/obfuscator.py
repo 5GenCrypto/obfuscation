@@ -107,7 +107,7 @@ class Obfuscator(object):
             else:
                 inpdir[layer.inp].append(layer)
         last = 0
-        for _, v in inpdir.iteritems():
+        for v in inpdir.itervalues():
             if len(v) == 1:
                 layer = v[0]
                 layer.zeroset = set({last})
@@ -135,11 +135,11 @@ class Obfuscator(object):
         s = VSZp.random_element() * bp.m0i
         t = bp.m0 * VSZp.random_element()
         p = s * t
-        penc = fastutils.encode_scalar(long(p), self.rho, sidx, tidx)
+        penc = fastutils.encode_scalar(long(p), [sidx, tidx])
         for i in xrange(nzs - 2):
-            penc = penc * fastutils.encode_scalar(1L, self.rho, i, -1)
-        senc = fastutils.encode_vector([long(i) for i in s], self.rho, sidx)
-        tenc = fastutils.encode_vector([long(i) for i in t], self.rho, tidx)
+            penc = penc * fastutils.encode_scalar(1L, [i])
+        senc = fastutils.encode_vector([long(i) for i in s], sidx)
+        tenc = fastutils.encode_vector([long(i) for i in t], tidx)
         return senc, tenc, penc
 
     def _obfuscate_layer(self, layer):
@@ -150,8 +150,7 @@ class Obfuscator(object):
         m = ms2list(layer.zero)
         m.extend(ms2list(layer.one))
         half = len(m) / 2
-        es = fastutils.encode_layer(m, self.rho, list(layer.zeroset),
-                                    list(layer.oneset))
+        es = fastutils.encode_layer(m, list(layer.zeroset), list(layer.oneset))
         zero, one = MS(es[:half]), MS(es[half:])
         end = time.time()
         self.logger('Obfuscating layer took: %f seconds' % (end - start))
@@ -163,11 +162,12 @@ class Obfuscator(object):
 
         # add two to kappa due to the bookend vectors
         self._set_params(len(bp) + 2)
-            
+
         prime = long(random_prime((1 << self.secparam) - 1,
                                   lbound=(1 << self.secparam - 1)))
-        # R = Zmod(prime)
-        # alphas = [(R.random_element(), R.random_element()) for _ in xrange(len(bp))]
+
+        R = Zmod(prime)
+        alphas = [(R.random_element(), R.random_element()) for _ in xrange(len(bp))]
         bp.randomize(prime, alphas=None)
 
         nzs = self._set_straddling_sets(bp)
@@ -177,10 +177,17 @@ class Obfuscator(object):
         self.logger('Generating MLM parameters...')
         start = time.time()
         self.x0, self.pzt = fastutils.genparams(self.n, self.alpha, self.beta,
-                                                self.eta, self.kappa, nzs,
-                                                prime)
+                                                self.eta, self.kappa, self.rho,
+                                                nzs, prime)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
+
+        alphas_enc = []
+        for layer, (a0, a1) in zip(bp, alphas):
+            print(layer)
+            a0enc = fastutils.encode_scalar(long(a0), list(layer.zeroset))
+            a1enc = fastutils.encode_scalar(long(a1), list(layer.oneset))
+            alphas_enc.append((a0enc, a1enc))
 
         self.logger('Constructing bookend vectors...')
         start = time.time()

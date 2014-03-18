@@ -97,7 +97,7 @@ class Layer(object):
         self.zeroset = None
         self.oneset = None
     def __repr__(self):
-        return "%d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
+        return "%input: d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
             self.inp, self.zero, self.one, self.zeroset, self.oneset)
     def to_raw_string(self):
         return "%d %s %s" % (self.inp, self.zero.numpy().tostring(),
