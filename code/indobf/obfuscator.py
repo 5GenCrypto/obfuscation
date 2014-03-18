@@ -77,6 +77,8 @@ class Obfuscator(object):
         Integer(self.p_enc).save('%s/p_enc' % directory)
         vector(self.s_enc).save('%s/s_enc' % directory)
         vector(self.t_enc).save('%s/t_enc' % directory)
+        vector(self.a0s_enc).save('%s/a0s_enc' % directory)
+        vector(self.a1s_enc).save('%s/a1s_enc' % directory)
         for idx, layer in enumerate(self.obfuscation):
             save_layer(layer, directory, idx)
 
@@ -88,6 +90,8 @@ class Obfuscator(object):
         # XXX: need to convert these to longs?
         self.s_enc = load('%s/s_enc.sobj' % directory)
         self.t_enc = load('%s/t_enc.sobj' % directory)
+        self.a0s_enc = load('%s/a0s_enc.sobj' % directory)
+        self.a1s_enc = load('%s/a1s_enc.sobj' % directory)
 
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
@@ -136,8 +140,6 @@ class Obfuscator(object):
         t = bp.m0 * VSZp.random_element()
         p = s * t
         penc = fastutils.encode_scalar(long(p), [sidx, tidx])
-        for i in xrange(nzs - 2):
-            penc = penc * fastutils.encode_scalar(1L, [i])
         senc = fastutils.encode_vector([long(i) for i in s], sidx)
         tenc = fastutils.encode_vector([long(i) for i in t], tidx)
         return senc, tenc, penc
@@ -168,7 +170,7 @@ class Obfuscator(object):
 
         R = Zmod(prime)
         alphas = [(R.random_element(), R.random_element()) for _ in xrange(len(bp))]
-        bp.randomize(prime, alphas=None)
+        bp.randomize(prime, alphas=alphas)
 
         nzs = self._set_straddling_sets(bp)
         # take bookend vectors into account
@@ -182,12 +184,13 @@ class Obfuscator(object):
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
-        alphas_enc = []
+        self.a0s_enc = []
+        self.a1s_enc = []
         for layer, (a0, a1) in zip(bp, alphas):
-            print(layer)
             a0enc = fastutils.encode_scalar(long(a0), list(layer.zeroset))
             a1enc = fastutils.encode_scalar(long(a1), list(layer.oneset))
-            alphas_enc.append((a0enc, a1enc))
+            self.a0s_enc.append(a0enc)
+            self.a1s_enc.append(a1enc)
 
         self.logger('Constructing bookend vectors...')
         start = time.time()
@@ -215,9 +218,13 @@ class Obfuscator(object):
             comp = comp * (m.zero if inp[m.inp] == '0' else m.one)
         # need to use numpy arrays here, as sage constructs cause weird issues
         comp = numpy.array(comp)
-        p = long((numpy.dot(numpy.dot(self.s_enc, comp), self.t_enc)) % self.x0)
+        p1 = long((numpy.dot(numpy.dot(self.s_enc, comp), self.t_enc)) % self.x0)
 
-        result = 0 if self._is_zero(p - self.p_enc) else 1
+        p2 = self.p_enc
+        for i, m in enumerate(self.obfuscation):
+            p2 = p2 * (self.a0s_enc[i] if inp[m.inp] == '0' else self.a1s_enc[i])
+        
+        result = 0 if self._is_zero(p1 - p2) else 1
 
         end = time.time()
 

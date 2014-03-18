@@ -97,7 +97,7 @@ class Layer(object):
         self.zeroset = None
         self.oneset = None
     def __repr__(self):
-        return "%input: d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
+        return "input: %d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
             self.inp, self.zero, self.one, self.zeroset, self.oneset)
     def to_raw_string(self):
         return "%d %s %s" % (self.inp, self.zero.numpy().tostring(),
@@ -278,16 +278,12 @@ class BranchingProgram(object):
     def randomize(self, prime, alphas=None):
         MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), MATRIX_LENGTH)
 
-        if alphas:
-            assert len(alphas) == len(self.bp)
-            for i, alpha in enumerate(alphas):
-                self.bp[i] = self.bp[i].group(MSZp).mult_scalar(alpha)
-
         def random_matrix():
             while True:
                 m = MSZp.random_element()
                 if not m.is_singular():
                     return m, m.inverse()
+
         m0, m0i = random_matrix()
         self.zero = m0 * MSZp(self.zero) * m0i
         self.one = m0 * MSZp(self.one) * m0i
@@ -300,6 +296,11 @@ class BranchingProgram(object):
         self._group = MSZp
         self.m0, self.m0i = m0, m0i
         self.randomized = True
+
+        if alphas:
+            assert len(alphas) == len(self.bp)
+            for i, alpha in enumerate(alphas):
+                self.bp[i] = self.bp[i].mult_scalar(alpha)
 
     def evaluate(self, inp):
         comp = self._group.identity_matrix()
