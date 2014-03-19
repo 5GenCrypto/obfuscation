@@ -6,8 +6,6 @@ from indobf.branchingprogram import BranchingProgram
 from indobf.obfuscator import Obfuscator
 from indobf.test import TestParams, test_circuit
 
-from sage.all import *
-
 import argparse, os, sys, time
 
 def bp(args):

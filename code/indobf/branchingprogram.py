@@ -96,6 +96,9 @@ class BranchingProgram(object):
         d = conjugate(in2, 'Bi', self.bpgroup)
         return flatten([a, b, c, d])
 
+    def _id_gate(self, in1):
+        return in1
+
     def _or_gate(self, in1, in2):
         in1not = self._not_gate(in1)
         in2not = self._not_gate(in2)
@@ -132,6 +135,7 @@ class BranchingProgram(object):
         bp = []
         gates = {
             'AND': lambda in1, in2: self._and_gate(bp[in1], bp[in2]),
+            'ID': lambda in1: self._id_gate(bp[in1]),
             'OR': lambda in1, in2: self._or_gate(bp[in1], bp[in2]),
             'NOT': lambda in1: self._not_gate(bp[in1]),
             'XOR': lambda in1, in2: self._xor_gate(bp[in1], bp[in2]),
