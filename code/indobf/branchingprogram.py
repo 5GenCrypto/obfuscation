@@ -7,8 +7,6 @@ from sage.all import *
 
 import groups, utils
 
-def ints(*args):
-    return (int(arg) for arg in args)
 def flatten(l):
     return list(itertools.chain(*l))
 
@@ -68,8 +66,9 @@ class BranchingProgram(object):
         try:
             self.bpgroup = groups.groupmap[group]()
         except KeyError:
-            self.logger("Unknown group '%s'.  Defaulting to S6." % group)
-            self.bpgroup = groups.S5()
+            self.bpgroup = groups.S6()
+            self.logger("Unknown group '%s'.  Defaulting to '%s'." % (
+                group, repr(self.bpgroup)))
         self.zero = self.bpgroup.I
         self.one = self.bpgroup.C
         self.randomized = False
@@ -89,23 +88,6 @@ class BranchingProgram(object):
         return self.bp.next()
     def __repr__(self):
         return repr(self.bp)
-
-    def _parse_param(self, line):
-        try:
-            _, param, value = line.split()
-        except ValueError:
-            raise ParseException("Invalid line '%s'" % line)
-        param = param.lower()
-        try:
-            value = int(value)
-        except ValueError:
-            raise ParseException("Invalid value '%s'" % value)
-        if param == 'nins':
-            self.n_inputs = value
-        elif param == 'depth':
-            self.depth = value
-        else:
-            raise ParseException("Invalid parameter '%s'" % param)
 
     def _and_gate(self, in1, in2):
         a = conjugate(in1, 'A', self.bpgroup)
@@ -128,7 +110,25 @@ class BranchingProgram(object):
             raise ParseException("XOR gates not supported for S5 group")
         return flatten([in1, in2])
 
+    def _parse_param(self, line):
+        try:
+            _, param, value = line.split()
+        except ValueError:
+            raise ParseException("Invalid line '%s'" % line)
+        param = param.lower()
+        try:
+            value = int(value)
+        except ValueError:
+            raise ParseException("Invalid value '%s'" % value)
+        if param == 'nins':
+            self.n_inputs = value
+        elif param == 'depth':
+            self.depth = value
+        else:
+            raise ParseException("Invalid parameter '%s'" % param)
+
     def load_circuit(self, fname):
+        # TODO: this code isn't particularly robust
         bp = []
         gates = {
             'AND': lambda in1, in2: self._and_gate(bp[in1], bp[in2]),
@@ -145,9 +145,8 @@ class BranchingProgram(object):
                     self._parse_param(line)
                     continue
                 num, rest = line.split(None, 1)
-                num = int(num)
                 if rest.startswith('input'):
-                    bp.append([Layer(num, self.zero, self.one)])
+                    bp.append([Layer(int(num), self.zero, self.one)])
                 elif rest.startswith('gate') or rest.startswith('output'):
                     if rest.startswith('output'):
                         if output:
@@ -178,23 +177,24 @@ class BranchingProgram(object):
                 f.write("%s\n" % m.to_raw_string())
 
     def obliviate(self):
-        assert self.n_inputs is not None and self.depth is not None
+        assert self.n_inputs and self.depth
+        assert not self.randomized
         newbp = []
         for m in self.bp:
             for i in xrange(self.n_inputs):
                 if m.inp == i:
                     newbp.append(m)
                 else:
-                    newbp.append(Layer(i, self.bpgroup.I, self.bpgroup.I))
+                    newbp.append(Layer(i, self.zero, self.zero))
         ms_needed = (4 ** self.depth) * self.n_inputs
         for _ in xrange((ms_needed - len(newbp)) // self.n_inputs):
             for i in xrange(self.n_inputs):
-                newbp.append(Layer(i, self.bpgroup.I, self.bpgroup.I))
+                newbp.append(Layer(i, self.zero, self.zero))
         assert len(newbp) == ms_needed
         self.bp = newbp
 
     def randomize(self, prime, alphas=None):
-        assert self.randomized == False
+        assert not self.randomized
 
         MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)),
                            self.bpgroup.length)
