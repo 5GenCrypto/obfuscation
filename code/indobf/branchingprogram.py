@@ -3,7 +3,7 @@
 from __future__ import print_function
 import itertools
 
-from sage.all import *
+from sage.all import MatrixSpace, ZZ
 
 import groups, utils
 
