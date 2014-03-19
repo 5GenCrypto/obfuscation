@@ -147,35 +147,35 @@ class Obfuscator(object):
             self.logger('Constructing bookend vectors...')
             start = time.time()
             sidx, tidx = nzs - 2, nzs - 1
-            VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), MATRIX_LENGTH)
+            VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), bp.bpgroup.length)
             s = VSZp.random_element() * bp.m0i
             t = bp.m0 * VSZp.random_element()
             p = s * t
-            self.p_enc = fastutils.encode_scalar(long(p), 0, [sidx, tidx])
+            self.p_enc = fastutils.encode_scalar([long(p)], [0], [sidx, tidx])
             if self._disable_mbundling:
                 for i in xrange(nzs - 2):
-                    self.p_enc *= fastutils.encode_scalar(1L, 0, [i])
-            self.s_enc = fastutils.encode_vector([long(i) for i in s], 0, [sidx])
-            self.t_enc = fastutils.encode_vector([long(i) for i in t], 0, [tidx])
+                    self.p_enc *= fastutils.encode_scalar([1L], [0], [i])
+            self.s_enc = fastutils.encode_vector(len(s), [[long(i) for i in s]], [0], [sidx])
+            self.t_enc = fastutils.encode_vector(len(t), [[long(i) for i in t]], [0], [tidx])
             end = time.time()
             self.logger('Took: %f seconds' % (end - start))
 
     def _obfuscate(self, bp):
-        def _obfuscate_layer(self, layer):
+        def _obfuscate_layer(layer):
             self.logger('Obfuscating\n%s with set %s' % (layer.zero, layer.zeroset))
             self.logger('Obfuscating\n%s with set %s' % (layer.one, layer.oneset))
             start = time.time()
             m = ms2list(layer.zero)
             m.extend(ms2list(layer.one))
             half = len(m) / 2
-            es = fastutils.encode_layer(m, 0, layer.zeroset, layer.oneset)
+            es = fastutils.encode_layer(len(m), [m], [0], layer.zeroset, layer.oneset)
             zero, one = self.MS(es[:half]), self.MS(es[half:])
             end = time.time()
             self.logger('Obfuscating layer took: %f seconds' % (end - start))
             return ObfLayer(layer.inp, zero, one)
         self.logger('Obfuscating...')
         start = time.time()
-        self.obfuscation = [self._obfuscate_layer(layer) for layer in bp]
+        self.obfuscation = [_obfuscate_layer(layer) for layer in bp]
         end = time.time()
         self.logger('Obfuscation took: %f seconds' % (end - start))
 
@@ -216,8 +216,8 @@ class Obfuscator(object):
             self.a0s_enc = []
             self.a1s_enc = []
             for layer, (a0, a1) in zip(bp, alphas):
-                a0enc = fastutils.encode_scalar(long(a0), 0, layer.zeroset)
-                a1enc = fastutils.encode_scalar(long(a1), 0, layer.oneset)
+                a0enc = fastutils.encode_scalar([long(a0)], [0], layer.zeroset)
+                a1enc = fastutils.encode_scalar([long(a1)], [0], layer.oneset)
                 self.a0s_enc.append(a0enc)
                 self.a1s_enc.append(a1enc)
 

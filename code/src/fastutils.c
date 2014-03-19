@@ -413,28 +413,28 @@ fastutils_encode_vector(PyObject *self, PyObject *args)
         return NULL;
     }
     if (!PyList_Check(py_vectors)) {
-        PyErr_SetString(PyExc_RuntimeError, "first argument must be a list");
-        return NULL;
-    }
-    if (!PyList_Check(py_slots)) {
         PyErr_SetString(PyExc_RuntimeError, "second argument must be a list");
         return NULL;
     }
-    if (!PyList_Check(py_list)) {
+    if (!PyList_Check(py_slots)) {
         PyErr_SetString(PyExc_RuntimeError, "third argument must be a list");
+        return NULL;
+    }
+    if (!PyList_Check(py_list)) {
+        PyErr_SetString(PyExc_RuntimeError, "fourth argument must be a list");
         return NULL;
     }
 
     if (extract_indices(py_list, &idx1, &idx2) == FAILURE) {
         PyErr_SetString(PyExc_RuntimeError,
-                        "third argument must be a list of length 1 or 2");
+                        "fourth argument must be a list of length 1 or 2");
         return NULL;
     }
 
     numvectors = PyList_GET_SIZE(py_vectors);
     if (numvectors != PyList_GET_SIZE(py_slots)) {
         PyErr_SetString(PyExc_RuntimeError,
-                        "first two arguments must be of same length");
+                        "second and third arguments must be of same length");
         return NULL;
     }
 
@@ -448,7 +448,6 @@ fastutils_encode_vector(PyObject *self, PyObject *args)
         PyObject *py_tmp;
 
         mpz_init(val);
-
         py_tmp = PyList_New(numvectors);
 
         for (j = 0; j < numvectors; ++j) {
@@ -457,62 +456,82 @@ fastutils_encode_vector(PyObject *self, PyObject *args)
         }
         encode(val, py_tmp, py_slots, numvectors, idx1, idx2);
         PyList_SET_ITEM(py_outs, i, mpz_to_py(val));
+
         mpz_clear(val);
     }
 
     return py_outs;
 }
 
-/* static PyObject * */
-/* fastutils_encode_layer(PyObject *self, PyObject *args) */
-/* { */
-/*     PyObject *py_vals, *py_outs, *py_zeros, *py_ones; */
-/*     Py_ssize_t i, len, half; */
-/*     int zeroidx1, zeroidx2, oneidx1, oneidx2; */
-/*     long slot; */
+static PyObject *
+fastutils_encode_layer(PyObject *self, PyObject *args)
+{
+    PyObject *py_layers, *py_slots, *py_zeros, *py_ones, *py_outs;
+    Py_ssize_t i, j, numlayers, half;
+    int zeroidx1, zeroidx2, oneidx1, oneidx2;
+    const long layerlen;
 
-/*     if (!PyArg_ParseTuple(args, "OlOO", &py_vals, &slot, &py_zeros, &py_ones)) */
-/*         return NULL; */
-/*     if (check_pylist(py_vals) == FAILURE) { */
-/*         PyErr_SetString(PyExc_RuntimeError, */
-/*                         "first argument must be a list of longs"); */
-/*         return NULL; */
-/*     } */
+    if (!PyArg_ParseTuple(args, "lOOOO", &layerlen, &py_layers, &py_slots,
+                          &py_zeros, &py_ones)) {
+        return NULL;
+    }
+    if (!PyList_Check(py_layers)) {
+        PyErr_SetString(PyExc_RuntimeError, "second argument must be a list");
+        return NULL;
+    }
+    if (!PyList_Check(py_slots)) {
+        PyErr_SetString(PyExc_RuntimeError, "third argument must be a list");
+        return NULL;
+    }
 
-/*     if (extract_indices(py_zeros, &zeroidx1, &zeroidx2) == FAILURE) { */
-/*         PyErr_SetString(PyExc_RuntimeError, */
-/*                         "second argument must be a list of length 1 or 2"); */
-/*         return NULL; */
-/*     } */
-/*     if (extract_indices(py_ones, &oneidx1, &oneidx2) == FAILURE) { */
-/*         PyErr_SetString(PyExc_RuntimeError, */
-/*                         "third argument must be a list of length 1 or 2"); */
-/*         return NULL; */
-/*     } */
+    if (extract_indices(py_zeros, &zeroidx1, &zeroidx2) == FAILURE) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "fourth argument must be a list of length 1 or 2");
+        return NULL;
+    }
+    if (extract_indices(py_ones, &oneidx1, &oneidx2) == FAILURE) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "fifth argument must be a list of length 1 or 2");
+        return NULL;
+    }
 
-/*     len = PyList_GET_SIZE(py_vals); */
-/*     half = len >> 1; */
+    numlayers = PyList_GET_SIZE(py_layers);
+    if (numlayers != PyList_GET_SIZE(py_slots)) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "second and third arguments must be of the same length");
+        return NULL;
+    }
 
-/*     if ((py_outs = PyList_New(len)) == NULL) */
-/*         return NULL; */
+    half = layerlen >> 1;
 
-/* #pragma omp parallel for private(i) */
-/*     for (i = 0; i < len; ++i) { */
-/*         mpz_t val; */
+    if ((py_outs = PyList_New(layerlen)) == NULL) {
+        return NULL;
+    }
 
-/*         mpz_init(val); */
-/*         py_to_mpz(val, PyList_GET_ITEM(py_vals, i)); */
-/*         if (i < half) { */
-/*             encode(val, val, zeroidx1, zeroidx2, slot); */
-/*         } else { */
-/*             encode(val, val, oneidx1, oneidx2, slot); */
-/*         } */
-/*         PyList_SET_ITEM(py_outs, i, mpz_to_py(val)); */
-/*         mpz_clear(val); */
-/*     } */
+#pragma omp parallel for private(i)
+    for (i = 0; i < layerlen; ++i) {
+        mpz_t val;
+        PyObject *py_tmp;
 
-/*     return py_outs; */
-/* } */
+        mpz_init(val);
+        py_tmp = PyList_New(numlayers);
+
+        for (j = 0; j < numlayers; ++j) {
+            PyList_SET_ITEM(py_tmp, j,
+                            PyList_GET_ITEM(PyList_GET_ITEM(py_layers, j), i));
+        }
+        if (i < half) {
+            encode(val, py_tmp, py_slots, numlayers, zeroidx1, zeroidx2);
+        } else {
+            encode(val, py_tmp, py_slots, numlayers, oneidx1, oneidx2);
+        }
+        PyList_SET_ITEM(py_outs, i, mpz_to_py(val));
+        
+        mpz_clear(val);
+    }
+
+    return py_outs;
+}
 
 static PyObject *
 fastutils_is_zero(PyObject *self, PyObject *args)
@@ -556,8 +575,8 @@ FastutilsMethods[] = {
      "Encode a scalar."},
     {"encode_vector", fastutils_encode_vector, METH_VARARGS,
      "Encode a vector."},
-    /* {"encode_layer", fastutils_encode_layer, METH_VARARGS, */
-    /*  "Encode a branching program layer."}, */
+    {"encode_layer", fastutils_encode_layer, METH_VARARGS,
+     "Encode a branching program layer."},
     {"is_zero", fastutils_is_zero, METH_VARARGS,
      "Zero test."},
     {NULL, NULL, 0, NULL}
