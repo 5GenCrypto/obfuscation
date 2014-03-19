@@ -1,0 +1,9 @@
+: nins 2
+: depth 1
+# TEST 00 0
+# TEST 01 1
+# TEST 10 1
+# TEST 11 1
+0 input
+1 input
+2 output OR 0 1

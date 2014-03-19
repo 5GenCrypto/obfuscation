@@ -6,4 +6,4 @@
 # TEST 11 0
 0 input
 1 input
-2 output gate arity 2 table [ 0 1 1 0 ] inputs [ 0 1 ]
+2 output XOR 0 1

@@ -3,7 +3,6 @@
 from __future__ import print_function
 
 from indobf.branchingprogram import BranchingProgram
-from indobf.gradedencoding import GradedEncoding
 from indobf.obfuscator import Obfuscator
 from indobf.test import TestParams, test_circuit
 
@@ -13,13 +12,14 @@ import argparse, os, sys, time
 
 def bp(args):
     testdir = 'circuits'
-    params = TestParams(obliviate=True)
+    params = TestParams(obliviate=False)
     if args.test_circuit:
         test_circuit(args.test_circuit, args.secparam, args.verbose, params)
     if args.test_all:
         for circuit in os.listdir('circuits'):
             path = os.path.join(testdir, circuit)
-            test_circuit(path, args.secparam, args.verbose, params)
+            if os.path.isfile(path) and path.endswith('.circ'):
+                test_circuit(path, args.secparam, args.verbose, params)
     if args.load_circuit:
         bp = BranchingProgram(args.load_circuit, type='circuit')
     if args.eval:

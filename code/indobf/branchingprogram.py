@@ -5,87 +5,8 @@ import itertools
 
 from sage.all import *
 
-import utils
+import groups, utils
 
-MATRIX_LENGTH = 5
-G = MatrixSpace(GF(2), MATRIX_LENGTH)
-
-I = G.one()
-A = G([[0, 0, 1, 0, 0],
-       [0, 0, 0, 0, 1],
-       [0, 1, 0, 0, 0],
-       [1, 0, 0, 0, 0],
-       [0, 0, 0, 1, 0]])
-Ai = A.inverse()
-B = G([[0, 1, 0, 0, 0],
-       [0, 0, 0, 1, 0],
-       [1, 0, 0, 0, 0],
-       [0, 0, 0, 0, 1],
-       [0, 0, 1, 0, 0]])
-Bi = B.inverse()
-C = G([[0, 1, 0, 0, 0],
-       [0, 0, 1, 0, 0],
-       [0, 0, 0, 1, 0],
-       [0, 0, 0, 0, 1],
-       [1, 0, 0, 0, 0]])
-Ci = C.inverse()
-Ac = G([[1, 0, 0, 0, 0],
-        [0, 0, 1, 0, 0],
-        [0, 1, 0, 0, 0],
-        [0, 0, 0, 0, 1],
-        [0, 0, 0, 1, 0]])
-Aci = Ac.inverse()
-Aic = G([[1, 0, 0, 0, 0],
-         [0, 0, 0, 1, 0],
-         [0, 0, 0, 0, 1],
-         [0, 1, 0, 0, 0],
-         [0, 0, 1, 0, 0]])
-Aici = Aic.inverse()
-Bc = G([[1, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0],
-        [0, 0, 0, 1, 0],
-        [0, 0, 0, 0, 1],
-        [0, 0, 1, 0, 0]])
-Bci = Bc.inverse()
-Bic = G([[1, 0, 0, 0, 0],
-         [0, 0, 1, 0, 0],
-         [0, 0, 0, 0, 1],
-         [0, 0, 0, 1, 0],
-         [0, 1, 0, 0, 0]])
-Bici = Bic.inverse()
-Cc = G([[0, 0, 0, 0, 1],
-        [0, 0, 0, 1, 0],
-        [0, 0, 1, 0, 0],
-        [0, 1, 0, 0, 0],
-        [1, 0, 0, 0, 0]])
-Cci = Cc.inverse()
-CONJUGATES = {
-    'A': (Ac, Aci),
-    'B': (Bc, Bci),
-    'Ai': (Aic, Aici),
-    'Bi': (Bic, Bici)
-}
-
-# MATRIX_LENGTH = 3
-# G = MatrixSpace(GF(3), MATRIX_LENGTH)
-
-# I = G.one()
-# A = G([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
-# B = G([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
-# C = G([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])
-# Ac = G([[-1, 0, 0], [0, 0, -1], [0, -1, 0]])
-# Bc = G([[0, 1, 0], [1, 0, 1], [-1, 0, 1]])
-# Bci = Bc.inverse()
-# Cc = G([[-1, 0, -1], [0, -1, 0], [0, 0, 1]])
-# CONJUGATES = {
-#     'A': (Ac, Ac),
-#     'B': (Bc, Bci),
-#     'Ai': (Ac, Ac),
-#     'Bi': (Bc, Bci)
-# }
-
-def ints(*args):
-    return (int(arg) for arg in args)
 def flatten(l):
     return list(itertools.chain(*l))
 
@@ -104,8 +25,6 @@ class Layer(object):
                              self.one.numpy().tostring())
     def conjugate(self, M, Mi):
         return Layer(self.inp, Mi * self.zero * M, Mi * self.one * M)
-    def invert(self):
-        return Layer(self.inp, self.zero.inverse(), self.one.inverse())
     def group(self, group):
         return Layer(self.inp, group(self.zero), group(self.one))
     def mult_scalar(self, alphas):
@@ -120,41 +39,40 @@ def prepend(layers, M):
 def append(layers, M):
     return layers[:-1] + [layers[-1].mult_right(M)]
 
-def conjugate(layers, target):
+def conjugate(layers, target, group):
     if len(layers) == 1:
-        return [layers[0].conjugate(*CONJUGATES[target])]
+        return [layers[0].conjugate(*group.conjugates[target])]
     else:
-        layers = prepend(layers, CONJUGATES[target][1])
-        return append(layers, CONJUGATES[target][0])
+        layers = prepend(layers, group.conjugates[target][1])
+        return append(layers, group.conjugates[target][0])
 
-def invert(layers):
+def notgate(layers, group):
     if len(layers) == 1:
-        return [layers[0].invert()]
+        return [layers[0].mult_left(group.Cc).mult_right(group.Cc * group.C)]
     else:
-        return [invert(l) for l in reversed(layers)]
-
-def notgate(layers):
-    if len(layers) == 1:
-        return [layers[0].mult_left(Cc).mult_right(Cc * C)]
-    else:
-        return append(prepend(layers, Cc), Cc * C)
+        return append(prepend(layers, group.Cc), group.Cc * group.C)
 
 class ParseException(Exception):
     pass
 
 class BranchingProgram(object):
-    def __init__(self, fname, type='circuit', verbose=False):
+    def __init__(self, fname, type='circuit', verbose=False, group='S6'):
+        self._verbose = verbose
+        self.logger = utils.make_logger(self._verbose)
+
         self.bp = None
         self.n_inputs = None
         self.depth = None
-        self._group = G
-        self._verbose = verbose
-        self.zero = I
-        self.one = C
+        try:
+            self.bpgroup = groups.groupmap[group]()
+        except KeyError:
+            self.bpgroup = groups.S6()
+            self.logger("Unknown group '%s'.  Defaulting to '%s'." % (
+                group, repr(self.bpgroup)))
+        self.zero = self.bpgroup.I
+        self.one = self.bpgroup.C
         self.randomized = False
-        self.m0, self.m0i = self._group.one(), self._group.one()
 
-        self.logger = utils.make_logger(self._verbose)
         if type not in ('circuit', 'bp'):
             raise ParseException('invalid type argument')
         if type == 'circuit':
@@ -171,7 +89,28 @@ class BranchingProgram(object):
     def __repr__(self):
         return repr(self.bp)
 
-    def parse_param(self, line):
+    def _and_gate(self, in1, in2):
+        a = conjugate(in1, 'A', self.bpgroup)
+        b = conjugate(in2, 'B', self.bpgroup)
+        c = conjugate(in1, 'Ai', self.bpgroup)
+        d = conjugate(in2, 'Bi', self.bpgroup)
+        return flatten([a, b, c, d])
+
+    def _or_gate(self, in1, in2):
+        in1not = self._not_gate(in1)
+        in2not = self._not_gate(in2)
+        r = self._and_gate(in1not, in2not)
+        return self._not_gate(r)
+
+    def _not_gate(self, in1):
+        return notgate(in1, self.bpgroup)
+
+    def _xor_gate(self, in1, in2):
+        if repr(self.bpgroup) == 'S5':
+            raise ParseException("XOR gates not supported for S5 group")
+        return flatten([in1, in2])
+
+    def _parse_param(self, line):
         try:
             _, param, value = line.split()
         except ValueError:
@@ -188,66 +127,44 @@ class BranchingProgram(object):
         else:
             raise ParseException("Invalid parameter '%s'" % param)
 
-    def load_arity_one_gate(self, rest, bp):
-        _, a, b, _, _, _, in1, _ = rest.split(None, 7)
-        a, b, in1 = ints(a, b, in1)
-        if a == 1 and b == 0:
-            # NOT gate
-            return notgate(bp[in1])
-        elif a == 0 and b == 1:
-            # identity gate
-            return bp[in1]
-        else:
-            raise ParseException("error: unsupported gate:", rest.strip())
-
-    def load_arity_two_gate(self, rest, bp):
-        _, a, b, c, d, _, _, _, in1, in2, _ \
-            = rest.split(None, 10)
-        a, b, c, d, in1, in2 = ints(a, b, c, d, in1, in2)
-        if a == b == c == 0 and d == 1:
-            # AND gate
-            a = conjugate(bp[in1], 'A')
-            b = conjugate(bp[in2], 'B')
-            c = conjugate(bp[in1], 'Ai')
-            d = conjugate(bp[in2], 'Bi')
-            return flatten([a, b, c, d])
-        elif a == d == 0 and b == c == 1:
-            # XOR gate
-            raise ParseException("XOR gates not supported for S5 group")
-            # return flatten([bp[in1], bp[in2]])
-        else:
-            raise ParseException("error: unsupported gate:", rest.strip())
-
     def load_circuit(self, fname):
+        # TODO: this code isn't particularly robust
         bp = []
-        arity_dict = {
-            1: self.load_arity_one_gate,
-            2: self.load_arity_two_gate
+        gates = {
+            'AND': lambda in1, in2: self._and_gate(bp[in1], bp[in2]),
+            'OR': lambda in1, in2: self._or_gate(bp[in1], bp[in2]),
+            'NOT': lambda in1: self._not_gate(bp[in1]),
+            'XOR': lambda in1, in2: self._xor_gate(bp[in1], bp[in2]),
         }
+        output = False
         with open(fname) as f:
             for line in f:
                 if line.startswith('#'):
                     continue
                 elif line.startswith(':'):
-                    self.parse_param(line)
+                    self._parse_param(line)
                     continue
                 num, rest = line.split(None, 1)
-                num = int(num)
                 if rest.startswith('input'):
-                    bp.append([Layer(num, I, C)])
+                    bp.append([Layer(int(num), self.zero, self.one)])
                 elif rest.startswith('gate') or rest.startswith('output'):
-                    # XXX: watchout!  I'm not sure what'll happen if we have
-                    # multiple outputs in a circuit
-                    if rest.startswith('gate'):
-                        _, _, arity, _, rest = rest.split(None, 4)
-                    else:
-                        _, _, _, arity, _, rest = rest.split(None, 5)
+                    if rest.startswith('output'):
+                        if output:
+                            raise ParseException("only support single output gate")
+                        else:
+                            output = True
+                    _, gate, rest = rest.split(None, 2)
+                    inputs = [int(i) for i in rest.split()]
                     try:
-                        bp.append(arity_dict[int(arity)](rest, bp))
+                        bp.append(gates[gate.upper()](*inputs))
                     except KeyError:
-                        raise ParseException('unsupported gate arity %s' % arity)
+                        raise ParseException("unsupported gate '%s'" % gate)
+                    except TypeError:
+                        raise ParseException("incorrect number of arguments given")
                 else:
-                    raise("error: unknown type")
+                    raise ParseException("unknown type")
+        if not output:
+            raise ParseException("no output gate found")
         self.bp = bp[-1]
 
     def save_bp(self, fname):
@@ -260,23 +177,27 @@ class BranchingProgram(object):
                 f.write("%s\n" % m.to_raw_string())
 
     def obliviate(self):
-        assert self.n_inputs is not None and self.depth is not None
+        assert self.n_inputs and self.depth
+        assert not self.randomized
         newbp = []
         for m in self.bp:
             for i in xrange(self.n_inputs):
                 if m.inp == i:
                     newbp.append(m)
                 else:
-                    newbp.append(Layer(i, I, I))
+                    newbp.append(Layer(i, self.zero, self.zero))
         ms_needed = (4 ** self.depth) * self.n_inputs
         for _ in xrange((ms_needed - len(newbp)) // self.n_inputs):
             for i in xrange(self.n_inputs):
-                newbp.append(Layer(i, I, I))
+                newbp.append(Layer(i, self.zero, self.zero))
         assert len(newbp) == ms_needed
         self.bp = newbp
 
     def randomize(self, prime, alphas=None):
-        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), MATRIX_LENGTH)
+        assert not self.randomized
+
+        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)),
+                           self.bpgroup.length)
 
         def random_matrix():
             while True:
@@ -293,7 +214,6 @@ class BranchingProgram(object):
             self.bp[i-1] = self.bp[i-1].group(MSZp).mult_right(mii)
             self.bp[i] = self.bp[i].group(MSZp).mult_left(mi)
         self.bp[-1] = self.bp[-1].group(MSZp).mult_right(m0i)
-        self._group = MSZp
         self.m0, self.m0i = m0, m0i
         self.randomized = True
 
@@ -303,12 +223,10 @@ class BranchingProgram(object):
                 self.bp[i] = self.bp[i].mult_scalar(alpha)
 
     def evaluate(self, inp):
-        comp = self._group.identity_matrix()
-        for m in self.bp:
-            comp = comp * (m.zero if inp[m.inp] == '0' else m.one)
-        print('comp =\n', comp)
-        print('zero =\n', self.zero)
-        print('one =\n', self.one)
+        first = self.bp[0]
+        comp = first.zero if inp[first.inp] == '0' else first.one
+        for m in self.bp[1:]:
+            comp *= m.zero if inp[m.inp] == '0' else m.one
         if comp == self.zero:
             return 0
         elif comp == self.one:

@@ -2,8 +2,7 @@
 
 from __future__ import print_function
 
-from gradedencoding import GradedEncoding
-from branchingprogram import (BranchingProgram, MATRIX_LENGTH)
+from branchingprogram import BranchingProgram
 import utils, fastutils
 
 from sage.all import (flatten, Integer, load, MatrixSpace, randint,
@@ -11,8 +10,6 @@ from sage.all import (flatten, Integer, load, MatrixSpace, randint,
 
 import collections, os, sys, time
 import numpy
-
-MS = MatrixSpace(ZZ, MATRIX_LENGTH)
 
 def ms2list(m):
     '''Convert an element in MS to a flat integer list'''
@@ -172,7 +169,7 @@ class Obfuscator(object):
             m.extend(ms2list(layer.one))
             half = len(m) / 2
             es = fastutils.encode_layer(m, 0, layer.zeroset, layer.oneset)
-            zero, one = MS(es[:half]), MS(es[half:])
+            zero, one = self.MS(es[:half]), self.MS(es[half:])
             end = time.time()
             self.logger('Obfuscating layer took: %f seconds' % (end - start))
             return ObfLayer(layer.inp, zero, one)
@@ -185,6 +182,8 @@ class Obfuscator(object):
     def obfuscate(self, bp, secparam):
         if bp.randomized:
             raise Exception('Input BP must not be randomized!')
+
+        self.MS = MatrixSpace(ZZ, bp.bpgroup.length)
 
         if self._disable_bookends:
             kappa = len(bp)
@@ -234,9 +233,10 @@ class Obfuscator(object):
 
         start = time.time()
 
-        p1 = MS.identity_matrix()
-        for m in self.obfuscation:
-            p1 = p1 * (m.zero if inp[m.inp] == '0' else m.one)
+        first = self.obfuscation[0]
+        p1 = first.zero if inp[first.inp] == '0' else first.one
+        for m in self.obfuscation[1:]:
+            p1 *= m.zero if inp[m.inp] == '0' else m.one
         if self._disable_bookends:
             result = 0 if self._is_zero(p1[0][1]) and self._is_zero(p1[1][0]) else 1
         else:
