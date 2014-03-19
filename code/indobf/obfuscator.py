@@ -67,6 +67,7 @@ class Obfuscator(object):
         self._verbose = verbose
         self._disable_mbundling = disable_mbundling
         self._disable_bookends = disable_bookends
+
         self.logger = utils.make_logger(self._verbose)
         if self._disable_mbundling:
             self.logger('* Multiplicative bundling disabled')
@@ -75,6 +76,7 @@ class Obfuscator(object):
 
     def save(self, directory):
         assert self.obfuscation is not None
+
         if not os.path.exists(directory):
             os.mkdir(directory)
         Integer(self.nu).save('%s/nu' % directory)
@@ -92,6 +94,7 @@ class Obfuscator(object):
 
     def load(self, directory):
         assert self.obfuscation is None
+
         self.nu = int(load('%s/nu.sobj' % directory))
         self.x0 = long(load('%s/x0.sobj' % directory))
         pzt = long(load('%s/pzt.sobj' % directory))
@@ -106,7 +109,6 @@ class Obfuscator(object):
             self.a0s_enc = [long(e) for e in self.a0s_enc]
             self.a1s_enc = load('%s/a1s_enc.sobj' % directory)
             self.a1s_enc = [long(e) for e in self.a1s_enc]
-
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
         zeros = sorted(filter(lambda s: 'zero' in s, files))
@@ -114,24 +116,6 @@ class Obfuscator(object):
         self.obfuscation = [load_layer(directory, inp, zero, one) for inp, zero,
                             one in zip(inputs, zeros, ones)]
         fastutils.loadparams(self.x0, pzt)
-
-    def _set_straddling_sets(self, bp):
-        inpdir = {}
-        for layer in bp:
-            inpdir.setdefault(layer.inp, []).append(layer)
-        n = 0
-        for layers in inpdir.itervalues():
-            max = len(layers) - 1
-            for i, layer in enumerate(layers):
-                if i < max:
-                    layer.zeroset = [n - 1, n]  if i else [n]
-                    layer.oneset = [n, n + 1]
-                    n += 2
-                else:
-                    layer.zeroset = [n - 1, n] if max else [n]
-                    layer.oneset = [n]
-                    n += 1
-        return n
 
     def _gen_mlm_params(self, primes, nzs):
         self.logger('Generating MLM parameters...')
@@ -204,7 +188,7 @@ class Obfuscator(object):
                       for _ in xrange(len(bp))]
         bp.randomize(prime, alphas=alphas)
 
-        nzs = self._set_straddling_sets(bp)
+        nzs = bp.set_straddling_sets()
         # take bookend vectors into account
         if not self._disable_bookends:
             nzs = nzs + 2

@@ -226,6 +226,25 @@ class BranchingProgram(object):
             for i, alpha in enumerate(alphas):
                 self.bp[i] = self.bp[i].mult_scalar(alpha)
 
+    def set_straddling_sets(self):
+        inpdir = {}
+        for layer in self.bp:
+            inpdir.setdefault(layer.inp, []).append(layer)
+        n = 0
+        for layers in inpdir.itervalues():
+            max = len(layers) - 1
+            for i, layer in enumerate(layers):
+                if i < max:
+                    layer.zeroset = [n - 1, n]  if i else [n]
+                    layer.oneset = [n, n + 1]
+                    n += 2
+                else:
+                    layer.zeroset = [n - 1, n] if max else [n]
+                    layer.oneset = [n]
+                    n += 1
+        return n
+
+
     def evaluate(self, inp):
         first = self.bp[0]
         comp = first.zero if inp[first.inp] == '0' else first.one
