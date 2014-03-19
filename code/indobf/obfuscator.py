@@ -11,7 +11,7 @@ from sage.all import (flatten, Integer, load, MatrixSpace, randint,
 import collections, os, sys, time
 import numpy
 
-MS = MatrixSpace(ZZ, 5)         # FIXME: hardcoded 5
+MS = MatrixSpace(ZZ, 6)         # FIXME: 6 hardcoded
 
 def ms2list(m):
     '''Convert an element in MS to a flat integer list'''
@@ -137,7 +137,7 @@ class Obfuscator(object):
 
     def _construct_bookend_vectors(self, bp, prime, nzs):
         sidx, tidx = nzs - 2, nzs - 1
-        VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), MATRIX_LENGTH)
+        VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), bp.bpgroup.length)
         s = VSZp.random_element() * bp.m0i
         t = bp.m0 * VSZp.random_element()
         p = s * t
@@ -166,6 +166,8 @@ class Obfuscator(object):
     def obfuscate(self, bp, secparam):
         if bp.randomized:
             raise Exception('Input BP must not be randomized!')
+
+        # self.MS = MatrixSpace(ZZ, bp.bpgroup.length)
 
         if self._disable_bookends:
             kappa = len(bp)
@@ -231,6 +233,7 @@ class Obfuscator(object):
 
         start = time.time()
 
+        # TODO: remove MS here
         p1 = MS.identity_matrix()
         for m in self.obfuscation:
             p1 = p1 * (m.zero if inp[m.inp] == '0' else m.one)
