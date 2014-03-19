@@ -70,11 +70,9 @@ class BranchingProgram(object):
         except KeyError:
             self.logger("Unknown group '%s'.  Defaulting to S6." % group)
             self.bpgroup = groups.S5()
-        self._group = self.bpgroup.G
         self.zero = self.bpgroup.I
         self.one = self.bpgroup.C
         self.randomized = False
-        self.m0, self.m0i = self._group.one(), self._group.one()
 
         if type not in ('circuit', 'bp'):
             raise ParseException('invalid type argument')
@@ -138,6 +136,7 @@ class BranchingProgram(object):
             'NOT': lambda in1: self._not_gate(bp[in1]),
             'XOR': lambda in1, in2: self._xor_gate(bp[in1], bp[in2]),
         }
+        output = False
         with open(fname) as f:
             for line in f:
                 if line.startswith('#'):
@@ -150,8 +149,11 @@ class BranchingProgram(object):
                 if rest.startswith('input'):
                     bp.append([Layer(num, self.zero, self.one)])
                 elif rest.startswith('gate') or rest.startswith('output'):
-                    # XXX: watchout!  I'm not sure what'll happen if we have
-                    # multiple outputs in a circuit
+                    if rest.startswith('output'):
+                        if output:
+                            raise ParseException("only support single output gate")
+                        else:
+                            output = True
                     _, gate, rest = rest.split(None, 2)
                     inputs = [int(i) for i in rest.split()]
                     try:
@@ -162,6 +164,8 @@ class BranchingProgram(object):
                         raise ParseException("incorrect number of arguments given")
                 else:
                     raise ParseException("unknown type")
+        if not output:
+            raise ParseException("no output gate found")
         self.bp = bp[-1]
 
     def save_bp(self, fname):
@@ -190,7 +194,10 @@ class BranchingProgram(object):
         self.bp = newbp
 
     def randomize(self, prime, alphas=None):
-        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), self.bpgroup.length)
+        assert self.randomized == False
+
+        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)),
+                           self.bpgroup.length)
 
         def random_matrix():
             while True:
@@ -207,7 +214,6 @@ class BranchingProgram(object):
             self.bp[i-1] = self.bp[i-1].group(MSZp).mult_right(mii)
             self.bp[i] = self.bp[i].group(MSZp).mult_left(mi)
         self.bp[-1] = self.bp[-1].group(MSZp).mult_right(m0i)
-        self._group = MSZp
         self.m0, self.m0i = m0, m0i
         self.randomized = True
 
@@ -217,9 +223,10 @@ class BranchingProgram(object):
                 self.bp[i] = self.bp[i].mult_scalar(alpha)
 
     def evaluate(self, inp):
-        comp = self._group.identity_matrix()
-        for m in self.bp:
-            comp = comp * (m.zero if inp[m.inp] == '0' else m.one)
+        first = self.bp[0]
+        comp = first.zero if inp[first.inp] == '0' else first.one
+        for m in self.bp[1:]:
+            comp *= m.zero if inp[m.inp] == '0' else m.one
         if comp == self.zero:
             return 0
         elif comp == self.one:
