@@ -1,6 +1,6 @@
 #!/usr/bin/env sage -python
 
-from sage.all import *
+from sage.all import GF, MatrixSpace
 
 class Group(object):
     def __init__(self):
