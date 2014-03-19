@@ -86,6 +86,8 @@ class BranchingProgram(object):
         return self.bp.__iter__()
     def next(self):
         return self.bp.next()
+    def __getitem__(self, i):
+        return self.bp[i]
     def __repr__(self):
         return repr(self.bp)
 
@@ -227,6 +229,7 @@ class BranchingProgram(object):
                 self.bp[i] = self.bp[i].mult_scalar(alpha)
 
     def set_straddling_sets(self):
+        # XXX: verify there's no randomness here
         inpdir = {}
         for layer in self.bp:
             inpdir.setdefault(layer.inp, []).append(layer)

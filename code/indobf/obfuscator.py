@@ -32,6 +32,9 @@ def save_layer(layer, directory, idx):
     layer.zero.save('%s/%d.zero' % (directory, idx))
     layer.one.save('%s/%d.one' % (directory, idx))
 
+class ObfuscationException(Exception):
+    pass
+
 class Obfuscator(object):
 
     def _print_params(self):
@@ -126,88 +129,133 @@ class Obfuscator(object):
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
-    def _construct_bookend_vectors(self, bp, prime, nzs):
+    def _construct_multiplicative_constants(self, bps, alphas_list):
+        if not self._disable_mbundling:
+            self.logger('Constructing multiplicative constants...')
+            start = time.time()
+            self.a0s_enc = []
+            self.a1s_enc = []
+            slots = range(len(bps))
+            for idx in xrange(len(bps[0])):
+                zeros = []
+                ones = []
+                for alphas in alphas_list:
+                    zeros.append(long(alphas[idx][0]))
+                    ones.append(long(alphas[idx][1]))
+                a0enc = fastutils.encode_scalar(zeros, slots, bps[0][idx].zeroset)
+                a1enc = fastutils.encode_scalar(ones, slots, bps[0][idx].oneset)
+                self.a0s_enc.append(a0enc)
+                self.a1s_enc.append(a1enc)
+            end = time.time()
+            self.logger('Took: %f seconds' % (end - start))
+
+    def _construct_bookend_vectors(self, bps, primes, nzs, veclen):
         if not self._disable_bookends:
             self.logger('Constructing bookend vectors...')
             start = time.time()
             sidx, tidx = nzs - 2, nzs - 1
-            VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), bp.bpgroup.length)
-            s = VSZp.random_element() * bp.m0i
-            t = bp.m0 * VSZp.random_element()
-            p = s * t
-            self.p_enc = fastutils.encode_scalar([long(p)], [0], [sidx, tidx])
+            slots = range(len(bps))
+            ss = []
+            ts = []
+            ps = []
+            for bp, prime in zip(bps, primes):
+                VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), veclen)
+                s = VSZp.random_element() * bp.m0i
+                t = bp.m0 * VSZp.random_element()
+                p = s * t
+                ss.append([long(i) for i in s])
+                ts.append([long(i) for i in t])
+                ps.append(long(p))
+            self.p_enc = fastutils.encode_scalar(ps, slots, [sidx, tidx])
             if self._disable_mbundling:
                 for i in xrange(nzs - 2):
-                    self.p_enc *= fastutils.encode_scalar([1L], [0], [i])
-            self.s_enc = fastutils.encode_vector(len(s), [[long(i) for i in s]], [0], [sidx])
-            self.t_enc = fastutils.encode_vector(len(t), [[long(i) for i in t]], [0], [tidx])
+                    self.p_enc *= fastutils.encode_scalar([1L] * len(bps), slots, [i])
+            self.s_enc = fastutils.encode_vector(veclen, ss, slots, [sidx])
+            self.t_enc = fastutils.encode_vector(len(t), ts, slots, [tidx])
             end = time.time()
             self.logger('Took: %f seconds' % (end - start))
 
-    def _obfuscate(self, bp):
-        def _obfuscate_layer(layer):
-            self.logger('Obfuscating\n%s with set %s' % (layer.zero, layer.zeroset))
-            self.logger('Obfuscating\n%s with set %s' % (layer.one, layer.oneset))
+    def _obfuscate(self, bps, veclen):
+        length = veclen * veclen * 2
+        half = length >> 1
+        slots = range(len(bps))
+        def _obfuscate_layer(idx):
+            for bp in bps:
+                self.logger('Obfuscating\n%s with set %s' % (
+                    bp[idx].zero, bp[idx].zeroset))
+                self.logger('Obfuscating\n%s with set %s' % (
+                    bp[idx].one, bp[idx].oneset))
             start = time.time()
-            m = ms2list(layer.zero)
-            m.extend(ms2list(layer.one))
-            half = len(m) / 2
-            es = fastutils.encode_layer(len(m), [m], [0], layer.zeroset, layer.oneset)
+            ms = []
+            for bp in bps:
+                m = ms2list(bp[idx].zero)
+                m.extend(ms2list(bp[idx].one))
+                ms.append(m)
+            es = fastutils.encode_layer(length, ms, slots,
+                                        bps[0][idx].zeroset, bps[0][idx].oneset)
             zero, one = self.MS(es[:half]), self.MS(es[half:])
             end = time.time()
             self.logger('Obfuscating layer took: %f seconds' % (end - start))
-            return ObfLayer(layer.inp, zero, one)
+            return ObfLayer(bps[0][idx].inp, zero, one)
         self.logger('Obfuscating...')
         start = time.time()
-        self.obfuscation = [_obfuscate_layer(layer) for layer in bp]
+        self.obfuscation = [_obfuscate_layer(idx) for idx in xrange(len(bps[0]))]
         end = time.time()
         self.logger('Obfuscation took: %f seconds' % (end - start))
 
-    def obfuscate(self, bp, secparam):
-        if bp.randomized:
-            raise Exception('Input BP must not be randomized!')
+    def obfuscate(self, bps, secparam):
+        if not isinstance(bps, list):
+            bps = [bps]
 
-        self.MS = MatrixSpace(ZZ, bp.bpgroup.length)
+        bplength = len(bps[0])
+        group = bps[0].bpgroup
+        for bp in bps:
+            if bp.randomized:
+                raise ObfuscationException('BPs must not be randomized')
+            if repr(bp.bpgroup) != repr(group):
+                raise ObfuscationException('BPs must be under the same group')
+            if len(bp) != bplength:
+                raise ObfuscationException('BPs must be of the same length')
+        
+        self.MS = MatrixSpace(ZZ, group.length)
 
-        if self._disable_bookends:
-            kappa = len(bp)
-        else:
+        kappa = bplength
+        if not self._disable_bookends:
             # add two to kappa due to the bookend vectors
-            kappa = len(bp) + 2
+            kappa += 2
 
         self._set_params(secparam, kappa)
 
-        prime = long(random_prime((1 << secparam) - 1,
-                                  lbound=(1 << secparam - 1)))
+        primes = [long(random_prime((1 << secparam) - 1,
+                                    lbound=(1 << secparam - 1)))
+                  for _ in xrange(len(bps))]
 
-        if self._disable_mbundling:
-            alphas = None
-        else:
-            R = Zmod(prime)
-            alphas = [(R.random_element(), R.random_element())
-                      for _ in xrange(len(bp))]
-        bp.randomize(prime, alphas=alphas)
+        alphas_list = []
+        for bp, prime in zip(bps, primes):
+            if self._disable_mbundling:
+                alphas = None
+            else:
+                R = Zmod(prime)
+                alphas = [(R.random_element(), R.random_element())
+                          for _ in xrange(bplength)]
+                alphas_list.append(alphas)
+            bp.randomize(prime, alphas=alphas)
 
-        nzs = bp.set_straddling_sets()
-        # take bookend vectors into account
-        if not self._disable_bookends:
-            nzs = nzs + 2
+        # XXX: All nzs should be of equal size
+        for bp in bps:
+            nzs = bp.set_straddling_sets()
+            if not self._disable_bookends:
+                # take bookend vectors into account
+                nzs = nzs + 2
         self.logger('Number of Zs: %d' % nzs)
 
-        self._gen_mlm_params([prime], nzs)
+        self._gen_mlm_params(primes, nzs)
 
-        if not self._disable_mbundling:
-            self.a0s_enc = []
-            self.a1s_enc = []
-            for layer, (a0, a1) in zip(bp, alphas):
-                a0enc = fastutils.encode_scalar([long(a0)], [0], layer.zeroset)
-                a1enc = fastutils.encode_scalar([long(a1)], [0], layer.oneset)
-                self.a0s_enc.append(a0enc)
-                self.a1s_enc.append(a1enc)
+        self._construct_multiplicative_constants(bps, alphas_list)
 
-        self._construct_bookend_vectors(bp, prime, nzs)
+        self._construct_bookend_vectors(bps, primes, nzs, group.length)
 
-        self._obfuscate(bp)
+        self._obfuscate(bps, group.length)
 
     def _is_zero(self, c):
         return fastutils.is_zero(long(c), self.nu)
