@@ -2,8 +2,7 @@
 
 from __future__ import print_function
 
-from gradedencoding import GradedEncoding
-from branchingprogram import (BranchingProgram, MATRIX_LENGTH)
+from branchingprogram import BranchingProgram
 import utils, fastutils
 
 from sage.all import (flatten, Integer, load, MatrixSpace, randint,
@@ -12,7 +11,7 @@ from sage.all import (flatten, Integer, load, MatrixSpace, randint,
 import collections, os, sys, time
 import numpy
 
-MS = MatrixSpace(ZZ, MATRIX_LENGTH)
+MS = MatrixSpace(ZZ, 5)         # FIXME: hardcoded 5
 
 def ms2list(m):
     '''Convert an element in MS to a flat integer list'''

@@ -32,7 +32,8 @@ def test_circuit(path, secparam, verbose, params):
         print('no test cases')
         return
     try:
-        bp = BranchingProgram(path, type='circuit', verbose=verbose)
+        bp = BranchingProgram(path, type='circuit', group='S6',
+                              verbose=verbose)
     except ParseException as e:
         print('\x1b[33mParse Error:\x1b[0m %s' % e)
         return False
