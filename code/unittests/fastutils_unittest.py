@@ -42,18 +42,28 @@ class FastutilsTestCase(unittest.TestCase):
 
             x0, pzt = fastutils.genparams(n, alpha, beta, eta, kappa, rho, nzs, gs)
 
-            a1 = fastutils.encode_scalar(173L, 0, [0, 1]);
-            b1 = fastutils.encode_scalar(173L, 0, [0, 1]);
+            # a1 = fastutils.encode_scalar([173L, 173L], [0, 1], [0, 1]);
+            # b1 = fastutils.encode_scalar([173L, 173L], [0, 1], [0, 1]);
 
-            assert fastutils.is_zero(long(a1 - b1), nu)
+            # assert fastutils.is_zero(long(a1 - b1), nu)
 
-            # p1 = 143L
-            # s1 = [55L, 103L, 50L, 93L, 151L]
-            # t1 = [59L, 180L, 57L, 168L, 34L]
+            p1 = 143L
+            s1 = [55L, 103L, 50L, 93L, 151L]
+            t1 = [59L, 180L, 57L, 168L, 34L]
 
-            # p2 = 76L
-            # s2 = [159L, 101L, 21L, 165L, 90L]
-            # t2 = [134L, 57L, 131L, 171L, 84L]
+            p2 = 76L
+            s2 = [159L, 101L, 21L, 165L, 90L]
+            t2 = [134L, 57L, 131L, 171L, 84L]
+            
+            penc = fastutils.encode_scalar([p1, p2], [0, 1], [0, 1])
+            senc = fastutils.encode_vector(5, [s1, s2], [0, 1], [0])
+            tenc = fastutils.encode_vector(5, [t1, t2], [0, 1], [1])
+
+            a = penc
+            b = numpy.dot(senc, tenc) % x0
+
+            assert fastutils.is_zero(long(a - b), nu)
+
 
             # M = numpy.matrix([[1L, 0L, 0L, 0L, 0L],
             #                   [0L, 1L, 0L, 0L, 0L],
