@@ -27,8 +27,6 @@ class Layer(object):
                              self.one.numpy().tostring())
     def conjugate(self, M, Mi):
         return Layer(self.inp, Mi * self.zero * M, Mi * self.one * M)
-    def invert(self):
-        return Layer(self.inp, self.zero.inverse(), self.one.inverse())
     def group(self, group):
         return Layer(self.inp, group(self.zero), group(self.one))
     def mult_scalar(self, alphas):
@@ -50,12 +48,6 @@ def conjugate(layers, target, group):
         layers = prepend(layers, group.conjugates[target][1])
         return append(layers, group.conjugates[target][0])
 
-def invert(layers):
-    if len(layers) == 1:
-        return [layers[0].invert()]
-    else:
-        return [invert(l) for l in reversed(layers)]
-
 def notgate(layers, group):
     if len(layers) == 1:
         return [layers[0].mult_left(group.Cc).mult_right(group.Cc * group.C)]
@@ -66,7 +58,7 @@ class ParseException(Exception):
     pass
 
 class BranchingProgram(object):
-    def __init__(self, fname, type='circuit', verbose=False, group='S5'):
+    def __init__(self, fname, type='circuit', verbose=False, group='S6'):
         self._verbose = verbose
         self.logger = utils.make_logger(self._verbose)
 
@@ -76,7 +68,7 @@ class BranchingProgram(object):
         try:
             self.bpgroup = groups.groupmap[group]()
         except KeyError:
-            self.logger("Unknown group '%s'.  Defaulting to S5." % group)
+            self.logger("Unknown group '%s'.  Defaulting to S6." % group)
             self.bpgroup = groups.S5()
         self._group = self.bpgroup.G
         self.zero = self.bpgroup.I
@@ -100,7 +92,7 @@ class BranchingProgram(object):
     def __repr__(self):
         return repr(self.bp)
 
-    def parse_param(self, line):
+    def _parse_param(self, line):
         try:
             _, param, value = line.split()
         except ValueError:
@@ -117,67 +109,59 @@ class BranchingProgram(object):
         else:
             raise ParseException("Invalid parameter '%s'" % param)
 
-    def load_arity_one_gate(self, rest, bp):
-        _, a, b, _, _, _, in1, _ = rest.split(None, 7)
-        a, b, in1 = ints(a, b, in1)
-        if a == 1 and b == 0:
-            # NOT gate
-            return notgate(bp[in1], self.bpgroup)
-        elif a == 0 and b == 1:
-            # identity gate
-            return bp[in1]
-        else:
-            raise ParseException("error: unsupported gate:", rest.strip())
+    def _and_gate(self, in1, in2):
+        a = conjugate(in1, 'A', self.bpgroup)
+        b = conjugate(in2, 'B', self.bpgroup)
+        c = conjugate(in1, 'Ai', self.bpgroup)
+        d = conjugate(in2, 'Bi', self.bpgroup)
+        return flatten([a, b, c, d])
 
-    def load_arity_two_gate(self, rest, bp):
-        _, a, b, c, d, _, _, _, in1, in2, _ \
-            = rest.split(None, 10)
-        a, b, c, d, in1, in2 = ints(a, b, c, d, in1, in2)
-        if a == b == c == 0 and d == 1:
-            # AND gate
-            a = conjugate(bp[in1], 'A', self.bpgroup)
-            b = conjugate(bp[in2], 'B', self.bpgroup)
-            c = conjugate(bp[in1], 'Ai', self.bpgroup)
-            d = conjugate(bp[in2], 'Bi', self.bpgroup)
-            return flatten([a, b, c, d])
-        elif a == d == 0 and b == c == 1:
-            # XOR gate
-            if repr(self.bpgroup) == 'S5':
-                raise ParseException("XOR gates not supported for S5 group")
-            return flatten([bp[in1], bp[in2]])
-        else:
-            raise ParseException("error: unsupported gate:", rest.strip())
+    def _or_gate(self, in1, in2):
+        in1not = self._not_gate(in1)
+        in2not = self._not_gate(in2)
+        r = self._and_gate(in1not, in2not)
+        return self._not_gate(r)
+
+    def _not_gate(self, in1):
+        return notgate(in1, self.bpgroup)
+
+    def _xor_gate(self, in1, in2):
+        if repr(self.bpgroup) == 'S5':
+            raise ParseException("XOR gates not supported for S5 group")
+        return flatten([in1, in2])
 
     def load_circuit(self, fname):
         bp = []
-        arity_dict = {
-            1: self.load_arity_one_gate,
-            2: self.load_arity_two_gate
+        gates = {
+            'AND': lambda in1, in2: self._and_gate(bp[in1], bp[in2]),
+            'OR': lambda in1, in2: self._or_gate(bp[in1], bp[in2]),
+            'NOT': lambda in1: self._not_gate(bp[in1]),
+            'XOR': lambda in1, in2: self._xor_gate(bp[in1], bp[in2]),
         }
         with open(fname) as f:
             for line in f:
                 if line.startswith('#'):
                     continue
                 elif line.startswith(':'):
-                    self.parse_param(line)
+                    self._parse_param(line)
                     continue
                 num, rest = line.split(None, 1)
                 num = int(num)
                 if rest.startswith('input'):
-                    bp.append([Layer(num, self.bpgroup.I, self.bpgroup.C)])
+                    bp.append([Layer(num, self.zero, self.one)])
                 elif rest.startswith('gate') or rest.startswith('output'):
                     # XXX: watchout!  I'm not sure what'll happen if we have
                     # multiple outputs in a circuit
-                    if rest.startswith('gate'):
-                        _, _, arity, _, rest = rest.split(None, 4)
-                    else:
-                        _, _, _, arity, _, rest = rest.split(None, 5)
+                    _, gate, rest = rest.split(None, 2)
+                    inputs = [int(i) for i in rest.split()]
                     try:
-                        bp.append(arity_dict[int(arity)](rest, bp))
+                        bp.append(gates[gate.upper()](*inputs))
                     except KeyError:
-                        raise ParseException('unsupported gate arity %s' % arity)
+                        raise ParseException("unsupported gate '%s'" % gate)
+                    except TypeError:
+                        raise ParseException("incorrect number of arguments given")
                 else:
-                    raise("error: unknown type")
+                    raise ParseException("unknown type")
         self.bp = bp[-1]
 
     def save_bp(self, fname):

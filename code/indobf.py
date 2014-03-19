@@ -18,7 +18,7 @@ def bp(args):
     if args.test_all:
         for circuit in os.listdir('circuits'):
             path = os.path.join(testdir, circuit)
-            if os.path.isfile(path) and path.endswith('.circuit'):
+            if os.path.isfile(path) and path.endswith('.circ'):
                 test_circuit(path, args.secparam, args.verbose, params)
     if args.load_circuit:
         bp = BranchingProgram(args.load_circuit, type='circuit')

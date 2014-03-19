@@ -1,0 +1,11 @@
+: nins 3
+: depth 2
+# TEST 000 0
+# TEST 001 1
+# TEST 010 0
+# TEST 111 0
+0 input
+1 input
+2 input
+3 gate AND 0 1
+4 output XOR 3 2
