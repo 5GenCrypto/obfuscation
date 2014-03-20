@@ -3,7 +3,6 @@
 from __future__ import print_function
 
 from indobf.branchingprogram import BranchingProgram
-from indobf.obfuscator import Obfuscator
 from indobf.test import TestParams, test_circuit
 
 import argparse, os, sys, time
@@ -25,6 +24,7 @@ def bp(args):
         print('Output = %d' % r)
 
 def obf(args):
+    from indobf.obfuscator import Obfuscator
     if args.disable_bookends:
         args.disable_mbundling = True
 

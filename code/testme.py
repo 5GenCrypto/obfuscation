@@ -11,7 +11,7 @@ def main(argv):
     parser.add_argument('--obliviate', action='store_true')
     args = parser.parse_args()
 
-    paths = ['not.circ', 'and.circ', 'twoand.circ']
+    paths = ['not.circ', 'and.circ', 'twoands.circ']
     params = TestParams(obliviate=args.obliviate, obfuscate=True)
     secparams = [8, 16, 24, 28, 32, 40]
     for path in paths:
