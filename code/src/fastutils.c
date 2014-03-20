@@ -406,8 +406,10 @@ fastutils_encode_vector(PyObject *self, PyObject *args)
 {
     const long veclen;
     PyObject *py_vectors, *py_slots, *py_list, *py_outs;
-    Py_ssize_t i, j, numvectors;
+    Py_ssize_t numvectors;
+    long i;
     int idx1, idx2;
+    PyObject **lists;
 
     if (!PyArg_ParseTuple(args, "lOOO", &veclen, &py_vectors, &py_slots, &py_list)) {
         return NULL;
@@ -442,13 +444,19 @@ fastutils_encode_vector(PyObject *self, PyObject *args)
         return NULL;
     }
 
-#pragma omp parallel for private(i)
+    lists = (PyObject **) malloc(sizeof(PyObject *) * veclen);
+    for (i = 0; i < veclen; ++i) {
+        lists[i] = PyList_New(numvectors);
+    }
+
+#pragma omp parallel for
     for (i = 0; i < veclen; ++i) {
         mpz_t val;
         PyObject *py_tmp;
+        Py_ssize_t j;
 
         mpz_init(val);
-        py_tmp = PyList_New(numvectors);
+        py_tmp = lists[i];
 
         for (j = 0; j < numvectors; ++j) {
             PyList_SET_ITEM(py_tmp, j,
@@ -460,6 +468,8 @@ fastutils_encode_vector(PyObject *self, PyObject *args)
         mpz_clear(val);
     }
 
+    free(lists);
+
     return py_outs;
 }
 
@@ -467,9 +477,11 @@ static PyObject *
 fastutils_encode_layer(PyObject *self, PyObject *args)
 {
     PyObject *py_layers, *py_slots, *py_zeros, *py_ones, *py_outs;
-    Py_ssize_t i, j, numlayers, half;
+    Py_ssize_t numlayers, half;
     int zeroidx1, zeroidx2, oneidx1, oneidx2;
     const long layerlen;
+    long i;
+    PyObject **lists;
 
     if (!PyArg_ParseTuple(args, "lOOOO", &layerlen, &py_layers, &py_slots,
                           &py_zeros, &py_ones)) {
@@ -508,13 +520,20 @@ fastutils_encode_layer(PyObject *self, PyObject *args)
         return NULL;
     }
 
+    lists = (PyObject **) malloc(sizeof(PyObject *) * layerlen);
+    for (i = 0; i < layerlen; ++i) {
+        lists[i] = PyList_New(numlayers);
+    }
+
 #pragma omp parallel for private(i)
     for (i = 0; i < layerlen; ++i) {
         mpz_t val;
         PyObject *py_tmp;
+        Py_ssize_t j;
 
         mpz_init(val);
-        py_tmp = PyList_New(numlayers);
+        /* py_tmp = PyList_New(numlayers); */
+        py_tmp = lists[i];
 
         for (j = 0; j < numlayers; ++j) {
             PyList_SET_ITEM(py_tmp, j,
@@ -526,9 +545,11 @@ fastutils_encode_layer(PyObject *self, PyObject *args)
             encode(val, py_tmp, py_slots, numlayers, oneidx1, oneidx2);
         }
         PyList_SET_ITEM(py_outs, i, mpz_to_py(val));
-        
+
         mpz_clear(val);
     }
+
+    free(lists);
 
     return py_outs;
 }
@@ -537,8 +558,7 @@ static PyObject *
 fastutils_is_zero(PyObject *self, PyObject *args)
 {
     const long nu;
-    PyObject *py_c = NULL;
-    mpz_t c;
+    PyObject *py_c;
     int ret;
 
     if (!PyArg_ParseTuple(args, "Ol", &py_c, &nu))
@@ -548,16 +568,19 @@ fastutils_is_zero(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    mpz_init(c);
+    {
+        mpz_t c;
+        mpz_init(c);
 
-    py_to_mpz(c, py_c);
+        py_to_mpz(c, py_c);
 
-    mpz_mul(c, c, g_pzt);
-    mpz_mod_near(c, c, g_x0);
+        mpz_mul(c, c, g_pzt);
+        mpz_mod_near(c, c, g_x0);
 
-    ret = (mpz_sizeinbase(c, 2) < (mpz_sizeinbase(g_x0, 2) - nu)) ? 1 : 0;
+        ret = (mpz_sizeinbase(c, 2) < (mpz_sizeinbase(g_x0, 2) - nu)) ? 1 : 0;
 
-    mpz_clear(c);
+        mpz_clear(c);
+    }
 
     if (ret)
         Py_RETURN_TRUE;
