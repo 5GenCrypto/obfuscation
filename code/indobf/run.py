@@ -2,8 +2,8 @@
 
 from __future__ import print_function
 
-from indobf.branchingprogram import BranchingProgram
-from indobf.test import TestParams, test_circuit
+from branchingprogram import BranchingProgram
+from test import TestParams, test_circuit
 
 import argparse, os, sys, time
 
@@ -24,7 +24,7 @@ def bp(args):
         print('Output = %d' % r)
 
 def obf(args):
-    from indobf.obfuscator import Obfuscator
+    from obfuscator import Obfuscator
     if args.disable_bookends:
         args.disable_mbundling = True
 
@@ -65,7 +65,7 @@ def obf(args):
             end = time.time()
             print("Evalution took: %f seconds" % (end - start))
 
-def main(argv):
+def main():
     parser = argparse.ArgumentParser(
         description='Run indistinguishability obfuscator.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -118,6 +118,6 @@ def main(argv):
 
 if __name__ == "__main__":
     try:
-        main(sys.argv)
+        main()
     except KeyboardInterrupt:
         pass

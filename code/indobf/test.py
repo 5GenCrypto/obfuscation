@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-from indobf.branchingprogram import BranchingProgram, ParseException
+from branchingprogram import BranchingProgram, ParseException
 from sage.rings.arith import random_prime
 
 class TestParams(object):
@@ -39,7 +39,7 @@ def test_circuit(path, secparam, verbose, params):
     if params.obliviate:
         bp.obliviate()
     if params.obfuscate:
-        from indobf.obfuscator import Obfuscator
+        from obfuscator import Obfuscator
         kwargs = {
             'verbose': verbose,
             'disable_mbundling': params.disable_mbundling,

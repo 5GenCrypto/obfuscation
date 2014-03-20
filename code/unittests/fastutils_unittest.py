@@ -34,7 +34,7 @@ gs = [long(181)]
 class FastutilsTestCase(unittest.TestCase):
     def testme(self):
         try:
-            import fastutils
+            import indobf.fastutils as fastutils
 
             nzs = 3
 
