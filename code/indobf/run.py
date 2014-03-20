@@ -65,6 +65,17 @@ def obf(args):
             end = time.time()
             print("Evalution took: %f seconds" % (end - start))
 
+def test(args):
+    paths = ['not.circ', 'and.circ', 'twoands.circ']
+    params = TestParams(obliviate=False, obfuscate=True)
+    secparams = [8, 16, 24, 28, 32, 40]
+    for path in paths:
+        path = 'circuits/%s' % path
+        print('Testing circuit "%s"' % path)
+        for secparam in secparams:
+            print('Security parameter = %d' % secparam)
+            test_circuit(path, secparam, False, params)
+
 def main():
     parser = argparse.ArgumentParser(
         description='Run indistinguishability obfuscator.',
@@ -112,6 +123,12 @@ def main():
     parser_obf.add_argument('-v', '--verbose', action='store_true',
                             help='be verbose')
     parser_obf.set_defaults(func=obf)
+
+    parser_test = subparsers.add_parser(
+        'test',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        help='run test suite')
+    parser_test.set_defaults(func=test)
 
     args = parser.parse_args()
     args.func(args)
