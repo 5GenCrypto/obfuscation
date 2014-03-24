@@ -247,7 +247,6 @@ class BranchingProgram(object):
                     n += 1
         return n
 
-
     def evaluate(self, inp):
         first = self.bp[0]
         comp = first.zero if inp[first.inp] == '0' else first.one

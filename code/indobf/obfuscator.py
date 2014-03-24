@@ -59,7 +59,6 @@ class Obfuscator(object):
         self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
         assert self.nu >= self.alpha + self.beta + 5
-        # XXX: use smaller n value for now to speed things up
         if self._fast:
             self.n = self.eta
         else:
