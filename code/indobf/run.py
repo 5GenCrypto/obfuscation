@@ -31,7 +31,8 @@ def obf(args):
     if args.test_circuit:
         params = TestParams(obliviate=False, obfuscate=True,
                             disable_mbundling=args.disable_mbundling,
-                            disable_bookends=args.disable_bookends)
+                            disable_bookends=args.disable_bookends,
+                            fast=args.fast)
         test_circuit(args.test_circuit, args.secparam, args.verbose, params)
     else:
         obf = Obfuscator(verbose=args.verbose)
@@ -120,6 +121,8 @@ def main():
                              help='disable multiplicative bundling')
     parser_obf.add_argument('--disable-bookends', action='store_true',
                              help='disable booken vectors')
+    parser_obf.add_argument('--fast', action='store_true',
+                             help='use smaller parameters so things run faster')
     parser_obf.add_argument('-v', '--verbose', action='store_true',
                             help='be verbose')
     parser_obf.set_defaults(func=obf)

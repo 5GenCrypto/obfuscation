@@ -60,22 +60,27 @@ class Obfuscator(object):
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
         assert self.nu >= self.alpha + self.beta + 5
         # XXX: use smaller n value for now to speed things up
-        self.n = self.eta
-        # self.n = int(self.eta * numpy.log2(self.secparam))
+        if self._fast:
+            self.n = self.eta
+        else:
+            self.n = int(self.eta * numpy.log2(self.secparam))
         self._print_params()
 
     def __init__(self, verbose=False, disable_mbundling=False,
-                 disable_bookends=False):
+                 disable_bookends=False, fast=False):
         self.obfuscation = None
         self._verbose = verbose
         self._disable_mbundling = disable_mbundling
         self._disable_bookends = disable_bookends
+        self._fast = fast
 
         self.logger = utils.make_logger(self._verbose)
         if self._disable_mbundling:
             self.logger('* Multiplicative bundling disabled')
         if self._disable_bookends:
             self.logger('* Bookends disabled')
+        if self._fast:
+            self.logger('* Using small parameters for speed')
 
     def save(self, directory):
         assert self.obfuscation is not None

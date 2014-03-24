@@ -7,11 +7,13 @@ from sage.rings.arith import random_prime
 
 class TestParams(object):
     def __init__(self, obliviate=False, obfuscate=False,
-                 disable_mbundling=False, disable_bookends=False):
+                 disable_mbundling=False, disable_bookends=False,
+                 fast=False):
         self.obliviate = obliviate
         self.obfuscate = obfuscate
         self.disable_mbundling = disable_mbundling
         self.disable_bookends = disable_bookends
+        self.fast = fast
 
 def test_circuit(path, secparam, verbose, params):
     testcases = {}
@@ -43,13 +45,14 @@ def test_circuit(path, secparam, verbose, params):
         kwargs = {
             'verbose': verbose,
             'disable_mbundling': params.disable_mbundling,
-            'disable_bookends': params.disable_bookends
+            'disable_bookends': params.disable_bookends,
+            'fast': params.fast,
         }
         obf = Obfuscator(**kwargs)
         obf.obfuscate(bp, secparam)
         obf.save('%s.obf' % path)
-        program = Obfuscator(**kwargs)
 
+        program = Obfuscator(**kwargs)
         program.load('%s.obf' % path)
     else:
         prime = long(random_prime((1 << secparam) - 1, lbound=(1 << secparam - 1)))
