@@ -1,4 +1,6 @@
 #include <Python.h>
+
+#include <fcntl.h>
 #include <gmp.h>
 #include <omp.h>
 #include <sys/time.h>
@@ -85,20 +87,16 @@ extract_indices(PyObject *py_list, int *idx1, int *idx2)
     return SUCCESS;
 }
 
-
 static void
 mpz_genrandom(mpz_t rnd, const long nbits)
 {
-    mpz_t one, rndtmp;
+    mpz_t one;
 
     mpz_init_set_ui(one, 1 << (nbits - 1));
-    mpz_init(rndtmp);
-
-    mpz_urandomb(rndtmp, g_rng, nbits);
-    mpz_ior(rnd, rndtmp, one);
+    mpz_urandomb(rnd, g_rng, (mp_bitcnt_t) nbits);
+    /* mpz_sub(rnd, rnd, one); */
 
     mpz_clear(one);
-    mpz_clear(rndtmp);
 }
 
 static void
@@ -119,6 +117,24 @@ mpz_mod_near(mpz_t out, const mpz_t a, const mpz_t b)
 
     mpz_clear(res);
     mpz_clear(shift);
+}
+
+static PyObject *
+fastutils_genprime(PyObject *self, PyObject *args)
+{
+    const long bitlength;
+    PyObject *py_out;
+    mpz_t out;
+
+    if (!PyArg_ParseTuple(args, "l", &bitlength))
+        return NULL;
+
+    mpz_init(out);
+    mpz_genrandom(out, bitlength);
+    mpz_nextprime(out, out);
+    py_out = mpz_to_py(out);
+    mpz_clear(out);
+    return py_out;
 }
 
 static PyObject *
@@ -521,6 +537,8 @@ FastutilsMethods[] = {
      "Generate MLM parameters."},
     {"loadparams", fastutils_loadparams, METH_VARARGS,
      "Load MLM parameters."},
+    {"genprime", fastutils_genprime, METH_VARARGS,
+     "Generate a random prime."},
     {"encode_scalar", fastutils_encode_scalar, METH_VARARGS,
      "Encode a scalar."},
     {"encode_vector", fastutils_encode_vector, METH_VARARGS,
@@ -535,7 +553,26 @@ FastutilsMethods[] = {
 PyMODINIT_FUNC
 initfastutils(void)
 {
+    int file;
+    unsigned long seed;
+
     (void) Py_InitModule("fastutils", FastutilsMethods);
 
+    if ((file = open("/dev/random", O_RDONLY)) == -1) {
+        (void) fprintf(stderr, "Error opening /dev/random\n");
+        goto cleanup;
+    }
+    if (read(file, &seed, sizeof seed) == -1) {
+        (void) fprintf(stderr, "Error reading from /dev/random\n");
+        goto cleanup;
+    }
+
+    fprintf(stderr, "SEED = %lu\n", seed);
+
     gmp_randinit_default(g_rng);
+    gmp_randseed_ui(g_rng, seed);
+
+ cleanup:
+    if (file != -1)
+        (void) close(file);
 }

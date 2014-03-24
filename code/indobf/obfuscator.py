@@ -5,8 +5,8 @@ from __future__ import print_function
 from branchingprogram import BranchingProgram
 import utils, fastutils
 
-from sage.all import (flatten, Integer, load, MatrixSpace, randint,
-                      random_prime, vector, VectorSpace, Zmod, ZZ)
+from sage.all import (flatten, Integer, load, MatrixSpace, randint, vector,
+                      VectorSpace, Zmod, ZZ)
 
 import collections, os, sys, time
 import numpy
@@ -165,9 +165,9 @@ class Obfuscator(object):
             end = time.time()
             self.logger('Took: %f seconds' % (end - start))
 
-    def _obfuscate(self, bp, veclen):
-        length = veclen * veclen * 2
-        half = length >> 1
+    def _obfuscate(self, bp, MS, veclen):
+        half = veclen * veclen
+        length = 2 * half
         def _obfuscate_layer(layer):
             self.logger('Obfuscating\n%s with set %s' % (
                 layer.zero, layer.zeroset))
@@ -177,7 +177,7 @@ class Obfuscator(object):
             m = ms2list(layer.zero)
             m.extend(ms2list(layer.one))
             es = fastutils.encode_layer(m, 0, layer.zeroset, layer.oneset)
-            zero, one = self.MS(es[:half]), self.MS(es[half:])
+            zero, one = MS(es[:half]), MS(es[half:])
             end = time.time()
             self.logger('Obfuscating layer took: %f seconds' % (end - start))
             return ObfLayer(layer.inp, zero, one)
@@ -192,7 +192,7 @@ class Obfuscator(object):
         if bp.randomized:
             raise ObfuscationException('BPs must not be randomized')
         
-        self.MS = MatrixSpace(ZZ, group.length)
+        MS = MatrixSpace(ZZ, group.length)
 
         kappa = len(bp)
         if not self._disable_bookends:
@@ -201,8 +201,7 @@ class Obfuscator(object):
 
         self._set_params(secparam, kappa)
 
-        prime = long(random_prime((1 << secparam) - 1,
-                                  lbound=(1 << secparam - 1)))
+        prime = fastutils.genprime(secparam)
 
         if self._disable_mbundling:
             alphas = None
@@ -224,7 +223,7 @@ class Obfuscator(object):
 
         self._construct_bookend_vectors(bp, prime, nzs, group.length)
 
-        self._obfuscate(bp, group.length)
+        self._obfuscate(bp, MS, group.length)
 
     def _is_zero(self, c):
         return fastutils.is_zero(long(c), self.nu)
@@ -234,12 +233,12 @@ class Obfuscator(object):
 
         start = time.time()
 
-        first = self.obfuscation[0]
-        p1 = first.zero if inp[first.inp] == '0' else first.one
+        m = self.obfuscation[0]
+        p1 = m.zero if inp[m.inp] == '0' else m.one
         for m in self.obfuscation[1:]:
             p1 *= m.zero if inp[m.inp] == '0' else m.one
         if self._disable_bookends:
-            result = 0 if self._is_zero(p1[0][1]) and self._is_zero(p1[1][0]) else 1
+            result = 0 if self._is_zero(p1[0][3]) and self._is_zero(p1[3][0]) else 1
         else:
             # need to use numpy arrays here, as sage constructs cause weird issues
             p1 = long((numpy.dot(numpy.dot(self.s_enc, numpy.array(p1)),

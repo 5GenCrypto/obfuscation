@@ -52,8 +52,9 @@ def test_circuit(path, secparam, verbose, params):
         obf.obfuscate(bp, secparam)
         obf.save('%s.obf' % path)
 
-        program = Obfuscator(**kwargs)
-        program.load('%s.obf' % path)
+        program = obf
+        # program = Obfuscator(**kwargs)
+        # program.load('%s.obf' % path)
     else:
         prime = long(random_prime((1 << secparam) - 1, lbound=(1 << secparam - 1)))
         bp.randomize(prime, alphas=None)

@@ -68,7 +68,7 @@ def obf(args):
 
 def test(args):
     paths = ['not.circ', 'and.circ', 'twoands.circ']
-    params = TestParams(obliviate=False, obfuscate=True)
+    params = TestParams(obliviate=False, obfuscate=True, fast=True)
     secparams = [8, 16, 24, 28, 32, 40]
     for path in paths:
         path = 'circuits/%s' % path

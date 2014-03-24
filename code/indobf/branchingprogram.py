@@ -248,8 +248,8 @@ class BranchingProgram(object):
         return n
 
     def evaluate(self, inp):
-        first = self.bp[0]
-        comp = first.zero if inp[first.inp] == '0' else first.one
+        m = self.bp[0]
+        comp = m.zero if inp[m.inp] == '0' else m.one
         for m in self.bp[1:]:
             comp *= m.zero if inp[m.inp] == '0' else m.one
         if comp == self.zero:
