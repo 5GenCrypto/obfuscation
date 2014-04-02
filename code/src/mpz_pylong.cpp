@@ -63,7 +63,7 @@ mpz_set_pylong(mpz_ptr z, PyObject * ll)
   mp_size_t size;
 
   if (l==NULL || !PyLong_Check(l)) {
-    PyErr_BadInternalCall();
+    // PyErr_BadInternalCall();
     return -1;
   }
 

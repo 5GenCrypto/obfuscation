@@ -6,13 +6,20 @@ __name__ = 'ind_obfuscation'
 __author__ = 'Alex J. Malozemoff'
 __version__ = '1.0a1.dev'
 
-fastutils = Extension(
-    'indobf.fastutils',
+group = 'S6'
+grouplength = 6
+
+# TODO: select the appropriate group to compile with
+
+obfuscator = Extension(
+    'indobf._obfuscator',
     libraries = ['gmp', 'gomp'],
-    extra_compile_args = ['-fopenmp', '-ggdb', '-Wall'],
-    sources = ['src/fastutils.c',
-               'src/mpn_pylong.c',
-               'src/mpz_pylong.c']
+    extra_compile_args = ['-fopenmp', '-ggdb', '-Wall',
+                          '-DGROUP=%s' % group,
+                          '-DGROUPLENGTH=%d' % grouplength],
+    sources = ['src/_obfuscator.cpp',
+               'src/mpn_pylong.cpp',
+               'src/mpz_pylong.cpp']
 )
 
 setup(name = __name__,
@@ -22,7 +29,7 @@ setup(name = __name__,
       url = 'https://github.com/amaloz/ind-obfuscation',
       package_data = {'circuits': ['*.circ']},
       packages = ['indobf', 'circuits'],
-      ext_modules = [fastutils],
+      ext_modules = [obfuscator],
       test_suite = 'unittests',
       # entry_points = {
       #     'console_scripts': ['indobf = indobf.run:main']

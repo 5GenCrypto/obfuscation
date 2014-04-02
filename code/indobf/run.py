@@ -25,14 +25,9 @@ def bp(args):
 
 def obf(args):
     from obfuscator import Obfuscator
-    if args.disable_bookends:
-        args.disable_mbundling = True
 
     if args.test_circuit:
-        params = TestParams(obliviate=False, obfuscate=True,
-                            disable_mbundling=args.disable_mbundling,
-                            disable_bookends=args.disable_bookends,
-                            fast=args.fast)
+        params = TestParams(obliviate=False, obfuscate=True, fast=args.fast)
         test_circuit(args.test_circuit, args.secparam, args.verbose, params)
     else:
         obf = Obfuscator(verbose=args.verbose)
@@ -117,10 +112,6 @@ def main():
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int,
                              action='store', default=8, help="security parameter")
-    parser_obf.add_argument('--disable-mbundling', action='store_true',
-                             help='disable multiplicative bundling')
-    parser_obf.add_argument('--disable-bookends', action='store_true',
-                             help='disable booken vectors')
     parser_obf.add_argument('--fast', action='store_true',
                              help='use smaller parameters so things run faster')
     parser_obf.add_argument('-v', '--verbose', action='store_true',

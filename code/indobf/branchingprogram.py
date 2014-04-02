@@ -3,9 +3,12 @@
 from __future__ import print_function
 import itertools
 
-from sage.all import MatrixSpace, ZZ
+import numpy as np
 
 import groups, utils
+from groups import Mmod
+
+_group = groups.S6()
 
 def flatten(l):
     return list(itertools.chain(*l))
@@ -20,57 +23,51 @@ class Layer(object):
     def __repr__(self):
         return "input: %d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
             self.inp, self.zero, self.one, self.zeroset, self.oneset)
-    def to_raw_string(self):
-        return "%d %s %s" % (self.inp, self.zero.numpy().tostring(),
-                             self.one.numpy().tostring())
-    def conjugate(self, M, Mi):
-        return Layer(self.inp, Mi * self.zero * M, Mi * self.one * M)
-    def group(self, group):
-        return Layer(self.inp, group(self.zero), group(self.one))
+    def conjugate(self, m, mi):
+        return Layer(self.inp,
+                     mi * self.zero * m,
+                     mi * self.one * m)
+    def modp(self, p):
+        return Layer(self.inp, Mmod(self.zero, p), Mmod(self.one, p))
     def mult_scalar(self, alphas):
-        return Layer(self.inp, alphas[0] * self.zero, alphas[1] * self.one)
-    def mult_left(self, M):
-        return Layer(self.inp, M * self.zero, M * self.one)
-    def mult_right(self, M):
-        return Layer(self.inp, self.zero * M, self.one * M)
+        # XXX: this may be wrong with Mmod
+        return Layer(self.inp, alphas[0] * self.zero.m, alphas[1] * self.one.m).modp(self.zero.p)
+    def mult_left(self, m):
+        return Layer(self.inp, m * self.zero, m * self.one)
+    def mult_right(self, m):
+        return Layer(self.inp, self.zero * m, self.one * m)
 
-def prepend(layers, M):
-    return [layers[0].mult_left(M)] + layers[1:]
-def append(layers, M):
-    return layers[:-1] + [layers[-1].mult_right(M)]
+def prepend(layers, m):
+    return [layers[0].mult_left(m)] + layers[1:]
+def append(layers, m):
+    return layers[:-1] + [layers[-1].mult_right(m)]
 
-def conjugate(layers, target, group):
+def conjugate(layers, target):
     if len(layers) == 1:
-        return [layers[0].conjugate(*group.conjugates[target])]
+        return [layers[0].conjugate(*_group.conjugates[target])]
     else:
-        layers = prepend(layers, group.conjugates[target][1])
-        return append(layers, group.conjugates[target][0])
+        layers = prepend(layers, _group.conjugates[target][1])
+        return append(layers, _group.conjugates[target][0])
 
-def notgate(layers, group):
+def notgate(layers):
     if len(layers) == 1:
-        return [layers[0].mult_left(group.Cc).mult_right(group.Cc * group.C)]
+        return [layers[0].mult_left(_group.Cc).mult_right(_group.Cc * _group.C)]
     else:
-        return append(prepend(layers, group.Cc), group.Cc * group.C)
+        return append(prepend(layers, _group.Cc), _group.Cc * _group.C)
 
 class ParseException(Exception):
     pass
 
 class BranchingProgram(object):
-    def __init__(self, fname, type='circuit', verbose=False, group='S6'):
+    def __init__(self, fname, type='circuit', verbose=False):
         self._verbose = verbose
         self.logger = utils.make_logger(self._verbose)
 
         self.bp = None
         self.n_inputs = None
         self.depth = None
-        try:
-            self.bpgroup = groups.groupmap[group]()
-        except KeyError:
-            self.bpgroup = groups.S6()
-            self.logger("Unknown group '%s'.  Defaulting to '%s'." % (
-                group, repr(self.bpgroup)))
-        self.zero = self.bpgroup.I
-        self.one = self.bpgroup.C
+        self.zero = _group.I
+        self.one = _group.C
         self.randomized = False
 
         if type not in ('circuit', 'bp'):
@@ -92,10 +89,10 @@ class BranchingProgram(object):
         return repr(self.bp)
 
     def _and_gate(self, in1, in2):
-        a = conjugate(in1, 'A', self.bpgroup)
-        b = conjugate(in2, 'B', self.bpgroup)
-        c = conjugate(in1, 'Ai', self.bpgroup)
-        d = conjugate(in2, 'Bi', self.bpgroup)
+        a = conjugate(in1, 'A')
+        b = conjugate(in2, 'B')
+        c = conjugate(in1, 'Ai')
+        d = conjugate(in2, 'Bi')
         return flatten([a, b, c, d])
 
     def _id_gate(self, in1):
@@ -108,10 +105,10 @@ class BranchingProgram(object):
         return self._not_gate(r)
 
     def _not_gate(self, in1):
-        return notgate(in1, self.bpgroup)
+        return notgate(in1)
 
     def _xor_gate(self, in1, in2):
-        if repr(self.bpgroup) == 'S5':
+        if repr(_group) == 'S5':
             raise ParseException("XOR gates not supported for S5 group")
         return flatten([in1, in2])
 
@@ -199,27 +196,41 @@ class BranchingProgram(object):
         assert len(newbp) == ms_needed
         self.bp = newbp
 
-    def randomize(self, prime, alphas=None):
+    def randomize(self, p, alphas=None):
         assert not self.randomized
 
-        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)),
-                           self.bpgroup.length)
+        size = _group.length
 
         def random_matrix():
+            # FIXME: this doesn't work for any secparam > 16
             while True:
-                m = MSZp.random_element()
-                if not m.is_singular():
-                    return m, m.inverse()
+                m = np.zeros((size, size), dtype=object)
+                for i in xrange(size):
+                    for j in xrange(size):
+                        m[i][j] = long(np.random.randint(p))
+                try:
+                    minv = utils.mod_mat_inv(m, p)
+                    minv = np.array(minv, dtype=object)
+                    for i in xrange(size):
+                        for j in xrange(size):
+                            minv[i][j] = long(minv[i][j])
+                    return m, minv
+                except ValueError:
+                    pass
 
         m0, m0i = random_matrix()
-        self.zero = m0 * MSZp(self.zero) * m0i
-        self.one = m0 * MSZp(self.one) * m0i
-        self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
+        m0 = Mmod(m0, p)
+        m0i = Mmod(m0i, p)
+        self.zero = m0 * Mmod(self.zero, p) * m0i
+        self.one = m0 * Mmod(self.one, p) * m0i
+        self.bp[0] = self.bp[0].modp(p).mult_left(m0)
         for i in xrange(1, len(self.bp)):
             mi, mii = random_matrix()
-            self.bp[i-1] = self.bp[i-1].group(MSZp).mult_right(mii)
-            self.bp[i] = self.bp[i].group(MSZp).mult_left(mi)
-        self.bp[-1] = self.bp[-1].group(MSZp).mult_right(m0i)
+            mi = Mmod(mi, p)
+            mii = Mmod(mii, p)
+            self.bp[i-1] = self.bp[i-1].mult_right(mii)
+            self.bp[i] = self.bp[i].modp(p).mult_left(mi)
+        self.bp[-1] = self.bp[-1].mult_right(m0i)
         self.m0, self.m0i = m0, m0i
         self.randomized = True
 
