@@ -5,6 +5,7 @@ from branchingprogram import BranchingProgram, _group
 import _obfuscator as _obf
 import groups, utils
 
+from sage.all import VectorSpace, ZZ
 # from sage.all import (flatten, Integer, load, MatrixSpace, vector, VectorSpace,
 #                       Zmod, ZZ)
 
@@ -95,18 +96,18 @@ class Obfuscator(object):
     def _construct_bookend_vectors(self, bp, prime, nzs):
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
-
-        def random_vector():
-            m = np.zeros(_group.length, dtype=object)
-            for i in xrange(_group.length):
-                m[i] = long(np.random.randint(prime))
-            return groups.Mmod(m, prime)
-        s = random_vector() * bp.m0i
-        t = bp.m0 * random_vector()
+        VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), _group.length)
+        # def random_vector():
+        #     m = np.zeros(_group.length, dtype=object)
+        #     for i in xrange(_group.length):
+        #         m[i] = long(np.random.randint(prime))
+        #     return groups.Mmod(m, prime)
+        s = VSZp.random_element() * bp.m0i
+        t = bp.m0 * VSZp.random_element()
         p = s * t
-        _obf.encode_scalar(long(p.m), [sidx, tidx], "p_enc")
-        _obf.encode_vector([long(i) for i in s.m], [sidx], "s_enc")
-        _obf.encode_vector([long(i) for i in t.m], [tidx], "t_enc")
+        _obf.encode_scalar(long(p), [sidx, tidx], "p_enc")
+        _obf.encode_vector([long(i) for i in s], [sidx], "s_enc")
+        _obf.encode_vector([long(i) for i in t], [tidx], "t_enc")
         end = time.time()
         self.logger('Constructing bookend vectors took: %f seconds' % (end - start))
 
@@ -117,8 +118,10 @@ class Obfuscator(object):
             self.logger('Obfuscating\n%s with set %s' % (
                 level.one, level.oneset))
             start = time.time()
-            _obf.encode_level(idx, level.inp, level.zero.m, level.one.m,
-                              level.zeroset, level.oneset)
+            zero = [long(i) for i in level.zero.transpose().list()]
+            one = [long(i) for i in level.one.transpose().list()]
+            _obf.encode_level(idx, level.inp, zero, one, level.zeroset,
+                              level.oneset)
             end = time.time()
             self.logger('Obfuscating level took: %f seconds' % (end - start))
         start = time.time()
@@ -133,27 +136,27 @@ class Obfuscator(object):
             raise ObfuscationException('BPs must not be randomized')
 
         # add two to kappa due to the bookend vectors
-        # kappa = len(bp) + 2
-        kappa = len(bp)
+        kappa = len(bp) + 2
+        # kappa = len(bp)
 
         self._set_params(secparam, kappa)
 
         prime = _obf.genprime(secparam)
         print('prime = %d' % prime)
 
-        alphas = None
-        # alphas = [(np.random.randint(prime), np.random.randint(prime))
-        #           for _ in xrange(len(bp))]
+        # alphas = None
+        alphas = [(np.random.randint(prime), np.random.randint(prime))
+                  for _ in xrange(len(bp))]
         bp.randomize(prime, alphas=alphas)
 
         # add two to nzs to take bookend vectors into account
-        # nzs = bp.set_straddling_sets() + 2
-        nzs = bp.set_straddling_sets()
+        nzs = bp.set_straddling_sets() + 2
+        # nzs = bp.set_straddling_sets()
         self.logger('Number of Zs: %d' % nzs)
 
         self._gen_mlm_params(prime, nzs, directory)
-        # self._construct_multiplicative_constants(bp, alphas)
-        # self._construct_bookend_vectors(bp, prime, nzs)
+        self._construct_multiplicative_constants(bp, alphas)
+        self._construct_bookend_vectors(bp, prime, nzs)
         self._obfuscate(bp)
 
     def evaluate(self, directory, inp):

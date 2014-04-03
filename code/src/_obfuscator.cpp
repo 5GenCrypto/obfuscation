@@ -1,6 +1,4 @@
 #include <Python.h>
-#define NPY_NO_DEPRECATED_API NPY_1_8_API_VERSION
-#include <numpy/arrayobject.h>
 
 #include <assert.h>
 #include <fcntl.h>
@@ -339,7 +337,7 @@ obf_encode_vector(PyObject *self, PyObject *args)
 static PyObject *
 obf_encode_level(PyObject *self, PyObject *args)
 {
-    PyArrayObject *py_zero_m, *py_one_m;
+    PyObject *py_zero_m, *py_one_m;
     PyObject *py_zero_set, *py_one_set;
     int zeroidx1, zeroidx2, oneidx1, oneidx2;
     char *fname = NULL;
@@ -350,9 +348,8 @@ obf_encode_level(PyObject *self, PyObject *args)
     mpz_t one[GROUPLENGTH_SQ];
     mpz_t z_inp;
 
-    if (!PyArg_ParseTuple(args, "llO!O!OO", &idx, &inp, &PyArray_Type,
-                          &py_zero_m, &PyArray_Type, &py_one_m, &py_zero_set,
-                          &py_one_set)) {
+    if (!PyArg_ParseTuple(args, "llOOOO", &idx, &inp, &py_zero_m, &py_one_m,
+                          &py_zero_set, &py_one_set)) {
         return NULL;
     }
     if (extract_indices(py_zero_set, &zeroidx1, &zeroidx2) == FAILURE) {
@@ -368,36 +365,29 @@ obf_encode_level(PyObject *self, PyObject *args)
 
     mpz_init_set_ui(z_inp, inp);
 
-// #pragma omp parallel for
+#pragma omp parallel for
     for (size_t ctr = 0; ctr < 2 * GROUPLENGTH_SQ; ++ctr) {
-        char *array_idx;
-        PyArrayObject *py_array;
-        PyObject *item;
+        PyObject *py_array;
         int sidx1, sidx2;
         mpz_t *val;
-        npy_intp i, j;
+        size_t i;
 
         if (ctr < GROUPLENGTH_SQ) {
-            val = &zero[ctr];
+            i = ctr;
+            val = &zero[i];
             py_array = py_zero_m;
             sidx1 = zeroidx1;
             sidx2 = zeroidx2;
-            i = ctr % GROUPLENGTH;
-            j = ctr / GROUPLENGTH;
         } else {
-            val = &one[ctr - GROUPLENGTH_SQ];
+            i = ctr - GROUPLENGTH_SQ;
+            val = &one[i];
             py_array = py_one_m;
             sidx1 = oneidx1;
             sidx2 = oneidx2;
-            i = (ctr - GROUPLENGTH_SQ) % GROUPLENGTH;
-            j = (ctr - GROUPLENGTH_SQ) / GROUPLENGTH;
         }
 
-
         mpz_init(*val);
-        array_idx = (char *) PyArray_GETPTR2(py_array, i, j);
-        item = (PyObject *) PyArray_GETITEM(py_array, array_idx);
-        py_to_mpz(*val, item);
+        py_to_mpz(*val, PyList_GET_ITEM(py_array, i));
         if (encode(*val, *val, sidx1, sidx2, 0) == FAILURE) {
             fprintf(stderr, "encoding failed!\n");
             err = 1;
@@ -418,22 +408,20 @@ obf_encode_level(PyObject *self, PyObject *args)
     (void) snprintf(fname, fnamelen, "%s/%ld.one", g_dir, idx);
     (void) save_mpz_vector(fname, one, GROUPLENGTH_SQ);
 
-    for (int i = 0; i < GROUPLENGTH * GROUPLENGTH; ++i) {
+    for (int i = 0; i < GROUPLENGTH_SQ; ++i) {
         mpz_clear(zero[i]);
         mpz_clear(one[i]);
     }
 exit:
-    if (fname) {
+    if (fname)
         free(fname);
-    }
 
     mpz_clear(z_inp);
 
-    if (err) {
+    if (err)
         Py_RETURN_FALSE;
-    } else {
+    else
         Py_RETURN_TRUE;
-    }
 }
 
 static PyObject *
@@ -552,8 +540,8 @@ obf_evaluate(PyObject *self, PyObject *args)
     mat_mult_by_vects(p1, s, comp, t);
 
     mpz_sub(tmp, p1, p2);
-    // iszero = is_zero(tmp);
-    iszero = is_zero(comp[1]);
+    iszero = is_zero(tmp);
+    // iszero = is_zero(comp[1]);
 
     mpz_clear(tmp);
     mpz_clear(p1);
@@ -600,7 +588,6 @@ init_obfuscator(void)
     unsigned long seed;
 
     (void) Py_InitModule("_obfuscator", ObfMethods);
-    import_array();
 
     if ((file = open("/dev/random", O_RDONLY)) == -1) {
         (void) fprintf(stderr, "Error opening /dev/random\n");
