@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+from layered_branching_program import LayeredBranchingProgram
 from branchingprogram import BranchingProgram
 from test import TestParams, test_circuit
 
@@ -18,7 +19,7 @@ def bp(args):
             if os.path.isfile(path) and path.endswith('.circ'):
                 test_circuit(path, args.secparam, args.verbose, params)
     if args.load_circuit:
-        bp = BranchingProgram(args.load_circuit, type='circuit')
+        bp = LayeredBranchingProgram(args.load_circuit, verbose=args.verbose)
     if args.eval:
         r = bp.evaluate(args.eval)
         print('Output = %d' % r)

@@ -5,9 +5,7 @@ from branchingprogram import BranchingProgram, _group
 import _obfuscator as _obf
 import groups, utils
 
-from sage.all import VectorSpace, ZZ
-# from sage.all import (flatten, Integer, load, MatrixSpace, vector, VectorSpace,
-#                       Zmod, ZZ)
+from sage.all import VectorSpace, Zmod, ZZ
 
 import collections, os, sys, time
 import numpy as np
@@ -81,7 +79,7 @@ class Obfuscator(object):
         if not os.path.exists(directory):
             os.mkdir(directory)
         _obf.setup(self.n, self.alpha, self.beta, self.eta, self.nu,
-                   self.rho, nzs, [prime], directory)
+                   self.rho, nzs, prime, directory)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
@@ -97,11 +95,6 @@ class Obfuscator(object):
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
         VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), _group.length)
-        # def random_vector():
-        #     m = np.zeros(_group.length, dtype=object)
-        #     for i in xrange(_group.length):
-        #         m[i] = long(np.random.randint(prime))
-        #     return groups.Mmod(m, prime)
         s = VSZp.random_element() * bp.m0i
         t = bp.m0 * VSZp.random_element()
         p = s * t
@@ -127,7 +120,6 @@ class Obfuscator(object):
         start = time.time()
         for idx, level in enumerate(bp):
             _obfuscate_level(level, idx)
-        _obf.save()
         end = time.time()
         self.logger('Obfuscation took: %f seconds' % (end - start))
 
@@ -142,10 +134,11 @@ class Obfuscator(object):
         self._set_params(secparam, kappa)
 
         prime = _obf.genprime(secparam)
-        print('prime = %d' % prime)
+        self.logger('prime = %d' % prime)
 
         # alphas = None
-        alphas = [(np.random.randint(prime), np.random.randint(prime))
+        R = Zmod(prime)
+        alphas = [(R.random_element(), R.random_element())
                   for _ in xrange(len(bp))]
         bp.randomize(prime, alphas=alphas)
 

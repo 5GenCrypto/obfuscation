@@ -1,5 +1,3 @@
-#!/usr/bin/env sage -python
-
 from __future__ import print_function
 import itertools
 
@@ -102,7 +100,7 @@ class BranchingProgram(object):
         return notgate(in1)
 
     def _xor_gate(self, in1, in2):
-        if repr(self.bpgroup) == 'S5':
+        if repr(_group) == 'S5':
             raise ParseException("XOR gates not supported for S5 group")
         return flatten([in1, in2])
 
