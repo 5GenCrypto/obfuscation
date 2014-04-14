@@ -1,11 +1,10 @@
-
 from __future__ import print_function
 
 from branchingprogram import BranchingProgram, _group
 import _obfuscator as _obf
 import groups, utils
 
-from sage.all import VectorSpace, Zmod, ZZ
+from sage.all import copy, VectorSpace, Zmod, ZZ
 
 import collections, os, sys, time
 import numpy as np
@@ -34,8 +33,7 @@ def save_layer(layer, directory, idx):
 class ObfuscationException(Exception):
     pass
 
-class Obfuscator(object):
-
+class AbstractObfuscator(object):
     def _print_params(self):
         self.logger('Graded encoding parameters:')
         self.logger('  Security Parameter: %d' % self.secparam)
@@ -83,6 +81,45 @@ class Obfuscator(object):
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
 
+    def _obfuscate(self, bp):
+        def _obfuscate_level(level, idx):
+            self.logger('Obfuscating\n%s with set %s' % (
+                level.zero, level.zeroset))
+            self.logger('Obfuscating\n%s with set %s' % (
+                level.one, level.oneset))
+            start = time.time()
+            zero = [long(i) for i in level.zero.transpose().list()]
+            one = [long(i) for i in level.one.transpose().list()]
+            # XXX: this (idx + 1) only works for layered BPs
+            _obf.encode_level(idx, level.inp(idx + 1), zero, one, level.zeroset,
+                              level.oneset)
+            end = time.time()
+            self.logger('Obfuscating level took: %f seconds' % (end - start))
+        start = time.time()
+        for idx, level in enumerate(bp):
+            _obfuscate_level(level, idx)
+        end = time.time()
+        self.logger('Obfuscation took: %f seconds' % (end - start))
+
+    def obfuscate(self, bp, secparam, directory):
+        raise NotImplemented()
+
+    def evaluate(self, directory, inp):
+        start = time.time()
+        files = os.listdir(directory)
+        inputs = sorted(filter(lambda s: 'input' in s, files))
+        zeros = sorted(filter(lambda s: 'zero' in s, files))
+        ones = sorted(filter(lambda s: 'one' in s, files))
+        assert len(inputs) == len(zeros) == len(ones)
+        result = _obf.evaluate(directory, inp, len(inputs))
+        end = time.time()
+        self.logger('Evaluation took: %f seconds' % (end - start))
+        return result
+
+class Obfuscator(AbstractObfuscator):
+    def __init__(self, **kwargs):
+        super(Obfuscator, self).__init__(**kwargs)
+
     def _construct_multiplicative_constants(self, bp, alphas):
         start = time.time()
         for idx, (layer, (a0, a1)) in enumerate(zip(bp, alphas)):
@@ -103,25 +140,6 @@ class Obfuscator(object):
         _obf.encode_vector([long(i) for i in t], [tidx], "t_enc")
         end = time.time()
         self.logger('Constructing bookend vectors took: %f seconds' % (end - start))
-
-    def _obfuscate(self, bp):
-        def _obfuscate_level(level, idx):
-            self.logger('Obfuscating\n%s with set %s' % (
-                level.zero, level.zeroset))
-            self.logger('Obfuscating\n%s with set %s' % (
-                level.one, level.oneset))
-            start = time.time()
-            zero = [long(i) for i in level.zero.transpose().list()]
-            one = [long(i) for i in level.one.transpose().list()]
-            _obf.encode_level(idx, level.inp, zero, one, level.zeroset,
-                              level.oneset)
-            end = time.time()
-            self.logger('Obfuscating level took: %f seconds' % (end - start))
-        start = time.time()
-        for idx, level in enumerate(bp):
-            _obfuscate_level(level, idx)
-        end = time.time()
-        self.logger('Obfuscation took: %f seconds' % (end - start))
 
     def obfuscate(self, bp, secparam, directory):
         if bp.randomized:
@@ -152,6 +170,42 @@ class Obfuscator(object):
         self._construct_bookend_vectors(bp, prime, nzs)
         self._obfuscate(bp)
 
+class LayeredObfuscator(AbstractObfuscator):
+    def __init__(self, **kwargs):
+        super(LayeredObfuscator, self).__init__(**kwargs)
+
+    def _construct_bookend_vectors(self, bp, prime, nzs):
+        start = time.time()
+        sidx, tidx = nzs - 2, nzs - 1
+        self.length = len(bp.graph.graph)
+        VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), self.length)
+        e_1 = copy(VSZp.zero())
+        e_1[0] = 1
+        e_w = copy(VSZp.zero())
+        e_w[len(e_w) - 1] = 1
+        s = e_1 * bp.m0i
+        t = bp.m0 * e_w
+        _obf.encode_vector([long(i) for i in s], [sidx], "s_enc")
+        _obf.encode_vector([long(i) for i in t], [tidx], "t_enc")
+        end = time.time()
+        self.logger('Constructing bookend vectors took: %f seconds' % (end - start))
+
+    def obfuscate(self, bp, secparam, directory):
+        if bp.randomized:
+            raise ObfuscationException('BPs must not be randomized')
+        # add two to kappa due to the bookend vectors
+        kappa = len(bp) + 2
+        self._set_params(secparam, kappa)
+        prime = _obf.genprime(secparam)
+        bp.randomize(prime)
+        # add two to nzs to take bookend vectors into account
+        nzs = bp.set_straddling_sets() + 2
+        self.logger('Number of Zs: %d' % nzs)
+
+        self._gen_mlm_params(prime, nzs, directory)
+        self._construct_bookend_vectors(bp, prime, nzs)
+        self._obfuscate(bp)
+
     def evaluate(self, directory, inp):
         start = time.time()
         files = os.listdir(directory)
@@ -159,9 +213,7 @@ class Obfuscator(object):
         zeros = sorted(filter(lambda s: 'zero' in s, files))
         ones = sorted(filter(lambda s: 'one' in s, files))
         assert len(inputs) == len(zeros) == len(ones)
-        result = _obf.evaluate(directory, inp, len(inputs))
+        result = _obf.simple_evaluate(directory, inp, len(inputs), self.length)
         end = time.time()
-
         self.logger('Evaluation took: %f seconds' % (end - start))
-
         return result

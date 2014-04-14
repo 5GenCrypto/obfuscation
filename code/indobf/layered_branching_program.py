@@ -4,29 +4,19 @@ import networkx as nx
 
 from sage.all import copy, GF, MatrixSpace
 
+from branchingprogram import AbstractBranchingProgram, ParseException, Layer
 import utils
 
-class _BranchingProgram(object):
+class _Graph(object):
     def __init__(self, inp, graph, nlayers, num):
         self.inp = inp
         self.graph = graph
         self.nlayers = nlayers
         self.num = num
 
-class _Layer(object):
-    def __init__(self, inp, zero, one):
-        self.inp = inp
-        self.zero = zero
-        self.one = one
-        self.zeroset = None
-        self.oneset = None
-
 def relabel(g, num):
     new = [(s, num) for (s, _) in g.nodes()]
     return nx.relabel_nodes(g, dict(zip(g.nodes(), new)))
-
-class ParseException(Exception):
-    pass
 
 def contract(g, a, b, name):
     new = 'tmp'
@@ -42,13 +32,13 @@ def contract(g, a, b, name):
     g = nx.relabel_nodes(g, {new: name})
     return g
 
-class LayeredBranchingProgram(object):
+class LayeredBranchingProgram(AbstractBranchingProgram):
     def __init__(self, fname, verbose=False):
-        self._verbose = verbose
-        self.logger = utils.make_logger(self._verbose)
+        super(LayeredBranchingProgram, self).__init__(verbose=verbose)
         self.graph = None
-        self.bp = None
         self.nlayers = 0
+        self.zero = None
+        self.one = None
         self._load_formula(fname)
 
     def _load_formula(self, fname):
@@ -66,7 +56,7 @@ class LayeredBranchingProgram(object):
                     return num
                 else:
                     raise Exception("eval failed on %s!" % inp)
-            return _BranchingProgram(eval, g, 1, num)
+            return _Graph(eval, g, 1, num)
         def _and_gate(num, idx1, idx2):
             bp1 = bp[idx1]
             bp2 = bp[idx2]
@@ -84,7 +74,7 @@ class LayeredBranchingProgram(object):
                     return bp2.inp(t1 + t2 - inp + 1)
                 else:
                     raise Exception("eval failed on %s!" % inp)
-            return _BranchingProgram(eval, g, t1 + t2, num)
+            return _Graph(eval, g, t1 + t2, num)
         def _id_gate(num, idx):
             return bp[idx]
         def _not_gate(num, idx):
@@ -92,7 +82,7 @@ class LayeredBranchingProgram(object):
             g = nx.relabel_nodes(bp1.graph, {('acc', idx): ('rej', idx),
                                              ('rej', idx): ('acc', idx)})
             g = relabel(g, num)
-            return _BranchingProgram(bp1.inp, g, bp1.nlayers, num)
+            return _Graph(bp1.inp, g, bp1.nlayers, num)
         gates = {
             'ID': _id_gate,
             'AND': _and_gate,
@@ -130,9 +120,9 @@ class LayeredBranchingProgram(object):
         if not output:
             raise ParseException("no output gate found")
         self.graph = bp[-1]
-        self.to_relaxed_matrix_bp()
+        self._to_relaxed_matrix_bp()
 
-    def to_relaxed_matrix_bp(self):
+    def _to_relaxed_matrix_bp(self):
         g = self.graph.graph
         w = len(g)
         n = self.nlayers
@@ -156,7 +146,10 @@ class LayeredBranchingProgram(object):
                         B0[edge[0], edge[1]] = 1
                     else:
                         B1[edge[0], edge[1]] = 1
-            self.bp.append(_Layer(self.graph.inp, B0, B1))
+            self.bp.append(Layer(self.graph.inp, B0, B1))
+
+    def randomize(self, prime):
+        super(LayeredBranchingProgram, self).randomize(prime, len(self.graph.graph))
 
     def _eval_layered_bp(self, inp):
         assert self.graph is not None

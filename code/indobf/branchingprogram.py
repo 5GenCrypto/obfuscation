@@ -5,6 +5,72 @@ from sage.all import MatrixSpace, ZZ
 
 import groups, utils
 
+class ParseException(Exception):
+    pass
+
+class AbstractBranchingProgram(object):
+    def __init__(self, verbose=False):
+        self._verbose = verbose
+        self.logger = utils.make_logger(self._verbose)
+        self.bp = None
+        self.randomized = False
+    def __len__(self):
+        return len(self.bp)
+    def __iter__(self):
+        return self.bp.__iter__()
+    def next(self):
+        return self.bp.next()
+    def __getitem__(self, i):
+        return self.bp[i]
+    def __repr__(self):
+        return repr(self.bp)
+
+    def obliviate(self):
+        raise NotImplemented()
+
+    def randomize(self, prime, length):
+        assert not self.randomized
+        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), length)
+        def random_matrix():
+            while True:
+                m = MSZp.random_element()
+                if not m.is_singular():
+                    return m, m.inverse()
+
+        m0, m0i = random_matrix()
+        self.zero = m0 * MSZp(self.zero) * m0i
+        self.one = m0 * MSZp(self.one) * m0i
+        self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
+        for i in xrange(1, len(self.bp)):
+            mi, mii = random_matrix()
+            self.bp[i-1] = self.bp[i-1].group(MSZp).mult_right(mii)
+            self.bp[i] = self.bp[i].group(MSZp).mult_left(mi)
+        self.bp[-1] = self.bp[-1].group(MSZp).mult_right(m0i)
+        self.m0, self.m0i = m0, m0i
+        self.randomized = True
+
+    def set_straddling_sets(self):
+        # XXX: verify there's no randomness here
+        inpdir = {}
+        for layer in self.bp:
+            inpdir.setdefault(layer.inp, []).append(layer)
+        n = 0
+        for layers in inpdir.itervalues():
+            max = len(layers) - 1
+            for i, layer in enumerate(layers):
+                if i < max:
+                    layer.zeroset = [n - 1, n]  if i else [n]
+                    layer.oneset = [n, n + 1]
+                    n += 2
+                else:
+                    layer.zeroset = [n - 1, n] if max else [n]
+                    layer.oneset = [n]
+                    n += 1
+        return n
+
+    def evaluate(self, inp):
+        raise NotImplemented()
+
 _group = groups.S6()
 
 def flatten(l):
@@ -52,33 +118,14 @@ def notgate(layers):
     else:
         return append(prepend(layers, _group.Cc), _group.Cc * _group.C)
 
-class ParseException(Exception):
-    pass
-
-class BranchingProgram(object):
+class BranchingProgram(AbstractBranchingProgram):
     def __init__(self, fname, verbose=False):
-        self._verbose = verbose
-        self.logger = utils.make_logger(self._verbose)
-
-        self.bp = None
+        super(BranchingProgram, self).__init__(verbose=verbose)
         self.n_inputs = None
         self.depth = None
         self.zero = _group.I
         self.one = _group.C
-        self.randomized = False
-
-        self.load_circuit(fname)
-
-    def __len__(self):
-        return len(self.bp)
-    def __iter__(self):
-        return self.bp.__iter__()
-    def next(self):
-        return self.bp.next()
-    def __getitem__(self, i):
-        return self.bp[i]
-    def __repr__(self):
-        return repr(self.bp)
+        self._load_circuit(fname)
 
     def _and_gate(self, in1, in2):
         a = conjugate(in1, 'A')
@@ -121,8 +168,7 @@ class BranchingProgram(object):
         else:
             raise ParseException("Invalid parameter '%s'" % param)
 
-    def load_circuit(self, fname):
-        # TODO: this code isn't particularly robust
+    def _load_circuit(self, fname):
         bp = []
         gates = {
             'AND': lambda in1, in2: self._and_gate(bp[in1], bp[in2]),
@@ -206,25 +252,6 @@ class BranchingProgram(object):
             assert len(alphas) == len(self.bp)
             for i, alpha in enumerate(alphas):
                 self.bp[i] = self.bp[i].mult_scalar(alpha)
-
-    def set_straddling_sets(self):
-        # XXX: verify there's no randomness here
-        inpdir = {}
-        for layer in self.bp:
-            inpdir.setdefault(layer.inp, []).append(layer)
-        n = 0
-        for layers in inpdir.itervalues():
-            max = len(layers) - 1
-            for i, layer in enumerate(layers):
-                if i < max:
-                    layer.zeroset = [n - 1, n]  if i else [n]
-                    layer.oneset = [n, n + 1]
-                    n += 2
-                else:
-                    layer.zeroset = [n - 1, n] if max else [n]
-                    layer.oneset = [n]
-                    n += 1
-        return n
 
     def evaluate(self, inp):
         m = self.bp[0]

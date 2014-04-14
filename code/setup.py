@@ -6,16 +6,12 @@ __name__ = 'ind_obfuscation'
 __author__ = 'Alex J. Malozemoff'
 __version__ = '1.0a1.dev'
 
-group = 'S6'
 grouplength = 6
-
-# TODO: select the appropriate group to compile with
 
 obfuscator = Extension(
     'indobf._obfuscator',
     libraries = ['gmp', 'gomp'],
     extra_compile_args = ['-fopenmp', '-ggdb', '-Wall',
-                          '-DGROUP=%s' % group,
                           '-DGROUPLENGTH=%d' % grouplength],
     sources = ['src/_obfuscator.cpp',
                'src/mpn_pylong.cpp',

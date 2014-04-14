@@ -6,7 +6,7 @@ from branchingprogram import BranchingProgram, ParseException
 from layered_branching_program import LayeredBranchingProgram
 import _obfuscator as _obf
 
-def test_circuit(path, bpclass, obfuscate, args):
+def test_circuit(path, bpclass, obfclass, obfuscate, args):
     testcases = {}
     print('Testing %s: ' % path, end='')
     if args.verbose:
@@ -32,12 +32,11 @@ def test_circuit(path, bpclass, obfuscate, args):
     #     bp.obliviate()
     success = True
     if obfuscate:
-        from obfuscator import Obfuscator
         kwargs = {
             'verbose': args.verbose,
             'fast': args.fast,
         }
-        obf = Obfuscator(**kwargs)
+        obf = obfclass(**kwargs)
         directory = '%s.obf' % path
         obf.obfuscate(bp, args.secparam, directory)
         for k, v in testcases.items():
@@ -45,8 +44,11 @@ def test_circuit(path, bpclass, obfuscate, args):
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
                 success = False
     else:
-        # prime = _obf.genprime(args.secparam)
-        # bp.randomize(prime, alphas=None)
+        prime = _obf.genprime(args.secparam)
+        if args.no_layered:
+            bp.randomize(prime, alphas=None)
+        else:
+            bp.randomize(prime)
         for k, v in testcases.items():
             if program.evaluate(k) != v:
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))

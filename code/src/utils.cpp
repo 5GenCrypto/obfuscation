@@ -240,19 +240,19 @@ encode(mpz_t out, const mpz_t in, const long idx1, const long idx2,
 }
 
 static void
-mat_mult(mpz_t *out, const mpz_t *a, const mpz_t *b)
+mat_mult(mpz_t *out, const mpz_t *a, const mpz_t *b, int size)
 {
     mpz_t tmp, sum;
 
     mpz_init(tmp);
     mpz_init(sum);
 
-    for (int ctr = 0; ctr < GROUPLENGTH_SQ; ++ctr) {
+    for (int ctr = 0; ctr < size * size; ++ctr) {
         mpz_set_ui(sum, 0);
-        for (int i = 0; i < GROUPLENGTH; ++i) {
+        for (int i = 0; i < size; ++i) {
             mpz_mul(tmp,
-                    a[i * GROUPLENGTH + ctr % GROUPLENGTH],
-                    b[i + GROUPLENGTH * (ctr / GROUPLENGTH)]);
+                    a[i * size + ctr % size],
+                    b[i + size * (ctr / size)]);
             mpz_add(sum, sum, tmp);
         }
         mpz_set(out[ctr], sum);
@@ -263,34 +263,38 @@ mat_mult(mpz_t *out, const mpz_t *a, const mpz_t *b)
 }
 
 static void
-mat_mult_by_vects(mpz_t out, const mpz_t *s, const mpz_t *m, const mpz_t *t)
+mat_mult_by_vects(mpz_t out, const mpz_t *s, const mpz_t *m, const mpz_t *t, int size)
 {
     mpz_t tmp;
-    mpz_t vector[GROUPLENGTH];
+    mpz_t *vector;
+
+    vector = (mpz_t *) malloc(sizeof(mpz_t) * size);
+    // XXX: no error checking
 
     mpz_init(tmp);
-    for (int i = 0; i < GROUPLENGTH; ++i) {
+    for (int i = 0; i < size; ++i) {
         mpz_init_set_ui(vector[i], 0);
     }
 
-    for (int col = 0; col < GROUPLENGTH; ++col) {
-        for (int row = 0; row < GROUPLENGTH; ++row) {
-            int elem = col * GROUPLENGTH + row;
+    for (int col = 0; col < size; ++col) {
+        for (int row = 0; row < size; ++row) {
+            int elem = col * size + row;
             mpz_mul(tmp, s[row], m[elem]);
             mpz_add(vector[col], vector[col], tmp);
         }
     }
 
     mpz_set_ui(out, 0);
-    for (int i = 0; i < GROUPLENGTH; ++i) {
+    for (int i = 0; i < size; ++i) {
         mpz_mul(tmp, vector[i], t[i]);
         mpz_add(out, out, tmp);
     }
 
     mpz_clear(tmp);
-    for (int i = 0; i < GROUPLENGTH; ++i) {
+    for (int i = 0; i < size; ++i) {
         mpz_clear(vector[i]);
     }
+    free(vector);
 }
 
 inline static int

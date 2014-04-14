@@ -15,7 +15,7 @@ def bp(args):
     else:
         bpclass = LayeredBranchingProgram
     if args.test_circuit:
-        test_circuit(args.test_circuit, bpclass, False, args)
+        test_circuit(args.test_circuit, bpclass, None, False, args)
     if args.test_all:
         for circuit in os.listdir('circuits'):
             path = os.path.join(testdir, circuit)
@@ -28,15 +28,17 @@ def bp(args):
         print('Output = %d' % r)
 
 def obf(args):
-    from obfuscator import Obfuscator
+    from obfuscator import Obfuscator, LayeredObfuscator
     if args.no_layered:
         bpclass = BranchingProgram
+        obfclass = Obfuscator
     else:
         bpclass = LayeredBranchingProgram
+        obfclass = LayeredObfuscator
     if args.test_circuit:
-        test_circuit(args.test_circuit, bpclass, True, args)
+        test_circuit(args.test_circuit, bpclass, obfclass, True, args)
     else:
-        obf = Obfuscator(verbose=args.verbose)
+        obf = obfclass(verbose=args.verbose)
         if args.load_obf:
             print("Loading obfuscation from '%s'..." % args.load_obf)
             start = time.time()
@@ -121,6 +123,8 @@ def main():
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int,
                              action='store', default=8, help="security parameter")
+    parser_obf.add_argument('--no-layered', action='store_true',
+                            help='use standard branching programs instead of the layered variant')
     parser_obf.add_argument('--fast', action='store_true',
                              help='use smaller parameters so things run faster')
     parser_obf.add_argument('-v', '--verbose', action='store_true',
