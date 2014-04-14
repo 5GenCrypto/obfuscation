@@ -18,8 +18,8 @@ def relabel(g, num):
 class ParseException(Exception):
     pass
 
-def contract(g, a, b, num):
-    new = (a[0] + '-' + b[0], num)
+def contract(g, a, b, name):
+    new = 'tmp'
     g.add_node(new)
     for node in g.predecessors(a):
         g.add_edge(node, new, label=g.edge[node][a]['label'])
@@ -29,6 +29,7 @@ def contract(g, a, b, num):
         g.add_edge(node, new, label=g.edge[node][b]['label'])
     g.remove_node(a)
     g.remove_node(b)
+    g = nx.relabel_nodes(g, {new: name})
     return g
 
 class LayeredBranchingProgram(object):
@@ -61,10 +62,10 @@ class LayeredBranchingProgram(object):
             t1 = bp1.nlayers
             t2 = bp2.nlayers
             g = nx.union(bp1.graph, bp2.graph)
-            g = contract(g, ('acc', idx1), ('src', idx2), num)
-            g = contract(g, ('rej', idx1), ('rej', idx2), num)
+            g = contract(g, ('acc', idx1), ('src', idx2), ('node-%d' % num, num))
+            g = contract(g, ('rej', idx1), ('rej', idx2), ('rej', num))
             g = relabel(g, num)
-            g.node[('acc-src', num)]['layer'] = self.nlayers
+            g.node[('node-%d' % num, num)]['layer'] = t1 + t2
             def eval(inp):
                 if inp <= t1:
                     return bp1.inp(inp)
@@ -77,7 +78,6 @@ class LayeredBranchingProgram(object):
             return bp[idx]
         def _not_gate(num, idx):
             bp1 = bp[idx]
-            print(bp1.graph.nodes())
             g = nx.relabel_nodes(bp1.graph, {('acc', idx): ('rej', idx),
                                              ('rej', idx): ('acc', idx)})
             g = relabel(g, num)
@@ -121,12 +121,9 @@ class LayeredBranchingProgram(object):
         self.bp = bp[-1]
 
     def evaluate(self, inp):
-        # print('Input = %s' % inp)
         g = self.bp.graph.copy()
         nodes = nx.get_node_attributes(g, 'layer')
         for layer in xrange(1, self.nlayers + 1):
-            # print('Layer = %s' % layer)
-            # print('Input bit = %s' % self.bp.inp(layer))
             choice = 0 if inp[self.bp.inp(layer)] == '0' else 1
             for node in nodes:
                 if g.node[node]['layer'] == layer:

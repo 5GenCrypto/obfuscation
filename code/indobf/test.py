@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 from branchingprogram import BranchingProgram, ParseException
+from layered_branching_program import LayeredBranchingProgram
 import _obfuscator as _obf
 
 class TestParams(object):
@@ -28,7 +29,7 @@ def test_circuit(path, secparam, verbose, params):
         print('no test cases')
         return
     try:
-        bp = BranchingProgram(path, verbose=verbose)
+        bp = LayeredBranchingProgram(path, verbose=verbose)
     except ParseException as e:
         print('\x1b[33mParse Error:\x1b[0m %s' % e)
         return False
@@ -50,8 +51,8 @@ def test_circuit(path, secparam, verbose, params):
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
                 success = False
     else:
-        prime = _obf.genprime(secparam)
-        bp.randomize(prime, alphas=None)
+        # prime = _obf.genprime(secparam)
+        # bp.randomize(prime, alphas=None)
         for k, v in testcases.items():
             if program.evaluate(k) != v:
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
