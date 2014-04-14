@@ -2,6 +2,8 @@ from __future__ import print_function
 
 import networkx as nx
 
+from sage.all import copy, GF, MatrixSpace
+
 import utils
 
 class _BranchingProgram(object):
@@ -10,6 +12,14 @@ class _BranchingProgram(object):
         self.graph = graph
         self.nlayers = nlayers
         self.num = num
+
+class _Layer(object):
+    def __init__(self, inp, zero, one):
+        self.inp = inp
+        self.zero = zero
+        self.one = one
+        self.zeroset = None
+        self.oneset = None
 
 def relabel(g, num):
     new = [(s, num) for (s, _) in g.nodes()]
@@ -36,6 +46,7 @@ class LayeredBranchingProgram(object):
     def __init__(self, fname, verbose=False):
         self._verbose = verbose
         self.logger = utils.make_logger(self._verbose)
+        self.graph = None
         self.bp = None
         self.nlayers = 0
         self._load_formula(fname)
@@ -54,7 +65,7 @@ class LayeredBranchingProgram(object):
                 if inp == 1:
                     return num
                 else:
-                    raise Exception("eval failed!")
+                    raise Exception("eval failed on %s!" % inp)
             return _BranchingProgram(eval, g, 1, num)
         def _and_gate(num, idx1, idx2):
             bp1 = bp[idx1]
@@ -72,7 +83,7 @@ class LayeredBranchingProgram(object):
                 elif inp <= t1 + t2:
                     return bp2.inp(t1 + t2 - inp + 1)
                 else:
-                    raise Exception("eval failed!")
+                    raise Exception("eval failed on %s!" % inp)
             return _BranchingProgram(eval, g, t1 + t2, num)
         def _id_gate(num, idx):
             return bp[idx]
@@ -118,21 +129,66 @@ class LayeredBranchingProgram(object):
                     raise ParseException("unknown type")
         if not output:
             raise ParseException("no output gate found")
-        self.bp = bp[-1]
+        self.graph = bp[-1]
+        self.to_relaxed_matrix_bp()
 
-    def evaluate(self, inp):
-        g = self.bp.graph.copy()
+    def to_relaxed_matrix_bp(self):
+        g = self.graph.graph
+        w = len(g)
+        n = self.nlayers
+        G = MatrixSpace(GF(2), w)
+        nodes = nx.topological_sort(g)
+        if nodes.index(('acc', self.graph.num)) != len(nodes) - 1:
+            a = nodes.index(('acc', self.graph.num))
+            b = nodes.index(('rej', self.graph.num))
+            nodes[b], nodes[a] = nodes[a], nodes[b]
+        mapping = dict(zip(nodes, range(w)))
+        g = nx.relabel_nodes(g, mapping)
+        self.bp = []
+        for layer in xrange(1, self.nlayers + 1):
+            B0 = copy(G.one())
+            B1 = copy(G.one())
+            for edge in g.edges_iter():
+                e = g[edge[0]][edge[1]]
+                assert e['label'] in (0, 1)
+                if g.node[edge[0]]['layer'] == layer:
+                    if e['label'] == 0:
+                        B0[edge[0], edge[1]] = 1
+                    else:
+                        B1[edge[0], edge[1]] = 1
+            self.bp.append(_Layer(self.graph.inp, B0, B1))
+
+    def _eval_layered_bp(self, inp):
+        assert self.graph is not None
+        g = self.graph.graph.copy()
         nodes = nx.get_node_attributes(g, 'layer')
         for layer in xrange(1, self.nlayers + 1):
-            choice = 0 if inp[self.bp.inp(layer)] == '0' else 1
+            choice = 0 if inp[self.graph.inp(layer)] == '0' else 1
             for node in nodes:
                 if g.node[node]['layer'] == layer:
                     for neighbor in g.neighbors(node):
                         if g.edge[node][neighbor]['label'] != choice:
                             g.remove_edge(node, neighbor)
         try:
-            nx.dijkstra_path(g, ('src', self.bp.num), ('acc', self.bp.num))
+            nx.dijkstra_path(g, ('src', self.graph.num), ('acc', self.graph.num))
             return 1
         except nx.NetworkXNoPath:
             return 0
                     
+    def _eval_relaxed_matrix_bp(self, inp):
+        assert self.bp is not None
+        m = self.bp[0]
+        comp = m.zero if inp[m.inp(1)] == '0' else m.one
+        for i, m in enumerate(self.bp[1:]):
+            comp *= m.zero if inp[m.inp(i + 2)] == '0' else m.one
+        if comp[0, comp.nrows() - 1] == 1:
+            return 1
+        else:
+            return 0
+
+    def evaluate(self, inp):
+        assert self.bp or self.graph
+        if self.bp is None:
+            return self._eval_layered_bp(inp)
+        else:
+            return self._eval_relaxed_matrix_bp(inp)

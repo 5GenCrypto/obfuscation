@@ -4,32 +4,37 @@ from __future__ import print_function
 
 from layered_branching_program import LayeredBranchingProgram
 from branchingprogram import BranchingProgram
-from test import TestParams, test_circuit
+from test import test_circuit
 
 import argparse, os, sys, time
 
 def bp(args):
     testdir = 'circuits'
-    params = TestParams(obliviate=False)
+    if args.no_layered:
+        bpclass = BranchingProgram
+    else:
+        bpclass = LayeredBranchingProgram
     if args.test_circuit:
-        test_circuit(args.test_circuit, args.secparam, args.verbose, params)
+        test_circuit(args.test_circuit, bpclass, False, args)
     if args.test_all:
         for circuit in os.listdir('circuits'):
             path = os.path.join(testdir, circuit)
             if os.path.isfile(path) and path.endswith('.circ'):
-                test_circuit(path, args.secparam, args.verbose, params)
+                test_circuit(path, False, args)
     if args.load_circuit:
-        bp = LayeredBranchingProgram(args.load_circuit, verbose=args.verbose)
+        bp = bpclass(args.load_circuit, verbose=args.verbose)
     if args.eval:
         r = bp.evaluate(args.eval)
         print('Output = %d' % r)
 
 def obf(args):
     from obfuscator import Obfuscator
-
+    if args.no_layered:
+        bpclass = BranchingProgram
+    else:
+        bpclass = LayeredBranchingProgram
     if args.test_circuit:
-        params = TestParams(obliviate=False, obfuscate=True, fast=args.fast)
-        test_circuit(args.test_circuit, args.secparam, args.verbose, params)
+        test_circuit(args.test_circuit, bpclass, True, args)
     else:
         obf = Obfuscator(verbose=args.verbose)
         if args.load_obf:
@@ -40,7 +45,7 @@ def obf(args):
             print("Loading took: %f seconds" % (end - start))
         elif args.load_circuit:
             print("Converting '%s' -> bp..." % args.load_circuit)
-            bp = BranchingProgram(args.load_circuit, type='circuit')
+            bp = bpclass(args.load_circuit, type='circuit')
             print('Obfuscating BP of length %d...' % len(bp))
             start = time.time()
             obf.obfuscate(bp, args.secparam)
@@ -63,6 +68,7 @@ def obf(args):
             print("Evalution took: %f seconds" % (end - start))
 
 def test(args):
+    assert False                # XXX: not fixed up yet!
     paths = ['not.circ', 'and.circ', 'twoands.circ']
     params = TestParams(obliviate=False, obfuscate=True, fast=True)
     secparams = [8, 16, 24, 28, 32, 40]
@@ -93,6 +99,8 @@ def main():
                            help='test circuit -> bp conversion')
     parser_bp.add_argument('--secparam', metavar='N', type=int,
                            action='store', default=8, help="security parameter")
+    parser_bp.add_argument('--no-layered', action='store_true',
+                           help='use standard branching programs instead of the layered variant')
     parser_bp.add_argument('-v', '--verbose', action='store_true',
                            help='be verbose')
     parser_bp.set_defaults(func=bp)
