@@ -9,27 +9,6 @@ from sage.all import copy, VectorSpace, Zmod, ZZ
 import collections, os, sys, time
 import numpy as np
 
-def ms2list(m):
-    '''Convert an element in MS to a flat integer list'''
-    m = [[long(e) for e in row] for row in m]
-    return [long(e) for e in flatten(m)]
-
-def to_long(l):
-    return [long(e) for e in l]
-
-ObfLayer = collections.namedtuple('ObfLayer', ['inp', 'zero', 'one'])
-
-def load_layer(directory, inp, zero, one):
-    inp = load('%s/%s' % (directory, inp))
-    zero = load('%s/%s' % (directory, zero))
-    one = load('%s/%s' % (directory, one))
-    return ObfLayer(int(inp), zero, one)
-
-def save_layer(layer, directory, idx):
-    Integer(layer.inp).save('%s/%d.input' % (directory, idx))
-    layer.zero.save('%s/%d.zero' % (directory, idx))
-    layer.one.save('%s/%d.one' % (directory, idx))
-
 class ObfuscationException(Exception):
     pass
 
@@ -66,17 +45,16 @@ class AbstractObfuscator(object):
         self.obfuscation = None
         self._verbose = verbose
         self._fast = fast
-
         self.logger = utils.make_logger(self._verbose)
         if self._fast:
             self.logger('* Using small parameters for speed')
 
-    def _gen_mlm_params(self, length, prime, nzs, directory):
+    def _gen_mlm_params(self, size, prime, nzs, directory):
         self.logger('Generating MLM parameters...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        _obf.setup(length, self.n, self.alpha, self.beta, self.eta, self.nu,
+        _obf.setup(size, self.n, self.alpha, self.beta, self.eta, self.nu,
                    self.rho, nzs, prime, directory)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
@@ -88,6 +66,9 @@ class AbstractObfuscator(object):
             self.logger('Obfuscating\n%s with set %s' % (
                 level.one, level.oneset))
             start = time.time()
+            # XXX: the C matrix multiplication code assumes the matrices are
+            # stored column-wise, when in python they are stored row-wise, thus
+            # the need for the transpose call.  This should be fixed.
             zero = [long(i) for i in level.zero.transpose().list()]
             one = [long(i) for i in level.one.transpose().list()]
             _obf.encode_level(idx, level.inp, zero, one, level.zeroset,
@@ -104,10 +85,11 @@ class AbstractObfuscator(object):
         if bp.randomized:
             raise ObfuscationException('BPs must not be randomized')
         # remove old files in obfuscation directory
-        files = os.listdir(directory)
-        for file in os.listdir(directory):
-            path = os.path.join(directory, file)
-            os.unlink(path)
+        if os.path.isdir(directory):
+            files = os.listdir(directory)
+            for file in os.listdir(directory):
+                path = os.path.join(directory, file)
+                os.unlink(path)
         # add two to kappa due to the bookend vectors
         kappa = len(bp) + 2
         self._set_params(secparam, kappa)
@@ -136,9 +118,6 @@ class AbstractObfuscator(object):
         start = time.time()
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        # zeros = sorted(filter(lambda s: 'zero' in s, files))
-        # ones = sorted(filter(lambda s: 'one' in s, files))
-        # assert len(inputs) == len(zeros) == len(ones)
         islayered = True if type(self) == LayeredObfuscator else False
         result = _obf.evaluate(directory, inp, len(inputs), islayered)
         end = time.time()
