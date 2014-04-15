@@ -7,6 +7,8 @@ from sage.all import copy, GF, MatrixSpace, VectorSpace, ZZ
 from branchingprogram import AbstractBranchingProgram, ParseException, Layer
 import utils
 
+from pprint import pprint
+
 class _Graph(object):
     def __init__(self, inp, graph, nlayers, num):
         self.inp = inp
@@ -17,6 +19,11 @@ class _Graph(object):
 def relabel(g, num):
     new = [(s, num) for (s, _) in g.nodes()]
     return nx.relabel_nodes(g, dict(zip(g.nodes(), new)))
+
+def relabel_layers(g, min):
+    nodes = nx.get_node_attributes(g, 'layer')
+    for k, v in nodes.iteritems():
+        g.node[k]['layer'] = v + min
 
 def contract(g, a, b, name):
     new = 'tmp'
@@ -45,34 +52,39 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
         self.nlayers = 0
         def _new_gate(num):
             g = nx.digraph.DiGraph()
-            g.add_node(('src', num), layer=1)
+            g.add_node(('src', num), layer=0)
             g.add_node(('acc', num))
             g.add_node(('rej', num))
             g.add_edge(('src', num), ('acc', num), label=1)
             g.add_edge(('src', num), ('rej', num), label=0)
             def eval(inp):
-                if inp == 1:
+                if inp == 0:
                     return num
                 else:
-                    raise Exception("eval failed on %s!" % inp)
+                    raise Exception("newgate eval failed on %s!" % inp)
             return _Graph(eval, g, 1, num)
         def _and_gate(num, bp1, idx1, bp2, idx2):
             t1 = bp1.nlayers
             t2 = bp2.nlayers
+            relabel_layers(bp2.graph, t1)
+            oldlayer = bp2.graph.node[('src', idx2)]['layer']
+            newnode = ('node-%d' % num, num)
             g = nx.union(bp1.graph, bp2.graph)
-            g = contract(g, ('acc', idx1), ('src', idx2), ('node-%d' % num, num))
+            g = contract(g, ('acc', idx1), ('src', idx2), newnode)
             g = contract(g, ('rej', idx1), ('rej', idx2), ('rej', num))
             g = relabel(g, num)
-            g.node[('node-%d' % num, num)]['layer'] = t1 + t2
+            g.node[newnode]['layer'] = oldlayer
             def eval(inp):
-                if inp <= t1:
+                if inp <= t1 - 1:
                     return bp1.inp(inp)
-                elif inp <= t1 + t2:
-                    return bp2.inp(t1 + t2 - inp + 1)
+                elif inp <= t1 + t2 - 1:
+                    return bp2.inp(inp - t1)
                 else:
-                    raise Exception("eval failed on %s!" % inp)
+                    raise Exception("andgate eval failed on %s!" % inp)
             return _Graph(eval, g, t1 + t2, num)
         def _id_gate(num, bp, idx):
+            bp.graph = relabel(bp.graph, num)
+            bp.num = num
             return bp
         def _or_gate(num, bp1, idx1, bp2, idx2):
             in1not = _not_gate(num, bp1, idx1)
@@ -146,7 +158,7 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
         # convert graph to relaxed matrix BP
         self.bp = []
         G = MatrixSpace(GF(2), self.size)
-        for layer in xrange(1, self.nlayers + 1):
+        for layer in xrange(self.nlayers):
             zero = copy(G.one())
             one = copy(G.one())
             for edge in g.edges_iter():
@@ -186,7 +198,7 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
         assert self.graph
         g = self.graph.graph.copy()
         nodes = nx.get_node_attributes(g, 'layer')
-        for layer in xrange(1, self.nlayers + 1):
+        for layer in xrange( self.nlayers):
             choice = 0 if inp[self.graph.inp(layer)] == '0' else 1
             for node in nodes:
                 if g.node[node]['layer'] == layer:
