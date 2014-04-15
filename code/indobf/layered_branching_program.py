@@ -56,9 +56,7 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
                 else:
                     raise Exception("eval failed on %s!" % inp)
             return _Graph(eval, g, 1, num)
-        def _and_gate(num, idx1, idx2):
-            bp1 = bp[idx1]
-            bp2 = bp[idx2]
+        def _and_gate(num, bp1, idx1, bp2, idx2):
             t1 = bp1.nlayers
             t2 = bp2.nlayers
             g = nx.union(bp1.graph, bp2.graph)
@@ -74,21 +72,30 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
                 else:
                     raise Exception("eval failed on %s!" % inp)
             return _Graph(eval, g, t1 + t2, num)
-        def _id_gate(num, idx):
-            return bp[idx]
-        def _not_gate(num, idx):
-            bp1 = bp[idx]
-            g = nx.relabel_nodes(bp1.graph, {('acc', idx): ('rej', idx),
-                                             ('rej', idx): ('acc', idx)})
+        def _id_gate(num, bp, idx):
+            return bp
+        def _or_gate(num, bp1, idx1, bp2, idx2):
+            in1not = _not_gate(num, bp1, idx1)
+            in1not.graph = relabel(in1not.graph, idx1)
+            in1not.num = idx1
+            in2not = _not_gate(num, bp2, idx2)
+            in2not.graph = relabel(in2not.graph, idx2)
+            in2not.num = idx2
+            r = _and_gate(num, in1not, idx1, in2not, idx2)
+            return _not_gate(num, r, num)
+        def _not_gate(num, bp, idx):
+            g = nx.relabel_nodes(bp.graph, {('acc', idx): ('rej', idx),
+                                            ('rej', idx): ('acc', idx)})
             g = relabel(g, num)
-            return _Graph(bp1.inp, g, bp1.nlayers, num)
-        def _xor_gate(num, idx1, idx2):
+            return _Graph(bp.inp, g, bp.nlayers, num)
+        def _xor_gate(num, bp1, idx1, bp2, idx2):
             # TODO: implement XOR support
             raise NotImplemented()
         gates = {
-            'ID': _id_gate,
-            'AND': _and_gate,
-            'NOT': _not_gate,
+            'ID': lambda num, in1: _id_gate(num, bp[in1], in1),
+            'AND': lambda num, in1, in2: _and_gate(num, bp[in1], in1, bp[in2], in2),
+            'OR': lambda num, in1, in2: _or_gate(num, bp[in1], in1, bp[in2], in2),
+            'NOT': lambda num, in1: _not_gate(num, bp[in1], in1),
             'XOR': _xor_gate,
         }
         output = False
