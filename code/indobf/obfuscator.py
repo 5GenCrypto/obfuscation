@@ -90,8 +90,7 @@ class AbstractObfuscator(object):
             start = time.time()
             zero = [long(i) for i in level.zero.transpose().list()]
             one = [long(i) for i in level.one.transpose().list()]
-            # XXX: this (idx + 1) only works for layered BPs
-            _obf.encode_level(idx, level.inp(idx + 1), zero, one, level.zeroset,
+            _obf.encode_level(idx, level.inp, zero, one, level.zeroset,
                               level.oneset)
             end = time.time()
             self.logger('Obfuscating level took: %f seconds' % (end - start))
@@ -178,13 +177,13 @@ class LayeredObfuscator(AbstractObfuscator):
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
         self.length = len(bp.graph.graph)
-        VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), self.length)
-        e_1 = copy(VSZp.zero())
-        e_1[0] = 1
-        e_w = copy(VSZp.zero())
-        e_w[len(e_w) - 1] = 1
-        s = e_1 * bp.m0i
-        t = bp.m0 * e_w
+        # VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), self.length)
+        # e_1 = copy(VSZp.zero())
+        # e_1[0] = 1
+        # e_w = copy(VSZp.zero())
+        # e_w[len(e_w) - 1] = 1
+        s = bp.e_1 * bp.m0i
+        t = bp.m0 * bp.e_w
         _obf.encode_vector([long(i) for i in s], [sidx], "s_enc")
         _obf.encode_vector([long(i) for i in t], [tidx], "t_enc")
         end = time.time()

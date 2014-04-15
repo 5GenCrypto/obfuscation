@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import networkx as nx
 
-from sage.all import copy, GF, MatrixSpace
+from sage.all import copy, GF, MatrixSpace, VectorSpace, ZZ
 
 from branchingprogram import AbstractBranchingProgram, ParseException, Layer
 import utils
@@ -36,9 +36,8 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
     def __init__(self, fname, verbose=False):
         super(LayeredBranchingProgram, self).__init__(verbose=verbose)
         self.graph = None
+        self.length = None
         self.nlayers = 0
-        self.zero = None
-        self.one = None
         self._load_formula(fname)
 
     def _load_formula(self, fname):
@@ -120,19 +119,19 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
         if not output:
             raise ParseException("no output gate found")
         self.graph = bp[-1]
+        self.length = len(self.graph.graph)
         self._to_relaxed_matrix_bp()
 
     def _to_relaxed_matrix_bp(self):
         g = self.graph.graph
-        w = len(g)
         n = self.nlayers
-        G = MatrixSpace(GF(2), w)
+        G = MatrixSpace(GF(2), self.length)
         nodes = nx.topological_sort(g)
         if nodes.index(('acc', self.graph.num)) != len(nodes) - 1:
             a = nodes.index(('acc', self.graph.num))
             b = nodes.index(('rej', self.graph.num))
             nodes[b], nodes[a] = nodes[a], nodes[b]
-        mapping = dict(zip(nodes, range(w)))
+        mapping = dict(zip(nodes, range(self.length)))
         g = nx.relabel_nodes(g, mapping)
         self.bp = []
         for layer in xrange(1, self.nlayers + 1):
@@ -146,13 +145,33 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
                         B0[edge[0], edge[1]] = 1
                     else:
                         B1[edge[0], edge[1]] = 1
-            self.bp.append(Layer(self.graph.inp, B0, B1))
+            self.bp.append(Layer(self.graph.inp(layer), B0, B1))
 
     def randomize(self, prime):
-        super(LayeredBranchingProgram, self).randomize(prime, len(self.graph.graph))
+        assert not self.randomized
+        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), self.length)
+        def random_matrix():
+            while True:
+                m = MSZp.random_element()
+                if not m.is_singular() and m.rank() == self.length:
+                    return m, m.inverse()
+        m0, m0i = random_matrix()
+        self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
+        for i in xrange(1, len(self.bp)):
+            mi, mii = random_matrix()
+            self.bp[i-1] = self.bp[i-1].group(MSZp).mult_right(mii)
+            self.bp[i] = self.bp[i].group(MSZp).mult_left(mi)
+        self.bp[-1] = self.bp[-1].group(MSZp).mult_right(m0i)
+        VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), self.length)
+        self.e_1 = copy(VSZp.zero())
+        self.e_1[0] = 1
+        self.e_w = copy(VSZp.zero())
+        self.e_w[len(self.e_w) - 1] = 1
+        self.m0, self.m0i = m0, m0i
+        self.randomized = True
 
     def _eval_layered_bp(self, inp):
-        assert self.graph is not None
+        assert self.graph
         g = self.graph.graph.copy()
         nodes = nx.get_node_attributes(g, 'layer')
         for layer in xrange(1, self.nlayers + 1):
@@ -169,15 +188,16 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
             return 0
                     
     def _eval_relaxed_matrix_bp(self, inp):
-        assert self.bp is not None
+        assert self.bp
         m = self.bp[0]
-        comp = m.zero if inp[m.inp(1)] == '0' else m.one
+        comp = m.zero if inp[m.inp] == '0' else m.one
         for i, m in enumerate(self.bp[1:]):
-            comp *= m.zero if inp[m.inp(i + 2)] == '0' else m.one
-        if comp[0, comp.nrows() - 1] == 1:
-            return 1
+            comp *= m.zero if inp[m.inp] == '0' else m.one
+        if self.randomized:
+            r = self.e_1 * self.m0i * comp * self.m0 * self.e_w
+            return 1 if r == 1 else 0
         else:
-            return 0
+            return 1 if comp[0, comp.nrows() - 1] == 1 else 0
 
     def evaluate(self, inp):
         assert self.bp or self.graph

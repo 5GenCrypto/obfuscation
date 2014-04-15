@@ -36,7 +36,6 @@ class AbstractBranchingProgram(object):
                 m = MSZp.random_element()
                 if not m.is_singular():
                     return m, m.inverse()
-
         m0, m0i = random_matrix()
         self.zero = m0 * MSZp(self.zero) * m0i
         self.one = m0 * MSZp(self.one) * m0i
