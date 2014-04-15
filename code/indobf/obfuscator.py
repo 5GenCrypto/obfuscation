@@ -60,24 +60,24 @@ class AbstractObfuscator(object):
         self.logger('Took: %f seconds' % (end - start))
 
     def _obfuscate(self, bp):
-        def _obfuscate_level(level, idx):
+        def _obfuscate_layer(idx, layer):
             self.logger('Obfuscating\n%s with set %s' % (
-                level.zero, level.zeroset))
+                layer.zero, layer.zeroset))
             self.logger('Obfuscating\n%s with set %s' % (
-                level.one, level.oneset))
+                layer.one, layer.oneset))
             start = time.time()
             # XXX: the C matrix multiplication code assumes the matrices are
             # stored column-wise, when in python they are stored row-wise, thus
             # the need for the transpose call.  This should be fixed.
-            zero = [long(i) for i in level.zero.transpose().list()]
-            one = [long(i) for i in level.one.transpose().list()]
-            _obf.encode_level(idx, level.inp, zero, one, level.zeroset,
-                              level.oneset)
+            zero = [long(i) for i in layer.zero.transpose().list()]
+            one = [long(i) for i in layer.one.transpose().list()]
+            _obf.encode_layer(idx, layer.inp, zero, one, layer.zeroset,
+                              layer.oneset)
             end = time.time()
             self.logger('Obfuscating level took: %f seconds' % (end - start))
         start = time.time()
-        for idx, level in enumerate(bp):
-            _obfuscate_level(level, idx)
+        for idx, layer in enumerate(bp):
+            _obfuscate_layer(idx, layer)
         end = time.time()
         self.logger('Obfuscation took: %f seconds' % (end - start))
 

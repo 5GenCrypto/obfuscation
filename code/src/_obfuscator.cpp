@@ -355,7 +355,7 @@ obf_encode_vector(PyObject *self, PyObject *args)
 }
 
 static PyObject *
-obf_encode_level(PyObject *self, PyObject *args)
+obf_encode_layer(PyObject *self, PyObject *args)
 {
     PyObject *py_zero_m, *py_one_m;
     PyObject *py_zero_set, *py_one_set;
@@ -507,20 +507,16 @@ obf_evaluate(PyObject *self, PyObject *args)
         mpz_init(tmp2[i]);
     }
 
-    (void) snprintf(fname, fnamelen, "%s/s_enc", g_dir);
-    (void) load_mpz_vector(fname, s, size);
-    (void) snprintf(fname, fnamelen, "%s/t_enc", g_dir);
-    (void) load_mpz_vector(fname, t, size);
     if (!islayered) {
         (void) snprintf(fname, fnamelen, "%s/p_enc", g_dir);
         (void) load_mpz_scalar(fname, p2);
     }
 
-    for (int level = 0; level < bplen; ++level) {
+    for (int layer = 0; layer < bplen; ++layer) {
         unsigned int input_idx;
 
-        // find out the input bit for the given level
-        (void) snprintf(fname, fnamelen, "%s/%d.input", g_dir, level);
+        // find out the input bit for the given layer
+        (void) snprintf(fname, fnamelen, "%s/%d.input", g_dir, layer);
         (void) load_mpz_scalar(fname, tmp);
         input_idx = mpz_get_ui(tmp);
         if (input_idx < 0 || input_idx >= strlen(input)) {
@@ -535,17 +531,15 @@ obf_evaluate(PyObject *self, PyObject *args)
         }
         // load in appropriate matrix for the given input value
         if (input[input_idx] == '0') {
-            (void) snprintf(fname, fnamelen, "%s/%d.zero", g_dir, level);
+            (void) snprintf(fname, fnamelen, "%s/%d.zero", g_dir, layer);
         } else {
-            (void) snprintf(fname, fnamelen, "%s/%d.one", g_dir, level);
+            (void) snprintf(fname, fnamelen, "%s/%d.one", g_dir, layer);
         }
 
-        if (level == 0) {
+        if (layer == 0) {
             (void) load_mpz_vector(fname, comp, size * size);
         } else {
             (void) load_mpz_vector(fname, tmp1, size * size);
-            // XXX: make in-place matrix multiplication to save the additional
-            // copying needed
             mat_mult(tmp2, comp, tmp1, size);
             for (int ctr = 0; ctr < size * size; ++ctr) {
                 mpz_set(comp[ctr], tmp2[ctr]);
@@ -553,9 +547,9 @@ obf_evaluate(PyObject *self, PyObject *args)
         }
         if (!islayered) {
             if (input[input_idx] == '0') {
-                (void) snprintf(fname, fnamelen, "%s/%d.a0_enc", g_dir, level);
+                (void) snprintf(fname, fnamelen, "%s/%d.a0_enc", g_dir, layer);
             } else {
-                (void) snprintf(fname, fnamelen, "%s/%d.a1_enc", g_dir, level);
+                (void) snprintf(fname, fnamelen, "%s/%d.a1_enc", g_dir, layer);
             }
             load_mpz_scalar(fname, tmp);
             mpz_mul(p2, p2, tmp);
@@ -563,13 +557,16 @@ obf_evaluate(PyObject *self, PyObject *args)
     }
 
     if (!err) {
+        (void) snprintf(fname, fnamelen, "%s/s_enc", g_dir);
+        (void) load_mpz_vector(fname, s, size);
+        (void) snprintf(fname, fnamelen, "%s/t_enc", g_dir);
+        (void) load_mpz_vector(fname, t, size);
         mat_mult_by_vects(p1, s, comp, t, size);
         if (islayered) {
             iszero = is_zero(p1);
         } else {
             mpz_sub(tmp, p1, p2);
             iszero = is_zero(tmp);
-            // iszero = is_zero(comp[1]);
         }
     }
 
@@ -616,8 +613,8 @@ ObfMethods[] = {
      "Encode a scalar."},
     {"encode_vector", obf_encode_vector, METH_VARARGS,
      "Encode a vector."},
-    {"encode_level", obf_encode_level, METH_VARARGS,
-     "Encode a branching program level."},
+    {"encode_layer", obf_encode_layer, METH_VARARGS,
+     "Encode a branching program layer."},
     {"evaluate", obf_evaluate, METH_VARARGS,
      "evaluate the obfuscation."},
     {NULL, NULL, 0, NULL}
