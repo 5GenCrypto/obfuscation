@@ -100,8 +100,37 @@ class AbstractObfuscator(object):
         end = time.time()
         self.logger('Obfuscation took: %f seconds' % (end - start))
 
-    def obfuscate(self, bp, secparam, directory):
-        raise NotImplemented()
+    def obfuscate(self, bp, secparam, directory, islayered):
+        if bp.randomized:
+            raise ObfuscationException('BPs must not be randomized')
+        # remove old files in obfuscation directory
+        files = os.listdir(directory)
+        for file in os.listdir(directory):
+            path = os.path.join(directory, file)
+            os.unlink(path)
+        # add two to kappa due to the bookend vectors
+        kappa = len(bp) + 2
+        self._set_params(secparam, kappa)
+        prime = _obf.genprime(secparam)
+        if islayered:
+            bp.randomize(prime)
+        else:
+            R = Zmod(prime)
+            alphas = [(R.random_element(), R.random_element())
+                      for _ in xrange(len(bp))]
+            bp.randomize(prime, alphas=alphas)
+        # add two to nzs to take bookend vectors into account
+        nzs = bp.set_straddling_sets() + 2
+        self.logger('Number of Zs: %d' % nzs)
+        if islayered:
+            size = bp.size
+        else:
+            size = len(_group)
+        self._gen_mlm_params(size, prime, nzs, directory)
+        if not islayered:
+            self._construct_multiplicative_constants(bp, alphas)
+        self._construct_bookend_vectors(bp, prime, nzs)
+        self._obfuscate(bp)
 
     def evaluate(self, directory, inp):
         start = time.time()
@@ -142,33 +171,7 @@ class Obfuscator(AbstractObfuscator):
         self.logger('Constructing bookend vectors took: %f seconds' % (end - start))
 
     def obfuscate(self, bp, secparam, directory):
-        if bp.randomized:
-            raise ObfuscationException('BPs must not be randomized')
-
-        # add two to kappa due to the bookend vectors
-        kappa = len(bp) + 2
-        # kappa = len(bp)
-
-        self._set_params(secparam, kappa)
-
-        prime = _obf.genprime(secparam)
-        self.logger('prime = %d' % prime)
-
-        # alphas = None
-        R = Zmod(prime)
-        alphas = [(R.random_element(), R.random_element())
-                  for _ in xrange(len(bp))]
-        bp.randomize(prime, alphas=alphas)
-
-        # add two to nzs to take bookend vectors into account
-        nzs = bp.set_straddling_sets() + 2
-        # nzs = bp.set_straddling_sets()
-        self.logger('Number of Zs: %d' % nzs)
-
-        self._gen_mlm_params(len(_group), prime, nzs, directory)
-        self._construct_multiplicative_constants(bp, alphas)
-        self._construct_bookend_vectors(bp, prime, nzs)
-        self._obfuscate(bp)
+        super(Obfuscator, self).obfuscate(bp, secparam, directory, False)
 
 class LayeredObfuscator(AbstractObfuscator):
     def __init__(self, **kwargs):
@@ -185,21 +188,4 @@ class LayeredObfuscator(AbstractObfuscator):
         self.logger('Constructing bookend vectors took: %f seconds' % (end - start))
 
     def obfuscate(self, bp, secparam, directory):
-        if bp.randomized:
-            raise ObfuscationException('BPs must not be randomized')
-        files = os.listdir(directory)
-        for file in os.listdir(directory):
-            path = os.path.join(folder, file)
-            os.unlink(path)
-        # add two to kappa due to the bookend vectors
-        kappa = len(bp) + 2
-        self._set_params(secparam, kappa)
-        prime = _obf.genprime(secparam)
-        bp.randomize(prime)
-        # add two to nzs to take bookend vectors into account
-        nzs = bp.set_straddling_sets() + 2
-        self.logger('Number of Zs: %d' % nzs)
-
-        self._gen_mlm_params(bp.size, prime, nzs, directory)
-        self._construct_bookend_vectors(bp, prime, nzs)
-        self._obfuscate(bp)
+        super(LayeredObfuscator, self).obfuscate(bp, secparam, directory, True)
