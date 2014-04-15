@@ -68,6 +68,8 @@ class S5(Group):
         }
     def __repr__(self):
         return 'S5'
+    def __len__(self):
+        return 5
 
 class S6(Group):
     def __init__(self):
@@ -115,6 +117,8 @@ class S6(Group):
         }
     def __repr__(self):
         return 'S6'
+    def __len__(self):
+        return 6
         
 class SL3(Group):
     '''
@@ -140,6 +144,8 @@ class SL3(Group):
         }
     def __repr__(self):
         return 'SL3'
+    def __len__(self):
+        return 3
 
 groupmap = {
     'S5': S5,

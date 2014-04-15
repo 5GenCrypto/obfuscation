@@ -25,29 +25,6 @@ class AbstractBranchingProgram(object):
     def __repr__(self):
         return repr(self.bp)
 
-    def obliviate(self):
-        raise NotImplemented()
-
-    def randomize(self, prime, length):
-        assert not self.randomized
-        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), length)
-        def random_matrix():
-            while True:
-                m = MSZp.random_element()
-                if not m.is_singular():
-                    return m, m.inverse()
-        m0, m0i = random_matrix()
-        self.zero = m0 * MSZp(self.zero) * m0i
-        self.one = m0 * MSZp(self.one) * m0i
-        self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
-        for i in xrange(1, len(self.bp)):
-            mi, mii = random_matrix()
-            self.bp[i-1] = self.bp[i-1].group(MSZp).mult_right(mii)
-            self.bp[i] = self.bp[i].group(MSZp).mult_left(mi)
-        self.bp[-1] = self.bp[-1].group(MSZp).mult_right(m0i)
-        self.m0, self.m0i = m0, m0i
-        self.randomized = True
-
     def set_straddling_sets(self):
         # XXX: verify there's no randomness here
         inpdir = {}
@@ -67,6 +44,10 @@ class AbstractBranchingProgram(object):
                     n += 1
         return n
 
+    def obliviate(self):
+        raise NotImplemented()
+    def randomize(self, prime):
+        raise NotImplemented()
     def evaluate(self, inp):
         raise NotImplemented()
 

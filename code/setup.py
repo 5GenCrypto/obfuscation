@@ -6,13 +6,10 @@ __name__ = 'ind_obfuscation'
 __author__ = 'Alex J. Malozemoff'
 __version__ = '1.0a1.dev'
 
-grouplength = 6
-
 obfuscator = Extension(
     'indobf._obfuscator',
     libraries = ['gmp', 'gomp'],
-    extra_compile_args = ['-fopenmp', '-ggdb', '-Wall',
-                          '-DGROUPLENGTH=%d' % grouplength],
+    extra_compile_args = ['-fopenmp', '-ggdb', '-Wall'],
     sources = ['src/_obfuscator.cpp',
                'src/mpn_pylong.cpp',
                'src/mpz_pylong.cpp']

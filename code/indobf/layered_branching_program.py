@@ -36,7 +36,7 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
     def __init__(self, fname, verbose=False):
         super(LayeredBranchingProgram, self).__init__(verbose=verbose)
         self.graph = None
-        self.length = None
+        self.size = None
         self.nlayers = 0
         self._load_formula(fname)
 
@@ -82,10 +82,14 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
                                              ('rej', idx): ('acc', idx)})
             g = relabel(g, num)
             return _Graph(bp1.inp, g, bp1.nlayers, num)
+        def _xor_gate(num, idx1, idx2):
+            # TODO: implement XOR support
+            raise NotImplemented()
         gates = {
             'ID': _id_gate,
             'AND': _and_gate,
             'NOT': _not_gate,
+            'XOR': _xor_gate,
         }
         output = False
         with open(fname) as f:
@@ -108,52 +112,53 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
                             output = True
                     _, gate, rest = rest.split(None, 2)
                     inputs = [int(i) for i in rest.split()]
-                    # try:
-                    bp.append(gates[gate.upper()](num, *inputs))
-                    # except KeyError:
-                    #     raise ParseException("unsupported gate '%s'" % gate)
-                    # except TypeError:
-                    #     raise ParseException("incorrect number of arguments given")
+                    try:
+                        bp.append(gates[gate.upper()](num, *inputs))
+                    except KeyError:
+                        raise ParseException("unsupported gate '%s'" % gate)
+                    except TypeError:
+                        raise ParseException("incorrect number of arguments given")
                 else:
                     raise ParseException("unknown type")
         if not output:
             raise ParseException("no output gate found")
         self.graph = bp[-1]
-        self.length = len(self.graph.graph)
-        self._to_relaxed_matrix_bp()
+        self.size = len(self.graph.graph)
+        self._to_relaxed_matrix_bp(self.graph)
 
-    def _to_relaxed_matrix_bp(self):
-        g = self.graph.graph
-        n = self.nlayers
-        G = MatrixSpace(GF(2), self.length)
-        nodes = nx.topological_sort(g)
-        if nodes.index(('acc', self.graph.num)) != len(nodes) - 1:
-            a = nodes.index(('acc', self.graph.num))
-            b = nodes.index(('rej', self.graph.num))
+    def _to_relaxed_matrix_bp(self, graph):
+        # convert graph to a topological sorting of the vertices, with the
+        # accept node coming last
+        nodes = nx.topological_sort(graph.graph)
+        if nodes.index(('acc', graph.num)) != len(nodes) - 1:
+            a = nodes.index(('acc', graph.num))
+            b = nodes.index(('rej', graph.num))
             nodes[b], nodes[a] = nodes[a], nodes[b]
-        mapping = dict(zip(nodes, range(self.length)))
-        g = nx.relabel_nodes(g, mapping)
+        mapping = dict(zip(nodes, range(self.size)))
+        g = nx.relabel_nodes(graph.graph, mapping)
+        # convert graph to relaxed matrix BP
         self.bp = []
+        G = MatrixSpace(GF(2), self.size)
         for layer in xrange(1, self.nlayers + 1):
-            B0 = copy(G.one())
-            B1 = copy(G.one())
+            zero = copy(G.one())
+            one = copy(G.one())
             for edge in g.edges_iter():
                 e = g[edge[0]][edge[1]]
                 assert e['label'] in (0, 1)
                 if g.node[edge[0]]['layer'] == layer:
                     if e['label'] == 0:
-                        B0[edge[0], edge[1]] = 1
+                        zero[edge[0], edge[1]] = 1
                     else:
-                        B1[edge[0], edge[1]] = 1
-            self.bp.append(Layer(self.graph.inp(layer), B0, B1))
+                        one[edge[0], edge[1]] = 1
+            self.bp.append(Layer(graph.inp(layer), zero, one))
 
     def randomize(self, prime):
         assert not self.randomized
-        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), self.length)
+        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), self.size)
         def random_matrix():
             while True:
                 m = MSZp.random_element()
-                if not m.is_singular() and m.rank() == self.length:
+                if not m.is_singular() and m.rank() == self.size:
                     return m, m.inverse()
         m0, m0i = random_matrix()
         self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
@@ -162,7 +167,7 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
             self.bp[i-1] = self.bp[i-1].group(MSZp).mult_right(mii)
             self.bp[i] = self.bp[i].group(MSZp).mult_left(mi)
         self.bp[-1] = self.bp[-1].group(MSZp).mult_right(m0i)
-        VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), self.length)
+        VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), self.size)
         self.e_1 = copy(VSZp.zero())
         self.e_1[0] = 1
         self.e_w = copy(VSZp.zero())

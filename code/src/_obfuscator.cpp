@@ -11,8 +11,6 @@
 #define SUCCESS 1
 #define FAILURE 0
 
-#define GROUPLENGTH_SQ GROUPLENGTH * GROUPLENGTH
-
 // XXX: these are never cleaned up
 static gmp_randstate_t g_rng;
 static long g_n;
@@ -50,11 +48,11 @@ obf_genprime(PyObject *self, PyObject *args)
 static PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
-    long alpha, beta, eta;
+    long alpha, beta, eta, length;
     PyObject *py_g;
     mpz_t *ps, *zs;
 
-    if (!PyArg_ParseTuple(args, "lllllllOs", &g_n, &alpha, &beta, &eta,
+    if (!PyArg_ParseTuple(args, "llllllllOs", &length, &g_n, &alpha, &beta, &eta,
                           &g_nu, &g_rho, &g_nzs, &py_g, &g_dir))
         return NULL;
     if (!PyLong_Check(py_g)) {
@@ -175,24 +173,29 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_clear(zk);
     }
 
-    // save nu, x0, and pzt to file
+    // save length, nu, x0, and pzt to file
 
     {
         char *fname;
         int len;
-        mpz_t nu;
+        mpz_t tmp;
 
-        len = strlen(g_dir) + 5;
+        len = strlen(g_dir) + 10;
 
         fname = (char *) malloc(sizeof(char) * len);
         if (fname == NULL)
             return NULL;
 
-        mpz_init_set_ui(nu, g_nu);
+        mpz_init(tmp);
 
+        // save length
+        mpz_set_ui(tmp, length);
+        (void) snprintf(fname, len, "%s/length", g_dir);
+        (void) save_mpz_scalar(fname, tmp);
         // save nu
+        mpz_set_ui(tmp, g_nu);
         (void) snprintf(fname, len, "%s/nu", g_dir);
-        (void) save_mpz_scalar(fname, nu);
+        (void) save_mpz_scalar(fname, tmp);
         // save x0
         (void) snprintf(fname, len, "%s/x0", g_dir);
         (void) save_mpz_scalar(fname, g_x0);
@@ -200,7 +203,7 @@ obf_setup(PyObject *self, PyObject *args)
         (void) snprintf(fname, len, "%s/pzt", g_dir);
         (void) save_mpz_scalar(fname, g_pzt);
 
-        mpz_clear(nu);
+        mpz_clear(tmp);
 
         free(fname);
     }
@@ -458,16 +461,17 @@ obf_evaluate(PyObject *self, PyObject *args)
     char *fname = NULL;
     int fnamelen;
     int iszero = -1;
-    mpz_t comp[GROUPLENGTH_SQ];
-    mpz_t tmp1[GROUPLENGTH_SQ];
-    mpz_t tmp2[GROUPLENGTH_SQ];
-    mpz_t s[GROUPLENGTH];
-    mpz_t t[GROUPLENGTH];
+    mpz_t *comp;
+    mpz_t *tmp1;
+    mpz_t *tmp2;
+    mpz_t *s;
+    mpz_t *t;
     mpz_t p1, p2, tmp;
-    long bplen;
+    long bplen, size;
     int err = 0;
+    int islayered;
 
-    if (!PyArg_ParseTuple(args, "ssl", &g_dir, &input, &bplen))
+    if (!PyArg_ParseTuple(args, "ssli", &g_dir, &input, &bplen, &islayered))
         return NULL;
 
     fnamelen = strlen(g_dir) + 10; // XXX: should include bplen somewhere
@@ -477,122 +481,10 @@ obf_evaluate(PyObject *self, PyObject *args)
         return NULL;
 
     mpz_init(tmp);
-    mpz_init(p1);
-    mpz_init(p2);
-    for (int i = 0; i < GROUPLENGTH; ++i) {
-        mpz_init(s[i]);
-        mpz_init(t[i]);
-    }
-    for (int i = 0; i < GROUPLENGTH_SQ; ++i) {
-        mpz_init(comp[i]);
-        mpz_init(tmp1[i]);
-        mpz_init(tmp2[i]);
-    }
 
-    (void) snprintf(fname, fnamelen, "%s/s_enc", g_dir);
-    (void) load_mpz_vector(fname, s, GROUPLENGTH);
-    (void) snprintf(fname, fnamelen, "%s/t_enc", g_dir);
-    (void) load_mpz_vector(fname, t, GROUPLENGTH);
-    (void) snprintf(fname, fnamelen, "%s/p_enc", g_dir);
-    (void) load_mpz_scalar(fname, p2);
-
-    for (int level = 0; level < bplen; ++level) {
-        unsigned int input_idx;
-
-        // find out the input bit for the given level
-        (void) snprintf(fname, fnamelen, "%s/%d.input", g_dir, level);
-        (void) load_mpz_scalar(fname, tmp);
-        input_idx = mpz_get_ui(tmp);
-        if (input_idx < 0 || input_idx >= strlen(input)) {
-            PyErr_SetString(PyExc_RuntimeError, "invalid input");
-            err = 1;
-            break;
-        }
-        if (input[input_idx] != '0' && input[input_idx] != '1') {
-            PyErr_SetString(PyExc_RuntimeError, "input must be 0 or 1");
-            err = 1;
-            break;
-        }
-        // load in appropriate matrix for the given input value
-        if (input[input_idx] == '0') {
-            (void) snprintf(fname, fnamelen, "%s/%d.zero", g_dir, level);
-        } else {
-            (void) snprintf(fname, fnamelen, "%s/%d.one", g_dir, level);
-        }
-
-        if (level == 0) {
-            (void) load_mpz_vector(fname, comp, GROUPLENGTH_SQ);
-        } else {
-            (void) load_mpz_vector(fname, tmp1, GROUPLENGTH_SQ);
-            // XXX: make in-place matrix multiplication to save the additional
-            // copying needed
-            mat_mult(tmp2, comp, tmp1, GROUPLENGTH);
-            for (int ctr = 0; ctr < GROUPLENGTH_SQ; ++ctr) {
-                mpz_set(comp[ctr], tmp2[ctr]);
-            }
-        }
-        if (input[input_idx] == '0') {
-            (void) snprintf(fname, fnamelen, "%s/%d.a0_enc", g_dir, level);
-        } else {
-            (void) snprintf(fname, fnamelen, "%s/%d.a1_enc", g_dir, level);
-        }
-        load_mpz_scalar(fname, tmp);
-        mpz_mul(p2, p2, tmp);
-    }
-
-    if (!err) {
-        mat_mult_by_vects(p1, s, comp, t, GROUPLENGTH);
-        mpz_sub(tmp, p1, p2);
-        iszero = is_zero(tmp);
-        // iszero = is_zero(comp[1]);
-    }
-
-    mpz_clear(tmp);
-    mpz_clear(p1);
-    mpz_clear(p2);
-    for (int i = 0; i < GROUPLENGTH; ++i) {
-        mpz_clear(s[i]);
-        mpz_clear(t[i]);
-    }
-    for (int i = 0; i < GROUPLENGTH_SQ; ++i) {
-        mpz_clear(comp[i]);
-        mpz_clear(tmp1[i]);
-        mpz_clear(tmp2[i]);
-    }
-
-    if (fname)
-        free(fname);
-
-    if (err)
-        return NULL;
-    else
-        return Py_BuildValue("i", iszero ? 0 : 1);
-}
-
-static PyObject *
-obf_simple_evaluate(PyObject *self, PyObject *args)
-{
-    char *input = NULL;
-    char *fname = NULL;
-    int fnamelen;
-    int iszero = -1;
-    mpz_t *comp;
-    mpz_t *tmp1;
-    mpz_t *tmp2;
-    mpz_t *s;
-    mpz_t *t;
-    mpz_t p, tmp;
-    long bplen, size;
-    int err = 0;
-
-    if (!PyArg_ParseTuple(args, "ssll", &g_dir, &input, &bplen, &size))
-        return NULL;
-
-    fnamelen = strlen(g_dir) + 10; // XXX: should include bplen somewhere
-
-    fname = (char *) mymalloc(sizeof(char) * fnamelen);
-    if (fname == NULL)
-        return NULL;
+    (void) snprintf(fname, fnamelen, "%s/length", g_dir);
+    (void) load_mpz_scalar(fname, tmp);
+    size = mpz_get_ui(tmp);
 
     comp = (mpz_t *) mymalloc(sizeof(mpz_t) * size * size);
     tmp1 = (mpz_t *) mymalloc(sizeof(mpz_t) * size * size);
@@ -602,9 +494,9 @@ obf_simple_evaluate(PyObject *self, PyObject *args)
     s = (mpz_t *) mymalloc(sizeof(mpz_t) * size);
     t = (mpz_t *) mymalloc(sizeof(mpz_t) * size);
     // XXX: memory leak
-
-    mpz_init(tmp);
-    mpz_init(p);
+    
+    mpz_init(p1);
+    mpz_init(p2);
     for (int i = 0; i < size; ++i) {
         mpz_init(s[i]);
         mpz_init(t[i]);
@@ -619,6 +511,10 @@ obf_simple_evaluate(PyObject *self, PyObject *args)
     (void) load_mpz_vector(fname, s, size);
     (void) snprintf(fname, fnamelen, "%s/t_enc", g_dir);
     (void) load_mpz_vector(fname, t, size);
+    if (!islayered) {
+        (void) snprintf(fname, fnamelen, "%s/p_enc", g_dir);
+        (void) load_mpz_scalar(fname, p2);
+    }
 
     for (int level = 0; level < bplen; ++level) {
         unsigned int input_idx;
@@ -655,15 +551,31 @@ obf_simple_evaluate(PyObject *self, PyObject *args)
                 mpz_set(comp[ctr], tmp2[ctr]);
             }
         }
+        if (!islayered) {
+            if (input[input_idx] == '0') {
+                (void) snprintf(fname, fnamelen, "%s/%d.a0_enc", g_dir, level);
+            } else {
+                (void) snprintf(fname, fnamelen, "%s/%d.a1_enc", g_dir, level);
+            }
+            load_mpz_scalar(fname, tmp);
+            mpz_mul(p2, p2, tmp);
+        }
     }
 
     if (!err) {
-        mat_mult_by_vects(p, s, comp, t, size);
-        iszero = is_zero(p);
+        mat_mult_by_vects(p1, s, comp, t, size);
+        if (islayered) {
+            iszero = is_zero(p1);
+        } else {
+            mpz_sub(tmp, p1, p2);
+            iszero = is_zero(tmp);
+            // iszero = is_zero(comp[1]);
+        }
     }
 
     mpz_clear(tmp);
-    mpz_clear(p);
+    mpz_clear(p1);
+    mpz_clear(p2);
     for (int i = 0; i < size; ++i) {
         mpz_clear(s[i]);
         mpz_clear(t[i]);
@@ -692,7 +604,6 @@ obf_simple_evaluate(PyObject *self, PyObject *args)
         return NULL;
     else
         return Py_BuildValue("i", iszero ? 0 : 1);
-
 }
 
 static PyMethodDef
@@ -709,8 +620,6 @@ ObfMethods[] = {
      "Encode a branching program level."},
     {"evaluate", obf_evaluate, METH_VARARGS,
      "evaluate the obfuscation."},
-    {"simple_evaluate", obf_simple_evaluate, METH_VARARGS,
-     "TODO"},
     {NULL, NULL, 0, NULL}
 };
 

@@ -71,12 +71,12 @@ class AbstractObfuscator(object):
         if self._fast:
             self.logger('* Using small parameters for speed')
 
-    def _gen_mlm_params(self, prime, nzs, directory):
+    def _gen_mlm_params(self, length, prime, nzs, directory):
         self.logger('Generating MLM parameters...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        _obf.setup(self.n, self.alpha, self.beta, self.eta, self.nu,
+        _obf.setup(length, self.n, self.alpha, self.beta, self.eta, self.nu,
                    self.rho, nzs, prime, directory)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
@@ -107,10 +107,11 @@ class AbstractObfuscator(object):
         start = time.time()
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        zeros = sorted(filter(lambda s: 'zero' in s, files))
-        ones = sorted(filter(lambda s: 'one' in s, files))
-        assert len(inputs) == len(zeros) == len(ones)
-        result = _obf.evaluate(directory, inp, len(inputs))
+        # zeros = sorted(filter(lambda s: 'zero' in s, files))
+        # ones = sorted(filter(lambda s: 'one' in s, files))
+        # assert len(inputs) == len(zeros) == len(ones)
+        islayered = True if type(self) == LayeredObfuscator else False
+        result = _obf.evaluate(directory, inp, len(inputs), islayered)
         end = time.time()
         self.logger('Evaluation took: %f seconds' % (end - start))
         return result
@@ -164,7 +165,7 @@ class Obfuscator(AbstractObfuscator):
         # nzs = bp.set_straddling_sets()
         self.logger('Number of Zs: %d' % nzs)
 
-        self._gen_mlm_params(prime, nzs, directory)
+        self._gen_mlm_params(len(_group), prime, nzs, directory)
         self._construct_multiplicative_constants(bp, alphas)
         self._construct_bookend_vectors(bp, prime, nzs)
         self._obfuscate(bp)
@@ -176,12 +177,6 @@ class LayeredObfuscator(AbstractObfuscator):
     def _construct_bookend_vectors(self, bp, prime, nzs):
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
-        self.length = len(bp.graph.graph)
-        # VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), self.length)
-        # e_1 = copy(VSZp.zero())
-        # e_1[0] = 1
-        # e_w = copy(VSZp.zero())
-        # e_w[len(e_w) - 1] = 1
         s = bp.e_1 * bp.m0i
         t = bp.m0 * bp.e_w
         _obf.encode_vector([long(i) for i in s], [sidx], "s_enc")
@@ -192,6 +187,10 @@ class LayeredObfuscator(AbstractObfuscator):
     def obfuscate(self, bp, secparam, directory):
         if bp.randomized:
             raise ObfuscationException('BPs must not be randomized')
+        files = os.listdir(directory)
+        for file in os.listdir(directory):
+            path = os.path.join(folder, file)
+            os.unlink(path)
         # add two to kappa due to the bookend vectors
         kappa = len(bp) + 2
         self._set_params(secparam, kappa)
@@ -201,18 +200,6 @@ class LayeredObfuscator(AbstractObfuscator):
         nzs = bp.set_straddling_sets() + 2
         self.logger('Number of Zs: %d' % nzs)
 
-        self._gen_mlm_params(prime, nzs, directory)
+        self._gen_mlm_params(bp.size, prime, nzs, directory)
         self._construct_bookend_vectors(bp, prime, nzs)
         self._obfuscate(bp)
-
-    def evaluate(self, directory, inp):
-        start = time.time()
-        files = os.listdir(directory)
-        inputs = sorted(filter(lambda s: 'input' in s, files))
-        zeros = sorted(filter(lambda s: 'zero' in s, files))
-        ones = sorted(filter(lambda s: 'one' in s, files))
-        assert len(inputs) == len(zeros) == len(ones)
-        result = _obf.simple_evaluate(directory, inp, len(inputs), self.length)
-        end = time.time()
-        self.logger('Evaluation took: %f seconds' % (end - start))
-        return result
