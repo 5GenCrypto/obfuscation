@@ -81,7 +81,8 @@ class AbstractObfuscator(object):
         end = time.time()
         self.logger('Obfuscation took: %f seconds' % (end - start))
 
-    def obfuscate(self, bp, secparam, directory, islayered):
+    def obfuscate(self, bp, secparam, directory):
+        islayered = True if type(self) == LayeredObfuscator else False
         if bp.randomized:
             raise ObfuscationException('BPs must not be randomized')
         # remove old files in obfuscation directory
@@ -149,9 +150,6 @@ class Obfuscator(AbstractObfuscator):
         end = time.time()
         self.logger('Constructing bookend vectors took: %f seconds' % (end - start))
 
-    def obfuscate(self, bp, secparam, directory):
-        super(Obfuscator, self).obfuscate(bp, secparam, directory, False)
-
 class LayeredObfuscator(AbstractObfuscator):
     def __init__(self, **kwargs):
         super(LayeredObfuscator, self).__init__(**kwargs)
@@ -165,6 +163,3 @@ class LayeredObfuscator(AbstractObfuscator):
         _obf.encode_vector([long(i) for i in t], [tidx], "t_enc")
         end = time.time()
         self.logger('Constructing bookend vectors took: %f seconds' % (end - start))
-
-    def obfuscate(self, bp, secparam, directory):
-        super(LayeredObfuscator, self).obfuscate(bp, secparam, directory, True)

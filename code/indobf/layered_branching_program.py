@@ -87,12 +87,8 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
             bp.num = num
             return bp
         def _or_gate(num, bp1, idx1, bp2, idx2):
-            in1not = _not_gate(num, bp1, idx1)
-            in1not.graph = relabel(in1not.graph, idx1)
-            in1not.num = idx1
-            in2not = _not_gate(num, bp2, idx2)
-            in2not.graph = relabel(in2not.graph, idx2)
-            in2not.num = idx2
+            in1not = _not_gate(idx1, bp1, idx1)
+            in2not = _not_gate(idx2, bp2, idx2)
             r = _and_gate(num, in1not, idx1, in2not, idx2)
             return _not_gate(num, r, num)
         def _not_gate(num, bp, idx):
@@ -101,14 +97,32 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
             g = relabel(g, num)
             return _Graph(bp.inp, g, bp.nlayers, num)
         def _xor_gate(num, bp1, idx1, bp2, idx2):
-            # TODO: implement XOR support
-            raise NotImplemented()
+            assert num > idx1 and num > idx2
+            relabel_layers(bp2.graph, bp1.nlayers)
+            bp2not = _not_gate(num, bp2, idx2)
+            g = nx.union(bp2.graph, bp2not.graph)
+            g.add_node(('acc', num))
+            g.add_node(('rej', num))
+            g.add_edge(('acc', idx1), ('acc', num), label=1)
+            g.add_edge(('rej', idx1), ('rej', num), label=0)
+            g.add_edge(('acc', idx2), ('rej', num), label=1)
+            g.add_edge(('rej', idx2), ('acc', num), label=0)
+            g = contract(g, ('acc', idx1), ('acc', num), ('acc', num))
+            g = contract(g, ('rej', idx1), ('rej', num), ('rej', num))
+            g = contract(g, ('acc', idx2), ('rej', num), ('rej', num))
+            g = contract(g, ('rej', idx2), ('acc', num), ('acc', num))
+            print("XOR NODE")
+            pprint(g.node)
+            pprint(g.edge)
+            g = nx.union(bp1.graph, g)
+            assert False
+
         gates = {
             'ID': lambda num, in1: _id_gate(num, bp[in1], in1),
             'AND': lambda num, in1, in2: _and_gate(num, bp[in1], in1, bp[in2], in2),
             'OR': lambda num, in1, in2: _or_gate(num, bp[in1], in1, bp[in2], in2),
             'NOT': lambda num, in1: _not_gate(num, bp[in1], in1),
-            'XOR': _xor_gate,
+            'XOR': lambda num, in1, in2: _xor_gate(num, bp[in1], in1, bp[in2], in2),
         }
         output = False
         with open(fname) as f:
