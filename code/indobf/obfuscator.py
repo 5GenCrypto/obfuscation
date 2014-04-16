@@ -1,13 +1,16 @@
 from __future__ import print_function
 
-from branchingprogram import BranchingProgram, _group
+from branchingprogram import _group
 import _obfuscator as _obf
-import groups, utils
+import utils
 
 from sage.all import copy, VectorSpace, Zmod, ZZ
 
-import collections, os, sys, time
+import copy, os, time
 import numpy as np
+
+def to_long(lst):
+    return [long(i) for i in lst]
 
 class ObfuscationException(Exception):
     pass
@@ -49,35 +52,29 @@ class AbstractObfuscator(object):
         if self._fast:
             self.logger('* Using small parameters for speed')
 
-    def _gen_mlm_params(self, size, prime, nzs, directory):
+    def _gen_mlm_params(self, size, nzs, directory):
         self.logger('Generating MLM parameters...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        _obf.setup(size, self.n, self.alpha, self.beta, self.eta, self.nu,
-                   self.rho, nzs, prime, directory)
+        primes = _obf.setup(size, self.n, self.alpha, self.beta, self.eta,
+                            self.nu, self.rho, nzs, directory)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
+        return primes
 
-    def _obfuscate(self, bp):
-        def _obfuscate_layer(idx, layer):
-            self.logger('Obfuscating\n%s with set %s' % (
-                layer.zero, layer.zeroset))
-            self.logger('Obfuscating\n%s with set %s' % (
-                layer.one, layer.oneset))
+    def _obfuscate(self, bps):
+        def _obfuscate_layer(idx):
             start = time.time()
-            # XXX: the C matrix multiplication code assumes the matrices are
-            # stored column-wise, when in python they are stored row-wise, thus
-            # the need for the transpose call.  This should be fixed.
-            zero = [long(i) for i in layer.zero.transpose().list()]
-            one = [long(i) for i in layer.one.transpose().list()]
-            _obf.encode_layer(idx, layer.inp, zero, one, layer.zeroset,
-                              layer.oneset)
+            zeros = [to_long(bp[i].zero.transpose().list()) for bp in bps]
+            ones = [to_long(bp[i].one.transpose().list()) for bp in bps]
+            _obf.encode_layers(i, bps[0][i].inp, zeros, ones, bps[0][i].zeroset,
+                               bps[0][i].oneset)
             end = time.time()
-            self.logger('Obfuscating level took: %f seconds' % (end - start))
+            self.logger('Obfuscating layer took: %f seconds' % (end - start))
         start = time.time()
-        for idx, layer in enumerate(bp):
-            _obfuscate_layer(idx, layer)
+        for i in xrange(len(bps[0])):
+            _obfuscate_layer(i)
         end = time.time()
         self.logger('Obfuscation took: %f seconds' % (end - start))
 
@@ -91,29 +88,37 @@ class AbstractObfuscator(object):
             for file in os.listdir(directory):
                 path = os.path.join(directory, file)
                 os.unlink(path)
+
         # add two to kappa due to the bookend vectors
         kappa = len(bp) + 2
-        self._set_params(secparam, kappa)
-        prime = _obf.genprime(secparam)
-        if islayered:
-            bp.randomize(prime)
-        else:
-            R = Zmod(prime)
-            alphas = [(R.random_element(), R.random_element())
-                      for _ in xrange(len(bp))]
-            bp.randomize(prime, alphas=alphas)
-        # add two to nzs to take bookend vectors into account
+        # construct straddling sets, and add two to the number of Zs to take
+        # bookend vectors into account
         nzs = bp.set_straddling_sets() + 2
         self.logger('Number of Zs: %d' % nzs)
+        # size is the column/row-length of the matrices
+        size = bp.size if islayered else len(_group)
+
+        self._set_params(secparam, kappa)
+        primes = self._gen_mlm_params(size, nzs, directory)
+        self.logger('Randomizing BPs...')
+        start = time.time()
+        bps = [copy.deepcopy(bp) for _ in xrange(self.n)]
         if islayered:
-            size = bp.size
+            for bp, prime in zip(bps, primes):
+                bp.randomize(prime)
         else:
-            size = len(_group)
-        self._gen_mlm_params(size, prime, nzs, directory)
+            Rs = [Zmod(prime) for prime in primes]
+            alphas = [[(R.random_element(), R.random_element()) for _ in
+                       xrange(len(bp))] for bp, R in zip(bps, Rs)]
+            for bp, prime, alpha in zip(bps, primes, alphas):
+                bp.randomize(prime, alphas=alpha)
+        end = time.time()
+        self.logger('Took: %f seconds' % (end - start))
+
         if not islayered:
-            self._construct_multiplicative_constants(bp, alphas)
-        self._construct_bookend_vectors(bp, prime, nzs)
-        self._obfuscate(bp)
+            self._construct_multiplicative_constants(bps, alphas)
+        self._construct_bookend_vectors(bps, primes, nzs)
+        self._obfuscate(bps)
 
     def evaluate(self, directory, inp):
         start = time.time()
@@ -129,24 +134,36 @@ class Obfuscator(AbstractObfuscator):
     def __init__(self, **kwargs):
         super(Obfuscator, self).__init__(**kwargs)
 
-    def _construct_multiplicative_constants(self, bp, alphas):
+    def _construct_multiplicative_constants(self, bps, alphas):
         start = time.time()
-        for idx, (layer, (a0, a1)) in enumerate(zip(bp, alphas)):
-            _obf.encode_scalar(long(a0), layer.zeroset, "%d.a0_enc" % idx)
-            _obf.encode_scalar(long(a1), layer.oneset, "%d.a1_enc" % idx)
+        for layer_idx in xrange(len(bps[0])):
+            a0s = []
+            a1s = []
+            for i in xrange(len(bps)):
+                a0, a1 = alphas[i][layer_idx]
+                a0s.append([long(a0)])
+                a1s.append([long(a1)])
+            _obf.encode_scalars(a0s, bps[0][layer_idx].zeroset, "%d.a0_enc" % layer_idx)
+            _obf.encode_scalars(a1s, bps[0][layer_idx].oneset, "%d.a1_enc" % layer_idx)
         end = time.time()
         self.logger('Constructing multiplicative constants took: %f seconds' % (end - start))
 
-    def _construct_bookend_vectors(self, bp, prime, nzs):
+    def _construct_bookend_vectors(self, bps, primes, nzs):
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
-        VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), _group.length)
-        s = VSZp.random_element() * bp.m0i
-        t = bp.m0 * VSZp.random_element()
-        p = s * t
-        _obf.encode_scalar(long(p), [sidx, tidx], "p_enc")
-        _obf.encode_vector([long(i) for i in s], [sidx], "s_enc")
-        _obf.encode_vector([long(i) for i in t], [tidx], "t_enc")
+        ss = []
+        ts = []
+        ps = []
+        for bp, prime in zip(bps, primes):
+            VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), _group.length)
+            s = VSZp.random_element() * bp.m0i
+            t = bp.m0 * VSZp.random_element()
+            ss.append(to_long(s))
+            ts.append(to_long(t))
+            ps.append([long(s * t)])
+        _obf.encode_scalars(ps, [sidx, tidx], "p_enc")
+        _obf.encode_vectors(ss, [sidx], "s_enc")
+        _obf.encode_vectors(ts, [tidx], "t_enc")
         end = time.time()
         self.logger('Constructing bookend vectors took: %f seconds' % (end - start))
 
@@ -154,12 +171,12 @@ class LayeredObfuscator(AbstractObfuscator):
     def __init__(self, **kwargs):
         super(LayeredObfuscator, self).__init__(**kwargs)
 
-    def _construct_bookend_vectors(self, bp, prime, nzs):
+    def _construct_bookend_vectors(self, bps, primes, nzs):
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
-        s = bp.e_1 * bp.m0i
-        t = bp.m0 * bp.e_w
-        _obf.encode_vector([long(i) for i in s], [sidx], "s_enc")
-        _obf.encode_vector([long(i) for i in t], [tidx], "t_enc")
+        ss = [to_long(bp.e_1 * bp.m0i) for bp in bps]
+        ts = [to_long(bp.m0 * bp.e_w) for bp in bps]
+        _obf.encode_vectors(ss, [sidx], "s_enc")
+        _obf.encode_vectors(ts, [tidx], "t_enc")
         end = time.time()
         self.logger('Constructing bookend vectors took: %f seconds' % (end - start))

@@ -189,18 +189,10 @@ mpz_mod_near(mpz_t out, const mpz_t a, const mpz_t b)
 }
 
 static int
-encode(mpz_t out, const mpz_t in, const long idx1, const long idx2,
-       const long slot)
+encode(mpz_t out, const PyObject *in, const long row, const long idx1,
+       const long idx2)
 {
     mpz_t res, r, tmp;
-    long i;
-
-    if (idx1 >= g_nzs || idx2 >= g_nzs)
-        return FAILURE;
-    if (idx1 < 0 && idx2 < 0)
-        return FAILURE;
-    if (idx1 == idx2)
-        return FAILURE;
 
     mpz_init(res);
     mpz_init(r);
@@ -208,12 +200,11 @@ encode(mpz_t out, const mpz_t in, const long idx1, const long idx2,
 
     mpz_set_ui(res, 0);
 
-    for (i = 0; i < g_n; ++i) {
+    for (long i = 0; i < g_n; ++i) {
         mpz_genrandom(r, g_rho);
         mpz_mul(tmp, r, g_gs[i]);
-        if (i == slot) {
-            mpz_add(tmp, tmp, in);
-        }
+        py_to_mpz(r, PyList_GET_ITEM(PyList_GET_ITEM(in, i), row));
+        mpz_add(tmp, tmp, r);
         mpz_mul(tmp, tmp, g_crt_coeffs[i]);
         mpz_add(res, res, tmp);
     }
@@ -235,6 +226,7 @@ encode(mpz_t out, const mpz_t in, const long idx1, const long idx2,
 
     return SUCCESS;
 }
+
 
 static void
 mat_mult(mpz_t *out, const mpz_t *a, const mpz_t *b, int size)

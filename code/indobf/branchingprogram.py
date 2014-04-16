@@ -57,28 +57,30 @@ def flatten(l):
     return list(itertools.chain(*l))
 
 class Layer(object):
-    def __init__(self, inp, zero, one):
+    def __init__(self, inp, zero, one, zeroset=None, oneset=None):
         self.inp = inp
         self.zero = zero
         self.one = one
-        self.zeroset = None
-        self.oneset = None
+        self.zeroset = zeroset
+        self.oneset = oneset
     def __repr__(self):
         return "input: %d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
             self.inp, self.zero, self.one, self.zeroset, self.oneset)
-    def to_raw_string(self):
-        return "%d %s %s" % (self.inp, self.zero.numpy().tostring(),
-                             self.one.numpy().tostring())
     def conjugate(self, M, Mi):
-        return Layer(self.inp, Mi * self.zero * M, Mi * self.one * M)
+        return Layer(self.inp, Mi * self.zero * M, Mi * self.one * M,
+                     zeroset=self.zeroset, oneset=self.oneset)
     def group(self, group):
-        return Layer(self.inp, group(self.zero), group(self.one))
+        return Layer(self.inp, group(self.zero), group(self.one),
+                     zeroset=self.zeroset, oneset=self.oneset)
     def mult_scalar(self, alphas):
-        return Layer(self.inp, alphas[0] * self.zero, alphas[1] * self.one)
+        return Layer(self.inp, alphas[0] * self.zero, alphas[1] * self.one,
+                     zeroset=self.zeroset, oneset=self.oneset)
     def mult_left(self, M):
-        return Layer(self.inp, M * self.zero, M * self.one)
+        return Layer(self.inp, M * self.zero, M * self.one,
+                     zeroset=self.zeroset, oneset=self.oneset)
     def mult_right(self, M):
-        return Layer(self.inp, self.zero * M, self.one * M)
+        return Layer(self.inp, self.zero * M, self.one * M,
+                     zeroset=self.zeroset, oneset=self.oneset)
 
 def prepend(layers, M):
     return [layers[0].mult_left(M)] + layers[1:]

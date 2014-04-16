@@ -14,69 +14,41 @@
 // XXX: these are never cleaned up
 static gmp_randstate_t g_rng;
 static long g_n;
-static mpz_t g_x0;
-static mpz_t *g_gs;
-static mpz_t g_pzt;
-static mpz_t *g_crt_coeffs;
-static mpz_t *g_zinvs;
 static long g_nzs;
 static long g_rho;
 static long g_nu;
+static mpz_t g_x0;
+static mpz_t g_pzt;
+static mpz_t *g_gs;
+static mpz_t *g_crt_coeffs;
+static mpz_t *g_zinvs;
 static char *g_dir;
 
 #include "utils.cpp"
 
 static PyObject *
-obf_genprime(PyObject *self, PyObject *args)
-{
-    long bitlength;
-    PyObject *py_out;
-    mpz_t out;
-
-    if (!PyArg_ParseTuple(args, "l", &bitlength))
-        return NULL;
-
-    mpz_init(out);
-    // XXX: not uniform primes
-    mpz_genrandom(out, bitlength);
-    mpz_nextprime(out, out);
-    py_out = mpz_to_py(out);
-    mpz_clear(out);
-    return py_out;
-}
-
-static PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
-    long alpha, beta, eta, length;
-    PyObject *py_g;
+    long alpha, beta, eta, size;
     mpz_t *ps, *zs;
+    PyObject *py_gs;
 
-    if (!PyArg_ParseTuple(args, "llllllllOs", &length, &g_n, &alpha, &beta, &eta,
-                          &g_nu, &g_rho, &g_nzs, &py_g, &g_dir))
+    if (!PyArg_ParseTuple(args, "lllllllls", &size, &g_n, &alpha,
+                          &beta, &eta, &g_nu, &g_rho, &g_nzs, &g_dir))
         return NULL;
-    if (!PyLong_Check(py_g)) {
-        PyErr_SetString(PyExc_RuntimeError, "eighth argument must be a long");
-        return NULL;
-    }
 
     // initialization
 
     ps = (mpz_t *) mymalloc(sizeof(mpz_t) * g_n);
-    if (ps == NULL)
-        goto error;
     g_gs = (mpz_t *) mymalloc(sizeof(mpz_t) * g_n);
-    if (g_gs == NULL)
-        goto error;
     g_crt_coeffs = (mpz_t *) mymalloc(sizeof(mpz_t) * g_n);
-    if (g_crt_coeffs == NULL)
+    zs = (mpz_t *) mymalloc(sizeof(mpz_t) * g_nzs);
+    g_zinvs = (mpz_t *) mymalloc(sizeof(mpz_t) * g_nzs);
+    if (!ps || !g_gs || !g_crt_coeffs || !zs || !g_zinvs)
         goto error;
 
-    zs = (mpz_t *) mymalloc(sizeof(mpz_t) * g_nzs);
-    if (zs == NULL)
-        goto error;
-    g_zinvs = (mpz_t *) mymalloc(sizeof(mpz_t) * g_nzs);
-    if (g_zinvs == NULL)
+    py_gs = PyList_New(g_n);
+    if (!py_gs)
         goto error;
 
     mpz_init_set_ui(g_x0, 1);
@@ -87,7 +59,6 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_init(g_gs[i]);
         mpz_init(g_crt_coeffs[i]);
     }
-
     for (int i = 0; i < g_nzs; ++i) {
         mpz_init(zs[i]);
         mpz_init(g_zinvs[i]);
@@ -102,13 +73,10 @@ obf_setup(PyObject *self, PyObject *args)
         // XXX: not uniform primes
         mpz_urandomb(p_unif, g_rng, eta);
         mpz_nextprime(ps[i], p_unif);
-        if (i == 0) {
-            py_to_mpz(g_gs[i], py_g);
-        } else {
-            // XXX: not uniform primes
-            mpz_urandomb(p_unif, g_rng, alpha);
-            mpz_nextprime(g_gs[i], p_unif);
-        }
+        // XXX: not uniform primes
+        mpz_urandomb(p_unif, g_rng, alpha);
+        mpz_nextprime(g_gs[i], p_unif);
+        PyList_SetItem(py_gs, i, mpz_to_py(g_gs[i]));
 #pragma omp critical
         {
             mpz_mul(g_x0, g_x0, ps[i]);
@@ -189,8 +157,8 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_init(tmp);
 
         // save length
-        mpz_set_ui(tmp, length);
-        (void) snprintf(fname, len, "%s/length", g_dir);
+        mpz_set_ui(tmp, size);
+        (void) snprintf(fname, len, "%s/size", g_dir);
         (void) save_mpz_scalar(fname, tmp);
         // save nu
         mpz_set_ui(tmp, g_nu);
@@ -219,9 +187,9 @@ obf_setup(PyObject *self, PyObject *args)
     }
     free(zs);
 
-    Py_RETURN_NONE;
+    return py_gs;
 
- error:
+error:
     if (ps)
         free(ps);
     if (g_gs)
@@ -236,37 +204,23 @@ obf_setup(PyObject *self, PyObject *args)
 }
 
 static PyObject *
-obf_encode_scalar(PyObject *self, PyObject *args)
+obf_encode_scalars(PyObject *self, PyObject *args)
 {
-    PyObject *py_val = NULL, *py_list = NULL;
+    PyObject *py_scalars = NULL, *py_list = NULL;
     int idx1, idx2;
     char *name;
     mpz_t val;
     int err = 0;
 
-    if (!PyArg_ParseTuple(args, "OOs", &py_val, &py_list, &name))
+    if (!PyArg_ParseTuple(args, "OOs", &py_scalars, &py_list, &name))
         return NULL;
-    if (!PyLong_Check(py_val)) {
-        PyErr_SetString(PyExc_RuntimeError, "first argument must be a long");
-        return NULL;
-    }
-    if (!PyList_Check(py_list)) {
-        PyErr_SetString(PyExc_RuntimeError, "second argument must be a list");
-        return NULL;
-    }
-    if (extract_indices(py_list, &idx1, &idx2) == FAILURE) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "second argument must be a list of length 1 or 2");
-        return NULL;
-    }
+    (void) extract_indices(py_list, &idx1, &idx2);
 
     mpz_init(val);
 
-    py_to_mpz(val, py_val);
-    if (encode(val, val, idx1, idx2, 0) == FAILURE) {
-        PyErr_SetString(PyExc_RuntimeError, "encoding failed");
-        err = 1;
-    } else {
+    encode(val, py_scalars, 0, idx1, idx2);
+
+    {
         int fnamelen = strlen(g_dir) + strlen(name) + 2;
         char *fname = (char *) mymalloc(sizeof(char) * fnamelen);
         if (fname == NULL) {
@@ -288,32 +242,19 @@ obf_encode_scalar(PyObject *self, PyObject *args)
 }
 
 static PyObject *
-obf_encode_vector(PyObject *self, PyObject *args)
+obf_encode_vectors(PyObject *self, PyObject *args)
 {
-    PyObject *py_vals = NULL, *py_list = NULL;
+    PyObject *py_vectors = NULL, *py_list = NULL;
     int idx1, idx2, err = 0;
     mpz_t *vector;
     Py_ssize_t size;
     char *name;
 
-    if (!PyArg_ParseTuple(args, "OOs", &py_vals, &py_list, &name))
+    if (!PyArg_ParseTuple(args, "OOs", &py_vectors, &py_list, &name))
         return NULL;
-    if (check_pylist(py_vals) == FAILURE) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "first argument must be a list of longs");
-        return NULL;
-    }
-    if (!PyList_Check(py_list)) {
-        PyErr_SetString(PyExc_RuntimeError, "second argument must be a list");
-        return NULL;
-    }
-    if (extract_indices(py_list, &idx1, &idx2) == FAILURE) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "second argument must be a list of length 1 or 2");
-        return NULL;
-    }
+    (void) extract_indices(py_list, &idx1, &idx2);
 
-    size = PyList_GET_SIZE(py_vals);
+    size = PyList_GET_SIZE(PyList_GET_ITEM(py_vectors, 0));
     vector = (mpz_t *) mymalloc(sizeof(mpz_t) * size);
     if (vector == NULL)
         return NULL;
@@ -321,14 +262,7 @@ obf_encode_vector(PyObject *self, PyObject *args)
 #pragma omp parallel for
     for (Py_ssize_t i = 0; i < size; ++i) {
         mpz_init(vector[i]);
-        py_to_mpz(vector[i], PyList_GET_ITEM(py_vals, i));
-        if (encode(vector[i], vector[i], idx1, idx2, 0) == FAILURE) {
-#pragma omp critical
-            {
-                PyErr_SetString(PyExc_RuntimeError, "encoding failed");
-                err = 1;
-            }
-        }
+        (void) encode(vector[i], py_vectors, i, idx1, idx2);
     }
 
     if (!err) {
@@ -355,9 +289,9 @@ obf_encode_vector(PyObject *self, PyObject *args)
 }
 
 static PyObject *
-obf_encode_layer(PyObject *self, PyObject *args)
+obf_encode_layers(PyObject *self, PyObject *args)
 {
-    PyObject *py_zero_m, *py_one_m;
+    PyObject *py_zero_ms, *py_one_ms;
     PyObject *py_zero_set, *py_one_set;
     int zeroidx1, zeroidx2, oneidx1, oneidx2;
     char *fname = NULL;
@@ -369,23 +303,14 @@ obf_encode_layer(PyObject *self, PyObject *args)
     mpz_t *one;
     mpz_t z_inp;
 
-    if (!PyArg_ParseTuple(args, "llOOOO", &idx, &inp, &py_zero_m, &py_one_m,
-                          &py_zero_set, &py_one_set)) {
+    if (!PyArg_ParseTuple(args, "llOOOO", &idx, &inp, &py_zero_ms, &py_one_ms,
+                          &py_zero_set, &py_one_set))
         return NULL;
-    }
-    if (extract_indices(py_zero_set, &zeroidx1, &zeroidx2) == FAILURE) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "fifth argument must be a list of length 1 or 2");
-        return NULL;
-    }
-    if (extract_indices(py_one_set, &oneidx1, &oneidx2) == FAILURE) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "sixth argument must be a list of length 1 or 2");
-        return NULL;
-    }
+    (void) extract_indices(py_zero_set, &zeroidx1, &zeroidx2);
+    (void) extract_indices(py_one_set, &oneidx1, &oneidx2);
 
-    size = PyList_GET_SIZE(py_zero_m);
-    // XXX: check that zero and one lists are the same size
+    // size = PyList_GET_SIZE(py_zero_m);
+    size = PyList_GET_SIZE(PyList_GET_ITEM(py_zero_ms, 0));
     zero = (mpz_t *) mymalloc(sizeof(mpz_t) * size);
     one = (mpz_t *) mymalloc(sizeof(mpz_t) * size);
     if (zero == NULL || one == NULL)
@@ -396,30 +321,26 @@ obf_encode_layer(PyObject *self, PyObject *args)
 #pragma omp parallel for
     for (Py_ssize_t ctr = 0; ctr < 2 * size; ++ctr) {
         PyObject *py_array;
-        int sidx1, sidx2;
+        int idx1, idx2;
         mpz_t *val;
         size_t i;
 
         if (ctr < size) {
             i = ctr;
             val = &zero[i];
-            py_array = py_zero_m;
-            sidx1 = zeroidx1;
-            sidx2 = zeroidx2;
+            py_array = py_zero_ms;
+            idx1 = zeroidx1;
+            idx2 = zeroidx2;
         } else {
             i = ctr - size;
             val = &one[i];
-            py_array = py_one_m;
-            sidx1 = oneidx1;
-            sidx2 = oneidx2;
+            py_array = py_one_ms;
+            idx1 = oneidx1;
+            idx2 = oneidx2;
         }
 
         mpz_init(*val);
-        py_to_mpz(*val, PyList_GET_ITEM(py_array, i));
-        if (encode(*val, *val, sidx1, sidx2, 0) == FAILURE) {
-            PyErr_SetString(PyExc_RuntimeError, "encoding failed");
-            err = 1;
-        }
+        (void) encode(*val, py_array, i, idx1, idx2);
     }
 
     if (!err) {
@@ -482,7 +403,7 @@ obf_evaluate(PyObject *self, PyObject *args)
 
     mpz_init(tmp);
 
-    (void) snprintf(fname, fnamelen, "%s/length", g_dir);
+    (void) snprintf(fname, fnamelen, "%s/size", g_dir);
     (void) load_mpz_scalar(fname, tmp);
     size = mpz_get_ui(tmp);
 
@@ -607,14 +528,12 @@ static PyMethodDef
 ObfMethods[] = {
     {"setup", obf_setup, METH_VARARGS,
      "Set up obfuscator."},
-    {"genprime", obf_genprime, METH_VARARGS,
-     "Generate a random prime."},
-    {"encode_scalar", obf_encode_scalar, METH_VARARGS,
-     "Encode a scalar."},
-    {"encode_vector", obf_encode_vector, METH_VARARGS,
-     "Encode a vector."},
-    {"encode_layer", obf_encode_layer, METH_VARARGS,
-     "Encode a branching program layer."},
+    {"encode_scalars", obf_encode_scalars, METH_VARARGS,
+     "Encode a scalar in each slot."},
+    {"encode_vectors", obf_encode_vectors, METH_VARARGS,
+     "Encode a vector in each slot."},
+    {"encode_layers", obf_encode_layers, METH_VARARGS,
+     "Encode a branching program layer in each slot."},
     {"evaluate", obf_evaluate, METH_VARARGS,
      "evaluate the obfuscation."},
     {NULL, NULL, 0, NULL}
