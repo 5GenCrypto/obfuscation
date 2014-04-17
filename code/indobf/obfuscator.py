@@ -63,22 +63,37 @@ class AbstractObfuscator(object):
         self.logger('Took: %f seconds' % (end - start))
         return primes
 
+    def _randomize(self, bp, primes, islayered):
+        self.logger('Randomizing BPs...')
+        start = time.time()
+        bps = [copy.deepcopy(bp) for _ in xrange(self.n)]
+        if islayered:
+            alphas = None
+            for bp, prime in zip(bps, primes):
+                bp.randomize(prime)
+        else:
+            Rs = [Zmod(prime) for prime in primes]
+            alphas = [[(R.random_element(), R.random_element()) for _ in
+                       xrange(len(bp))] for bp, R in zip(bps, Rs)]
+            for bp, prime, alpha in zip(bps, primes, alphas):
+                bp.randomize(prime, alphas=alpha)
+        end = time.time()
+        self.logger('Took: %f seconds' % (end - start))
+        return bps, alphas
+
     def _obfuscate(self, bps):
-        def _obfuscate_layer(idx):
+        for i in xrange(len(bps[0])):
             start = time.time()
+            self.logger('Obfuscating layer...')
             zeros = [to_long(bp[i].zero.transpose().list()) for bp in bps]
             ones = [to_long(bp[i].one.transpose().list()) for bp in bps]
             _obf.encode_layers(i, bps[0][i].inp, zeros, ones, bps[0][i].zeroset,
                                bps[0][i].oneset)
             end = time.time()
-            self.logger('Obfuscating layer took: %f seconds' % (end - start))
-        start = time.time()
-        for i in xrange(len(bps[0])):
-            _obfuscate_layer(i)
-        end = time.time()
-        self.logger('Obfuscation took: %f seconds' % (end - start))
+            self.logger('Took: %f seconds' % (end - start))
 
     def obfuscate(self, bp, secparam, directory):
+        start = time.time()
         islayered = True if type(self) == LayeredObfuscator else False
         if bp.randomized:
             raise ObfuscationException('BPs must not be randomized')
@@ -100,25 +115,13 @@ class AbstractObfuscator(object):
 
         self._set_params(secparam, kappa)
         primes = self._gen_mlm_params(size, nzs, directory)
-        self.logger('Randomizing BPs...')
-        start = time.time()
-        bps = [copy.deepcopy(bp) for _ in xrange(self.n)]
-        if islayered:
-            for bp, prime in zip(bps, primes):
-                bp.randomize(prime)
-        else:
-            Rs = [Zmod(prime) for prime in primes]
-            alphas = [[(R.random_element(), R.random_element()) for _ in
-                       xrange(len(bp))] for bp, R in zip(bps, Rs)]
-            for bp, prime, alpha in zip(bps, primes, alphas):
-                bp.randomize(prime, alphas=alpha)
-        end = time.time()
-        self.logger('Took: %f seconds' % (end - start))
-
+        bps, alphas = self._randomize(bp, primes, islayered)
         if not islayered:
             self._construct_multiplicative_constants(bps, alphas)
         self._construct_bookend_vectors(bps, primes, nzs)
         self._obfuscate(bps)
+        end = time.time()
+        self.logger('Obfuscation took: %f seconds' % (end - start))
 
     def evaluate(self, directory, inp):
         start = time.time()

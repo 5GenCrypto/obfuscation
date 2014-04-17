@@ -26,7 +26,6 @@ class AbstractBranchingProgram(object):
         return repr(self.bp)
 
     def set_straddling_sets(self):
-        # XXX: verify there's no randomness here
         inpdir = {}
         for layer in self.bp:
             inpdir.setdefault(layer.inp, []).append(layer)
