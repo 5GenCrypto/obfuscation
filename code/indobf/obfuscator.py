@@ -109,11 +109,12 @@ class AbstractObfuscator(object):
         # construct straddling sets, and add two to the number of Zs to take
         # bookend vectors into account
         nzs = bp.set_straddling_sets() + 2
-        self.logger('Number of Zs: %d' % nzs)
         # size is the column/row-length of the matrices
         size = bp.size if islayered else len(_group)
 
         self._set_params(secparam, kappa)
+        self.logger('  Number of Zs: %d' % nzs)
+        self.logger('  Size: %d' % size)
         primes = self._gen_mlm_params(size, nzs, directory)
         bps, alphas = self._randomize(bp, primes, islayered)
         if not islayered:
