@@ -48,6 +48,8 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
         self._load_formula(fname)
 
     def _load_formula(self, fname):
+        # XXX: wow, this code is a total hack!  good luck trying to understand
+        # it...
         bp = []
         self.nlayers = 0
         def _new_gate(num):
@@ -98,24 +100,36 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
             return _Graph(bp.inp, g, bp.nlayers, num)
         def _xor_gate(num, bp1, idx1, bp2, idx2):
             assert num > idx1 and num > idx2
-            relabel_layers(bp2.graph, bp1.nlayers)
-            bp2not = _not_gate(num, bp2, idx2)
+            assert len(bp1.graph) >= len(bp2.graph)
+            tmpidx = len(bp1.graph) + len(bp2.graph)
+            t1 = bp1.nlayers
+            t2 = bp2.nlayers
+            relabel_layers(bp2.graph, t1)
+            oldlayer = bp2.graph.node[('src', idx2)]['layer']
+            # construct (G_2, not(G_2))
+            bp2not = _not_gate(tmpidx, bp2, idx2)
             g = nx.union(bp2.graph, bp2not.graph)
-            g.add_node(('acc', num))
-            g.add_node(('rej', num))
-            g.add_edge(('acc', idx1), ('acc', num), label=1)
-            g.add_edge(('rej', idx1), ('rej', num), label=0)
-            g.add_edge(('acc', idx2), ('rej', num), label=1)
-            g.add_edge(('rej', idx2), ('acc', num), label=0)
-            g = contract(g, ('acc', idx1), ('acc', num), ('acc', num))
-            g = contract(g, ('rej', idx1), ('rej', num), ('rej', num))
-            g = contract(g, ('acc', idx2), ('rej', num), ('rej', num))
-            g = contract(g, ('rej', idx2), ('acc', num), ('acc', num))
-            print("XOR NODE")
-            pprint(g.node)
-            pprint(g.edge)
+            g.add_edge(('acc', idx2), ('acc', idx1), label=0)
+            g.add_edge(('rej', idx1), ('rej', idx2), label=0)
+            g = contract(g, ('acc', idx2), ('acc', idx1), ('acc', num))
+            g = contract(g, ('rej', idx1), ('rej', idx2), ('rej', num))
+            # construct XOR(G_1, G_2)
             g = nx.union(bp1.graph, g)
-            assert False
+            accnode = ('acc-%d' % num, num)
+            rejnode = ('rej-%d' % num, num)
+            g = contract(g, ('acc', idx1), ('src', tmpidx), accnode)
+            g = contract(g, ('rej', idx1), ('src', idx2), rejnode)
+            g = relabel(g, num)
+            g.node[accnode]['layer'] = oldlayer
+            g.node[rejnode]['layer'] = oldlayer
+            def eval(inp):
+                if inp <= t1 - 1:
+                    return bp1.inp(inp)
+                elif inp <= t1 + t2 - 1:
+                    return bp2.inp(inp - t1)
+                else:
+                    raise Exception("andgate eval failed on %s!" % inp)
+            return _Graph(eval, g, t1 + t2, num)
 
         gates = {
             'ID': lambda num, in1: _id_gate(num, bp[in1], in1),

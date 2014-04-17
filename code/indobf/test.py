@@ -6,6 +6,8 @@ from branchingprogram import BranchingProgram, ParseException
 from layered_branching_program import LayeredBranchingProgram
 import _obfuscator as _obf
 
+from sage.all import random_prime
+
 def test_circuit(path, bpclass, obfclass, obfuscate, args):
     testcases = {}
     print('Testing %s: ' % path, end='')
@@ -44,11 +46,8 @@ def test_circuit(path, bpclass, obfclass, obfuscate, args):
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
                 success = False
     else:
-        prime = _obf.genprime(args.secparam)
-        if args.no_layered:
-            bp.randomize(prime, alphas=None)
-        else:
-            bp.randomize(prime)
+        prime = random_prime(2 ** args.secparam - 1)
+        bp.randomize(prime)
         for k, v in testcases.items():
             if program.evaluate(k) != v:
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
