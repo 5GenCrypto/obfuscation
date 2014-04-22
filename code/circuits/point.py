@@ -37,7 +37,6 @@ def main(argv):
         start = oldstart + length
         leftover = None
         while length > 1:
-            print(start, oldstart, length)
             for i, j in zip(xrange(start, start + length / 2),
                             xrange(oldstart, start, 2)):
                 if j + 1 == start:
@@ -48,7 +47,6 @@ def main(argv):
                     f.write('%d gate OR %d %d\n' % (i, j, j + 1))
             if length % 2 == 1 and not leftover:
                 leftover = start - 1
-                print(start, oldstart, length, leftover)
             oldstart = start
             start = start + length / 2
             length = (length + length % 2) / 2
