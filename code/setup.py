@@ -8,11 +8,20 @@ __version__ = '1.0a1.dev'
 
 obfuscator = Extension(
     'indobf._obfuscator',
-    libraries = ['gmp', 'gomp'],
-    extra_compile_args = ['-fopenmp', '-ggdb', '-Wall'],
-    sources = ['src/_obfuscator.cpp',
-               'src/mpn_pylong.cpp',
-               'src/mpz_pylong.cpp']
+    libraries = [
+        'gmp',
+        'gomp',
+    ],
+    extra_compile_args = [
+        '-fopenmp',
+        '-ggdb',
+        '-Wall',
+    ],
+    sources = [
+        'src/_obfuscator.cpp',
+        'src/mpn_pylong.cpp',
+        'src/mpz_pylong.cpp'
+    ]
 )
 
 setup(name = __name__,
