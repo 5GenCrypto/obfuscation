@@ -176,10 +176,16 @@ class LayeredObfuscator(AbstractObfuscator):
         super(LayeredObfuscator, self).__init__(**kwargs)
 
     def _construct_bookend_vectors(self, bps, primes, nzs):
+        def compute_vectors():
+            start = time.time()
+            ss = [to_long(bp.e_1 * bp.m0i) for bp in bps]
+            ts = [to_long(bp.m0 * bp.e_w) for bp in bps]
+            end = time.time()
+            self.logger('  Computing bookend vectors: %f seconds' % (end - start))
+            return ss, ts
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
-        ss = [to_long(bp.e_1 * bp.m0i) for bp in bps]
-        ts = [to_long(bp.m0 * bp.e_w) for bp in bps]
+        ss, ts = compute_vectors()
         _obf.encode_vectors(ss, [sidx], "s_enc")
         _obf.encode_vectors(ts, [tidx], "t_enc")
         end = time.time()

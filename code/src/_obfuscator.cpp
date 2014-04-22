@@ -24,13 +24,13 @@ static mpz_t *g_crt_coeffs;
 static mpz_t *g_zinvs;
 static char *g_dir;
 
-/* static double */
-/* current_time(void) */
-/* { */
-/*     struct timeval t; */
-/*     gettimeofday(&t, NULL); */
-/*     return (double) (t.tv_sec + (double) (t.tv_usec / 1000000.0)); */
-/* } */
+static double
+current_time(void)
+{
+    struct timeval t;
+    gettimeofday(&t, NULL);
+    return (double) (t.tv_sec + (double) (t.tv_usec / 1000000.0));
+}
 
 inline static void *
 mymalloc(const size_t size)
@@ -287,6 +287,7 @@ obf_setup(PyObject *self, PyObject *args)
     long alpha, beta, eta, size;
     mpz_t *ps, *zs;
     PyObject *py_gs;
+    double start, end;
 
     if (!PyArg_ParseTuple(args, "lllllllls", &size, &g_n, &alpha,
                           &beta, &eta, &g_nu, &g_rho, &g_nzs, &g_dir))
@@ -321,6 +322,9 @@ obf_setup(PyObject *self, PyObject *args)
 
     // generate p_i's and g_i's, as well as compute x0
 
+    // XXX: implement CLT optimization for generating these primes faster
+
+    start = current_time();
 #pragma omp parallel for
     for (int i = 0; i < g_n; ++i) {
         mpz_t p_unif;
@@ -338,11 +342,13 @@ obf_setup(PyObject *self, PyObject *args)
         }
         mpz_clear(p_unif);
     }
+    end = current_time();
+
+    fprintf(stderr, "  Generating p_i's and g_i's: %f seconds\n", end - start);
 
     // generate CRT coefficients
 
-    // XXX: this appears to be the most expensive step!
-
+    start = current_time();
 #pragma omp parallel for
     for (int i = 0; i < g_n; ++i) {
         mpz_t q;
@@ -352,18 +358,26 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_mul(g_crt_coeffs[i], g_crt_coeffs[i], q);
         mpz_clear(q);
     }
+    end = current_time();
+
+    fprintf(stderr, "  Generating CRT coefficients: %f seconds\n", end - start);
 
     // generate z_i's
 
+    start = current_time();
 #pragma omp parallel for
     for (int i = 0; i < g_nzs; ++i) {
         do {
             mpz_urandomm(zs[i], g_rng, g_x0);
         } while (mpz_invert(g_zinvs[i], zs[i], g_x0) == 0);
     }
+    end = current_time();
+
+    fprintf(stderr, "  Generating z_i's: %f seconds\n", end - start);
 
     // generate pzt
 
+    start = current_time();
     {
         mpz_t zk;
         mpz_init_set_ui(zk, 1);
@@ -397,9 +411,13 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_mod(g_pzt, g_pzt, g_x0);
         mpz_clear(zk);
     }
+    end = current_time();
+
+    fprintf(stderr, "  Generating pzt: %f seconds\n", end - start);
 
     // save size, nu, x0, and pzt to file
 
+    start = current_time();
     {
         char *fname;
         int len;
@@ -432,6 +450,9 @@ obf_setup(PyObject *self, PyObject *args)
 
         free(fname);
     }
+    end = current_time();
+
+    fprintf(stderr, "  Saving to file: %f seconds\n", end - start);
 
     // cleanup
 
@@ -471,14 +492,16 @@ obf_encode_scalars(PyObject *self, PyObject *args)
     char *name;
     mpz_t val;
     int err = 0;
+    double start, end;
 
     if (!PyArg_ParseTuple(args, "OOs", &py_scalars, &py_list, &name))
         return NULL;
     (void) extract_indices(py_list, &idx1, &idx2);
 
+    start = current_time();
+
     mpz_init(val);
     encode(val, py_scalars, 0, idx1, idx2);
-
     {
         int fnamelen = strlen(g_dir) + strlen(name) + 2;
         char *fname = (char *) mymalloc(sizeof(char) * fnamelen);
@@ -490,8 +513,11 @@ obf_encode_scalars(PyObject *self, PyObject *args)
             free(fname);
         }
     }
-
     mpz_clear(val);
+
+    end = current_time();
+
+    fprintf(stderr, "  Encoding scalar: %f seconds\n", end - start);
 
     if (err) {
         return NULL;
@@ -511,10 +537,13 @@ obf_encode_vectors(PyObject *self, PyObject *args)
     mpz_t *vector;
     Py_ssize_t size;
     char *name;
+    double start, end;
 
     if (!PyArg_ParseTuple(args, "OOs", &py_vectors, &py_list, &name))
         return NULL;
     (void) extract_indices(py_list, &idx1, &idx2);
+
+    start = current_time();
 
     // We assume that all vectors are the same size, and thus just grab the size
     // of the first vector
@@ -546,6 +575,10 @@ obf_encode_vectors(PyObject *self, PyObject *args)
     }
     free(vector);
 
+    end = current_time();
+
+    fprintf(stderr, "  Encoding %ld-size vector: %f seconds\n", size, end - start);
+
     if (err)
         return NULL;
     else
@@ -564,14 +597,16 @@ obf_encode_layers(PyObject *self, PyObject *args)
     int err = 0;
     long inp, idx;
     Py_ssize_t size;
-    mpz_t *zero;
-    mpz_t *one;
+    mpz_t *zero, *one;
+    double start, end;
 
     if (!PyArg_ParseTuple(args, "llOOOO", &idx, &inp, &py_zero_ms, &py_one_ms,
                           &py_zero_set, &py_one_set))
         return NULL;
     (void) extract_indices(py_zero_set, &zeroidx1, &zeroidx2);
     (void) extract_indices(py_one_set, &oneidx1, &oneidx2);
+
+    start = current_time();
 
     size = PyList_GET_SIZE(PyList_GET_ITEM(py_zero_ms, 0));
     zero = (mpz_t *) mymalloc(sizeof(mpz_t) * size);
@@ -629,6 +664,10 @@ obf_encode_layers(PyObject *self, PyObject *args)
     }
     free(zero);
     free(one);
+
+    end = current_time();
+
+    fprintf(stderr, "  Encoding %ld-size layer: %f seconds\n", size, end - start);
 
     if (err)
         Py_RETURN_FALSE;
@@ -697,6 +736,9 @@ obf_evaluate(PyObject *self, PyObject *args)
 
     for (int layer = 0; layer < bplen; ++layer) {
         unsigned int input_idx;
+        double start, end;
+
+        start = current_time();
 
         // find out the input bit for the given layer
         (void) snprintf(fname, fnamelen, "%s/%d.input", g_dir, layer);
@@ -737,9 +779,17 @@ obf_evaluate(PyObject *self, PyObject *args)
             (void) load_mpz_scalar(fname, tmp);
             mpz_mul(p2, p2, tmp);
         }
+
+        end = current_time();
+
+        fprintf(stderr, "  Multiplying matrices: %f seconds\n", end - start);
     }
 
     if (!err) {
+        double start, end;
+
+        start = current_time();
+
         (void) snprintf(fname, fnamelen, "%s/s_enc", g_dir);
         (void) load_mpz_vector(fname, s, size);
         (void) snprintf(fname, fnamelen, "%s/t_enc", g_dir);
@@ -751,6 +801,10 @@ obf_evaluate(PyObject *self, PyObject *args)
             mpz_sub(tmp, p1, p2);
             iszero = is_zero(tmp);
         }
+
+        end = current_time();
+
+        fprintf(stderr, "  Zero test: %f seconds\n", end - start);
     }
 
     mpz_clear(tmp);
@@ -819,7 +873,7 @@ init_obfuscator(void)
         goto cleanup;
     }
 
-    fprintf(stderr, "SEED = %lu\n", seed);
+    // fprintf(stderr, "SEED = %lu\n", seed);
 
     gmp_randinit_default(g_rng);
     gmp_randseed_ui(g_rng, seed);
