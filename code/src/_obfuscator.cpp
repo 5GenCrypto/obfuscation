@@ -24,7 +24,7 @@ static mpz_t *g_crt_coeffs;
 static mpz_t *g_zinvs;
 static char *g_dir;
 
-static double
+inline static double
 current_time(void)
 {
     struct timeval t;
@@ -190,20 +190,13 @@ encode(mpz_t out, const PyObject *in, const long row, const long idx1,
 
     mpz_set_ui(out, 0);
 
-// #pragma omp parallel for
     for (long i = 0; i < g_n; ++i) {
-        // mpz_t r;
-        // mpz_init(r);
         mpz_genrandom(r, g_rho);
         mpz_mul(tmp, r, g_gs[i]);
         py_to_mpz(r, PyList_GET_ITEM(PyList_GET_ITEM(in, i), row));
         mpz_add(tmp, tmp, r);
         mpz_mul(tmp, tmp, g_crt_coeffs[i]);
-// #pragma omp critical
-        {
-            mpz_add(out, out, tmp);
-        }
-        // mpz_clear(r);
+        mpz_add(out, out, tmp);
     }
     mpz_mod(out, out, g_x0);
     if (idx1 >= 0) {
@@ -280,6 +273,12 @@ is_zero(mpz_t c)
     mpz_clear(tmp);
     return ret;
 }
+
+//
+//
+// Python functions
+//
+//
 
 static PyObject *
 obf_setup(PyObject *self, PyObject *args)

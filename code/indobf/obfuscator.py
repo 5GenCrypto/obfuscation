@@ -131,7 +131,7 @@ class AbstractObfuscator(object):
         islayered = True if type(self) == LayeredObfuscator else False
         result = _obf.evaluate(directory, inp, len(inputs), islayered)
         end = time.time()
-        self.logger('Evaluation took: %f seconds' % (end - start))
+        self.logger('Evaluating %s took: %f seconds' % (inp, end - start))
         return result
 
 class Obfuscator(AbstractObfuscator):

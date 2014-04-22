@@ -6,8 +6,8 @@ import numpy as np
 
 def logger(s, end='\n', verbose=False):
     if verbose:
-        print(s, end=end)
-        sys.stdout.flush()
+        print(s, end=end, file=sys.stderr)
+        sys.stderr.flush()
 
 def make_logger(verbose):
     return functools.partial(logger, verbose=verbose)
