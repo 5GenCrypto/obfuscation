@@ -51,7 +51,6 @@ mpz_to_py(const mpz_t in)
     buffer = mpz_get_str(NULL, 10, in);
     outs = PyString_FromString(buffer);
     out = PyNumber_Long(outs);
-    Py_INCREF(out);
     free(buffer);
     return out;
 }
