@@ -19,3 +19,7 @@
 
 # Python specific
 *.pyc
+
+# Other
+build/
+ind_obfuscation.egg-info/
