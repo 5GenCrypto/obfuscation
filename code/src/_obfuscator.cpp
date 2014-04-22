@@ -8,6 +8,12 @@
 
 #include "mpz_pylong.h"
 
+//
+// Use CLT optimization of generating "small" primes and multiplying them
+// together to get the resulting "prime"
+//
+#define FASTPRIMES
+
 #define SUCCESS 1
 #define FAILURE 0
 
@@ -286,6 +292,9 @@ obf_setup(PyObject *self, PyObject *args)
     mpz_t *ps, *zs;
     PyObject *py_gs;
     double start, end;
+#ifdef FASTPRIMES
+    long niter;
+#endif
 
     if (!PyArg_ParseTuple(args, "lllllllls", &size, &g_n, &alpha,
                           &beta, &eta, &g_nu, &g_rho, &g_nzs, &g_dir))
@@ -323,13 +332,31 @@ obf_setup(PyObject *self, PyObject *args)
     // XXX: implement CLT optimization for generating these primes faster
 
     start = current_time();
+#ifdef FASTPRIMES
+    niter = eta / alpha;
+#endif
 #pragma omp parallel for
     for (int i = 0; i < g_n; ++i) {
         mpz_t p_unif;
+        mpz_t p_tmp;
         mpz_init(p_unif);
+        mpz_init(p_tmp);
+
+#ifdef FASTPRIMES
+        mpz_set_ui(ps[i], 1);
+        for (int j = 0; j < niter; ++j) {
+            long psize = j < (niter - 1)
+                             ? alpha
+                             : eta - alpha * (niter - 1);
+            mpz_urandomb(p_unif, g_rng, psize);
+            mpz_nextprime(p_tmp, p_unif);
+            mpz_mul(ps[i], ps[i], p_tmp);
+        }
+#else
         // XXX: not uniform primes
         mpz_urandomb(p_unif, g_rng, eta);
         mpz_nextprime(ps[i], p_unif);
+#endif /* FASTPRIMES */
         // XXX: not uniform primes
         mpz_urandomb(p_unif, g_rng, alpha);
         mpz_nextprime(g_gs[i], p_unif);
@@ -339,6 +366,7 @@ obf_setup(PyObject *self, PyObject *args)
             mpz_mul(g_x0, g_x0, ps[i]);
         }
         mpz_clear(p_unif);
+        mpz_clear(p_tmp);
     }
     end = current_time();
 
