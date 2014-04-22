@@ -155,7 +155,7 @@ mpz_genrandom(mpz_t rnd, const long nbits)
 {
     mpz_t one;
     mpz_init_set_ui(one, 1 << (nbits - 1));
-    mpz_urandomb(rnd, g_rng, (mp_bitcnt_t) nbits);
+    mpz_urandomb(rnd, g_rng, nbits);
     mpz_clear(one);
 }
 
