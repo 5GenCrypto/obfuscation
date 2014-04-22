@@ -35,13 +35,28 @@ def main(argv):
         length = bitlength
         oldstart = bitlength
         start = oldstart + length
+        leftover = None
         while length > 1:
+            print(start, oldstart, length)
             for i, j in zip(xrange(start, start + length / 2),
                             xrange(oldstart, start, 2)):
-                f.write('%d gate OR %d %d\n' % (i, j, j + 1))
-            length = length / 2
+                if j + 1 == start:
+                    if leftover:
+                        f.write('%d gate OR %d %d\n' % (i, j, leftover))
+                        leftover = None
+                else:
+                    f.write('%d gate OR %d %d\n' % (i, j, j + 1))
+            if length % 2 == 1 and not leftover:
+                leftover = start - 1
+                print(start, oldstart, length, leftover)
             oldstart = start
-            start = start + length
+            start = start + length / 2
+            length = (length + length % 2) / 2
+        if leftover:
+            f.write('%d gate OR %d %d\n' % (start + length / 2,
+                                            start - 1,
+                                            leftover))
+            start = start + 1
         f.write('%d output NOT %d\n' % (start, start - 1))
 
 if __name__ == '__main__':
