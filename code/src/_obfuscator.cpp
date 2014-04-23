@@ -407,7 +407,7 @@ obf_setup(PyObject *self, PyObject *args)
     {
         mpz_t zk;
         mpz_init_set_ui(zk, 1);
-        // compute z^k
+        // compute z^k mod x0
         for (int i = 0; i < g_nzs; ++i) {
             mpz_mul(zk, zk, zs[i]);
             mpz_mod(zk, zk, g_x0);
@@ -890,7 +890,8 @@ init_obfuscator(void)
 
     (void) Py_InitModule("_obfuscator", ObfMethods);
 
-    if ((file = open("/dev/random", O_RDONLY)) == -1) {
+    // XXX: Use of /dev/urandom not secure!
+    if ((file = open("/dev/urandom", O_RDONLY)) == -1) {
         (void) fprintf(stderr, "Error opening /dev/random\n");
         goto cleanup;
     }
@@ -899,7 +900,7 @@ init_obfuscator(void)
         goto cleanup;
     }
 
-    // fprintf(stderr, "SEED = %lu\n", seed);
+    fprintf(stderr, "SEED = %lu\n", seed);
 
     gmp_randinit_default(g_rng);
     gmp_randseed_ui(g_rng, seed);
