@@ -5,7 +5,7 @@ To run, you'll need sage, openmp, and libgmp installed.
 
 To build, run (only works for python2.7)
 
-> python setup.py test
+> python setup.py build
 
 If this succeeds, you should now be able to cd into `build/lib` and run
 
