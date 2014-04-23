@@ -12,7 +12,7 @@
 // Use CLT optimization of generating "small" primes and multiplying them
 // together to get the resulting "prime"
 //
-#define FASTPRIMES
+// #define FASTPRIMES
 
 #define SUCCESS 1
 #define FAILURE 0
