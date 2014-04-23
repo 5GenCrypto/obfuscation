@@ -12,7 +12,13 @@
 // Use CLT optimization of generating "small" primes and multiplying them
 // together to get the resulting "prime"
 //
-// #define FASTPRIMES
+#ifndef FASTPRIMES
+#  define FASTPRIMES 1
+#endif
+
+#if FASTPRIMES
+#  warning "Compiling with FASTPRIMES enabled"
+#endif
 
 #define SUCCESS 1
 #define FAILURE 0
@@ -292,7 +298,7 @@ obf_setup(PyObject *self, PyObject *args)
     mpz_t *ps, *zs;
     PyObject *py_gs;
     double start, end;
-#ifdef FASTPRIMES
+#if FASTPRIMES
     long niter;
 #endif
 
@@ -329,10 +335,8 @@ obf_setup(PyObject *self, PyObject *args)
 
     // generate p_i's and g_i's, as well as compute x0
 
-    // XXX: implement CLT optimization for generating these primes faster
-
     start = current_time();
-#ifdef FASTPRIMES
+#if FASTPRIMES
     niter = eta / alpha;
 #endif
 #pragma omp parallel for
@@ -342,7 +346,9 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_init(p_unif);
         mpz_init(p_tmp);
 
-#ifdef FASTPRIMES
+#if FASTPRIMES
+        // XXX: the CLT trick does not seem to work for security parameters
+        // below 32 (i.e., evaluation fails)
         mpz_set_ui(ps[i], 1);
         for (int j = 0; j < niter; ++j) {
             long psize = j < (niter - 1)

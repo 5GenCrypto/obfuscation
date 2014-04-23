@@ -6,6 +6,8 @@ __name__ = 'ind_obfuscation'
 __author__ = 'Alex J. Malozemoff'
 __version__ = '1.0a1.dev'
 
+fastprimes = False
+
 obfuscator = Extension(
     'indobf._obfuscator',
     libraries = [
@@ -16,6 +18,7 @@ obfuscator = Extension(
         '-fopenmp',
         '-ggdb',
         '-Wall',
+        '-DFASTPRIMES=%d' % fastprimes,
     ],
     sources = [
         'src/_obfuscator.cpp',
@@ -33,9 +36,6 @@ setup(name = __name__,
       packages = ['indobf', 'circuits'],
       ext_modules = [obfuscator],
       test_suite = 'unittests',
-      # entry_points = {
-      #     'console_scripts': ['indobf = indobf.run:main']
-      # },
       classifiers = [
           'Topic :: Security :: Cryptography',
           'Environment :: Console',
