@@ -575,8 +575,6 @@ obf_encode_vectors(PyObject *self, PyObject *args)
         return NULL;
     (void) extract_indices(py_list, &idx1, &idx2);
 
-    start = current_time();
-
     // We assume that all vectors are the same size, and thus just grab the size
     // of the first vector
     size = PyList_GET_SIZE(PyList_GET_ITEM(py_vectors, 0));
@@ -584,12 +582,16 @@ obf_encode_vectors(PyObject *self, PyObject *args)
     if (vector == NULL)
         return NULL;
 
+    start = current_time();
 #pragma omp parallel for
     for (Py_ssize_t i = 0; i < size; ++i) {
         mpz_init(vector[i]);
         encode(vector[i], py_vectors, i, idx1, idx2);
     }
+    end = current_time();
+    fprintf(stderr, "  Encoding %ld-size vector: %f seconds\n", size, end - start);
 
+    start = current_time();
     {
         int fnamelen = strlen(g_dir) + strlen(name) + 2;
         char *fname = (char *) mymalloc(sizeof(char) * fnamelen);
@@ -601,15 +603,15 @@ obf_encode_vectors(PyObject *self, PyObject *args)
             free(fname);
         }
     }
+    end = current_time();
+    fprintf(stderr, "  Saving to file: %f seconds\n", end - start);
+
 
     for (Py_ssize_t i = 0; i < size; ++i) {
         mpz_clear(vector[i]);
     }
     free(vector);
 
-    end = current_time();
-
-    fprintf(stderr, "  Encoding %ld-size vector: %f seconds\n", size, end - start);
 
     if (err)
         return NULL;
@@ -906,6 +908,7 @@ init_obfuscator(void)
         goto cleanup;
     }
 
+    seed = 17785509081853966106UL;
     fprintf(stderr, "SEED = %lu\n", seed);
 
     gmp_randinit_default(g_rng);
