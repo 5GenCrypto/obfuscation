@@ -360,9 +360,9 @@ obf_setup(PyObject *self, PyObject *args)
         // XXX: not uniform primes
         mpz_urandomb(p_unif, g_rng, alpha);
         mpz_nextprime(g_gs[i], p_unif);
-        PyList_SetItem(py_gs, i, mpz_to_py(g_gs[i]));
 #pragma omp critical
         {
+            PyList_SetItem(py_gs, i, mpz_to_py(g_gs[i]));
             mpz_mul(g_x0, g_x0, ps[i]);
         }
         mpz_clear(p_unif);
