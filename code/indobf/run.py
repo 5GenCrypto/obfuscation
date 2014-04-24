@@ -38,19 +38,21 @@ def obf(args):
     if args.test_circuit:
         test_circuit(args.test_circuit, bpclass, obfclass, True, args)
     else:
-        obf = obfclass(verbose=args.verbose)
+        obf = obfclass(verbose=args.verbose, use_small_params=args.small_params,
+                       use_fast_prime_gen=(not args.slow_prime_gen))
+        directory = args.load_obf
         if args.load_obf:
-            print("Loading obfuscation from '%s'..." % args.load_obf)
+            print("Loading obfuscation from '%s'..." % directory)
             start = time.time()
-            obf.load(args.load_obf)
+            obf.load(directory)
             end = time.time()
-            print("Loading took: %f seconds" % (end - start))
+            print("Took: %f seconds" % (end - start))
         elif args.load_circuit:
             print("Converting '%s' -> bp..." % args.load_circuit)
-            bp = bpclass(args.load_circuit, type='circuit')
+            bp = bpclass(args.load_circuit, verbose=args.verbose)
             print('Obfuscating BP of length %d...' % len(bp))
             start = time.time()
-            obf.obfuscate(bp, args.secparam)
+            obf.obfuscate(bp, args.secparam, directory)
             end = time.time()
             print("Obfuscation took: %f seconds" % (end - start))
         else:
@@ -64,22 +66,22 @@ def obf(args):
         if args.eval is not None:
             print("Evaluating on input '%s'..." % args.eval)
             start = time.time()
-            r = obf.evaluate(args.eval)
+            r = obf.evaluate(directory, args.eval)
             print('Output = %d' % r)
             end = time.time()
             print("Evalution took: %f seconds" % (end - start))
 
-def test(args):
-    assert False                # XXX: not fixed up yet!
-    paths = ['not.circ', 'and.circ', 'twoands.circ']
-    params = TestParams(obliviate=False, obfuscate=True, fast=True)
-    secparams = [8, 16, 24, 28, 32, 40]
-    for path in paths:
-        path = 'circuits/%s' % path
-        print('Testing circuit "%s"' % path)
-        for secparam in secparams:
-            print('Security parameter = %d' % secparam)
-            test_circuit(path, secparam, False, params)
+# def test(args):
+#     assert False                # XXX: not fixed up yet!
+#     paths = ['not.circ', 'and.circ', 'twoands.circ']
+#     params = TestParams(obliviate=False, obfuscate=True, fast=True)
+#     secparams = [8, 16, 24, 28, 32, 40]
+#     for path in paths:
+#         path = 'circuits/%s' % path
+#         print('Testing circuit "%s"' % path)
+#         for secparam in secparams:
+#             print('Security parameter = %d' % secparam)
+#             test_circuit(path, secparam, False, params)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -125,17 +127,19 @@ def main():
                              action='store', default=8, help="security parameter")
     parser_obf.add_argument('--no-layered', action='store_true',
                             help='use standard branching programs instead of the layered variant')
-    parser_obf.add_argument('--fast', action='store_true',
+    parser_obf.add_argument('--small-params', action='store_true', default=False,
                              help='use smaller parameters so things run faster')
+    parser_obf.add_argument('--slow-prime-gen', action='store_true', default=False,
+                             help='do not use the CLT13 optimization for generating primes fast')
     parser_obf.add_argument('-v', '--verbose', action='store_true',
                             help='be verbose')
     parser_obf.set_defaults(func=obf)
 
-    parser_test = subparsers.add_parser(
-        'test',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help='run test suite')
-    parser_test.set_defaults(func=test)
+    # parser_test = subparsers.add_parser(
+    #     'test',
+    #     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    #     help='run test suite')
+    # parser_test.set_defaults(func=test)
 
     args = parser.parse_args()
     args.func(args)

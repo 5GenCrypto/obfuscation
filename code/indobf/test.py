@@ -34,12 +34,9 @@ def test_circuit(path, bpclass, obfclass, obfuscate, args):
     #     bp.obliviate()
     success = True
     if obfuscate:
-        kwargs = {
-            'verbose': args.verbose,
-            'fast': args.fast,
-        }
-        obf = obfclass(**kwargs)
-        directory = '%s.obf' % path
+        obf = obfclass(verbose=args.verbose, use_small_params=args.small_params,
+                       use_fast_prime_gen=(not args.slow_prime_gen))
+        directory = '%s.obf.%d' % (path, args.secparam)
         obf.obfuscate(bp, args.secparam, directory)
         for k, v in testcases.items():
             if obf.evaluate(directory, k) != v:

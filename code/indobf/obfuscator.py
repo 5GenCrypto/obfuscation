@@ -38,19 +38,23 @@ class AbstractObfuscator(object):
         self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
         assert self.nu >= self.alpha + self.beta + 5
-        if self._fast:
+        if self._use_small_params:
             self.n = self.eta
         else:
             self.n = int(self.eta * np.log2(self.secparam))
         self._print_params()
 
-    def __init__(self, verbose=False, fast=False):
+    def __init__(self, verbose=False, use_small_params=False,
+                 use_fast_prime_gen=True):
         self.obfuscation = None
         self._verbose = verbose
-        self._fast = fast
+        self._use_small_params = use_small_params
+        self._use_fast_prime_gen = use_fast_prime_gen
         self.logger = utils.make_logger(self._verbose)
-        if self._fast:
-            self.logger('* Using small parameters for speed')
+        if self._use_small_params:
+            self.logger('* Using small (and *insecure*) parameters for speed')
+        if self._use_fast_prime_gen:
+            self.logger('* Using CLT13 prime generation')
 
     def _gen_mlm_params(self, size, nzs, directory):
         self.logger('Generating MLM parameters...')
@@ -58,7 +62,8 @@ class AbstractObfuscator(object):
         if not os.path.exists(directory):
             os.mkdir(directory)
         primes = _obf.setup(size, self.n, self.alpha, self.beta, self.eta,
-                            self.nu, self.rho, nzs, directory)
+                            self.nu, self.rho, nzs, directory,
+                            self._use_fast_prime_gen)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
         return primes

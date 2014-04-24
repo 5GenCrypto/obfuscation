@@ -6,8 +6,6 @@ __name__ = 'ind_obfuscation'
 __author__ = 'Alex J. Malozemoff'
 __version__ = '1.0a1.dev'
 
-fastprimes = False
-
 obfuscator = Extension(
     'indobf._obfuscator',
     libraries = [
@@ -18,7 +16,6 @@ obfuscator = Extension(
         '-fopenmp',
         '-ggdb',
         '-Wall',
-        '-DFASTPRIMES=%d' % fastprimes,
     ],
     sources = [
         'src/_obfuscator.cpp',

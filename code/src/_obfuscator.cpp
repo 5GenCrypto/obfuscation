@@ -8,18 +8,6 @@
 
 #include "mpz_pylong.h"
 
-//
-// Use CLT optimization of generating "small" primes and multiplying them
-// together to get the resulting "prime"
-//
-#ifndef FASTPRIMES
-#  define FASTPRIMES 1
-#endif
-
-#if FASTPRIMES
-#  warning "Compiling with FASTPRIMES enabled"
-#endif
-
 #define SUCCESS 1
 #define FAILURE 0
 
@@ -296,14 +284,13 @@ obf_setup(PyObject *self, PyObject *args)
 {
     long alpha, beta, eta, size;
     mpz_t *ps, *zs;
-    PyObject *py_gs;
+    PyObject *py_gs, *py_fastprimes;
     double start, end;
-#if FASTPRIMES
     long niter;
-#endif
+    int use_fastprimes;
 
-    if (!PyArg_ParseTuple(args, "lllllllls", &size, &g_n, &alpha,
-                          &beta, &eta, &g_nu, &g_rho, &g_nzs, &g_dir))
+    if (!PyArg_ParseTuple(args, "llllllllsO", &size, &g_n, &alpha, &beta, &eta,
+                          &g_nu, &g_rho, &g_nzs, &g_dir, &py_fastprimes))
         return NULL;
 
     // initialization
@@ -320,11 +307,15 @@ obf_setup(PyObject *self, PyObject *args)
     if (!py_gs)
         goto error;
 
+    use_fastprimes = PyObject_IsTrue(py_fastprimes);
+    if (use_fastprimes == -1)
+        goto error;
+
     mpz_init_set_ui(g_x0, 1);
     mpz_init_set_ui(g_pzt, 0);
 
     for (int i = 0; i < g_n; ++i) {
-        mpz_init(ps[i]);
+        mpz_init_set_ui(ps[i], 1);
         mpz_init(g_gs[i]);
         mpz_init(g_crt_coeffs[i]);
     }
@@ -336,9 +327,15 @@ obf_setup(PyObject *self, PyObject *args)
     // generate p_i's and g_i's, as well as compute x0
 
     start = current_time();
-#if FASTPRIMES
-    niter = eta / alpha;
-#endif
+    if (use_fastprimes) {
+        if (alpha < 32) {
+            fprintf(stderr, "WARNING: using fastprimes may not work for low security parameters\n");
+        }
+        niter = eta / alpha;
+        if (eta % alpha != 0) {
+            fprintf(stderr, "WARNING: eta % alpha should be 0\n");
+        }
+    }
 #pragma omp parallel for
     for (int i = 0; i < g_n; ++i) {
         mpz_t p_unif;
@@ -346,23 +343,24 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_init(p_unif);
         mpz_init(p_tmp);
 
-#if FASTPRIMES
-        // XXX: the CLT trick does not seem to work for security parameters
-        // below 32 (i.e., evaluation fails)
-        mpz_set_ui(ps[i], 1);
-        for (int j = 0; j < niter; ++j) {
-            long psize = j < (niter - 1)
-                             ? alpha
-                             : eta - alpha * (niter - 1);
-            mpz_urandomb(p_unif, g_rng, psize);
-            mpz_nextprime(p_tmp, p_unif);
-            mpz_mul(ps[i], ps[i], p_tmp);
+        if (use_fastprimes) {
+            //
+            // Use CLT optimization of generating "small" primes and multiplying
+            // them together to get the resulting "prime"
+            //
+            for (int j = 0; j < niter; ++j) {
+                long psize = j < (niter - 1)
+                                 ? alpha
+                                 : eta - alpha * (niter - 1);
+                mpz_urandomb(p_unif, g_rng, psize);
+                mpz_nextprime(p_tmp, p_unif);
+                mpz_mul(ps[i], ps[i], p_tmp);
+            }
+        } else {
+            // XXX: not uniform primes
+            mpz_urandomb(p_unif, g_rng, eta);
+            mpz_nextprime(ps[i], p_unif);
         }
-#else
-        // XXX: not uniform primes
-        mpz_urandomb(p_unif, g_rng, eta);
-        mpz_nextprime(ps[i], p_unif);
-#endif /* FASTPRIMES */
         // XXX: not uniform primes
         mpz_urandomb(p_unif, g_rng, alpha);
         mpz_nextprime(g_gs[i], p_unif);
