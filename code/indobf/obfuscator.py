@@ -139,6 +139,9 @@ class AbstractObfuscator(object):
         self.logger('Evaluating %s took: %f seconds' % (inp, end - start))
         return result
 
+    def encode_benchmark(self):
+        _obf.encode_benchmark()
+
 class Obfuscator(AbstractObfuscator):
     def __init__(self, **kwargs):
         super(Obfuscator, self).__init__(**kwargs)

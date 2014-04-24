@@ -30,8 +30,8 @@ def test_circuit(path, bpclass, obfclass, obfuscate, args):
         print('\x1b[33mParse Error:\x1b[0m %s' % e)
         return False
     program = bp
-    # if args.obliviate:
-    #     bp.obliviate()
+    if args.obliviate:
+        bp.obliviate()
     success = True
     if obfuscate:
         obf = obfclass(verbose=args.verbose, use_small_params=args.small_params,
@@ -42,6 +42,7 @@ def test_circuit(path, bpclass, obfclass, obfuscate, args):
             if obf.evaluate(directory, k) != v:
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
                 success = False
+        obf.encode_benchmark()
     else:
         prime = random_prime(2 ** args.secparam - 1)
         bp.randomize(prime)

@@ -103,6 +103,9 @@ def main():
                            help='test circuit -> bp conversion')
     parser_bp.add_argument('--secparam', metavar='N', type=int,
                            action='store', default=8, help="security parameter")
+
+    parser_bp.add_argument('--obliviate', action='store_true',
+                           help='obliviate the branching program')
     parser_bp.add_argument('--no-layered', action='store_true',
                            help='use standard branching programs instead of the layered variant')
     parser_bp.add_argument('-v', '--verbose', action='store_true',
@@ -125,13 +128,16 @@ def main():
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int,
                              action='store', default=8, help="security parameter")
+
+    parser_obf.add_argument('--obliviate', action='store_true',
+                            help='obliviate the branching program')
     parser_obf.add_argument('--no-layered', action='store_true',
                             help='use standard branching programs instead of the layered variant')
-    parser_obf.add_argument('--small-params', action='store_true', default=False,
+    parser_obf.add_argument('--small-params', action='store_true',
                              help='use smaller parameters so things run faster')
-    parser_obf.add_argument('--slow-prime-gen', action='store_true', default=False,
+    parser_obf.add_argument('--slow-prime-gen', action='store_true',
                              help='do not use the CLT13 optimization for generating primes fast')
-    parser_obf.add_argument('-v', '--verbose', action='store_true',
+    parser_obf.add_argument('-v', '--verbose', action='store_true', 
                             help='be verbose')
     parser_obf.set_defaults(func=obf)
 

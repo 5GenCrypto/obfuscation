@@ -876,6 +876,47 @@ obf_evaluate(PyObject *self, PyObject *args)
         return Py_BuildValue("i", iszero ? 0 : 1);
 }
 
+static PyObject *
+obf_encode_benchmark(PyObject *self, PyObject *args)
+{
+    mpz_t r, tmp, out;
+    double start, end;
+
+    mpz_init(r);
+    mpz_init(tmp);
+    mpz_init(out);
+
+    start = current_time();
+
+    mpz_init_set_ui(out, 0);
+
+    for (long i = 0; i < g_n; ++i) {
+        mpz_genrandom(r, g_rho);
+        mpz_mul(tmp, r, g_gs[i]);
+        if (i == 0) {
+            mpz_genrandom(r, g_rho);
+            mpz_add(tmp, tmp, r);
+        }
+        mpz_mul(tmp, tmp, g_crt_coeffs[i]);
+        mpz_add(out, out, tmp);
+    }
+    mpz_mod(out, out, g_x0);
+    mpz_mul(out, out, g_zinvs[0]);
+    mpz_mod(out, out, g_x0);
+    mpz_mul(out, out, g_zinvs[0]);
+    mpz_mod(out, out, g_x0);
+
+    end = current_time();
+
+    fprintf(stderr, "Encoding a single element takes: %f seconds\n", end - start);
+
+    mpz_clear(r);
+    mpz_clear(tmp);
+    mpz_clear(out);
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef
 ObfMethods[] = {
     {"setup", obf_setup, METH_VARARGS,
@@ -886,6 +927,8 @@ ObfMethods[] = {
      "Encode a vector in each slot."},
     {"encode_layers", obf_encode_layers, METH_VARARGS,
      "Encode a branching program layer in each slot."},
+    {"encode_benchmark", obf_encode_benchmark, METH_VARARGS,
+     "Output how long it takes to encode a single element."},
     {"evaluate", obf_evaluate, METH_VARARGS,
      "evaluate the obfuscation."},
     {NULL, NULL, 0, NULL}
