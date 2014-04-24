@@ -328,13 +328,16 @@ obf_setup(PyObject *self, PyObject *args)
 
     start = current_time();
     if (use_fastprimes) {
-        if (alpha < 32) {
-            fprintf(stderr, "WARNING: using fastprimes may not work for low security parameters\n");
+        if (alpha < 24) {
+            fprintf(stderr, "\x1b[33mWARNING\x1b[0m: "
+                    "using CLT13 fast prime generation may not work for "
+                    "security parameters below 24\n");
         }
         niter = eta / alpha;
-        if (eta % alpha != 0) {
-            fprintf(stderr, "WARNING: eta % alpha should be 0\n");
-        }
+        // if (eta % alpha != 0) {
+        //     fprintf(stderr, "\x1b[33mWARNING\x1b[0m: "
+        //             "eta %% alpha should be 0\n");
+        // }
     }
 #pragma omp parallel for
     for (int i = 0; i < g_n; ++i) {
