@@ -10,7 +10,7 @@ import argparse, os, sys, time
 
 def bp(args):
     testdir = 'circuits'
-    if args.no_layered:
+    if args.old:
         bpclass = BranchingProgram
     else:
         bpclass = LayeredBranchingProgram
@@ -31,7 +31,7 @@ def bp(args):
 
 def obf(args):
     from obfuscator import Obfuscator, LayeredObfuscator
-    if args.no_layered:
+    if args.old:
         bpclass = BranchingProgram
         obfclass = Obfuscator
     else:
@@ -97,10 +97,11 @@ def main():
         help='commands for circuit -> branching program conversion')
     parser_bp.add_argument('--eval', metavar='INPUT', type=str, action='store',
                            help='evaluate branching program on INPUT')
-    parser_bp.add_argument('--load-circuit', metavar='FILE', type=str, action='store',
-                           help='load circuit from FILE')
-    parser_bp.add_argument('--test-circuit', metavar='FILE', type=str, action='store',
-                           help='test FILE circuit -> bp conversion')
+    parser_bp.add_argument('--load-circuit', metavar='FILE', type=str,
+                           action='store', help='load circuit from FILE')
+    parser_bp.add_argument('--test-circuit', metavar='FILE', type=str,
+                           action='store', help='test FILE circuit -> bp
+                           conversion')
     parser_bp.add_argument('--test-all', action='store_true',
                            help='test circuit -> bp conversion')
     parser_bp.add_argument('--secparam', metavar='N', type=int,
@@ -108,8 +109,8 @@ def main():
 
     parser_bp.add_argument('--obliviate', action='store_true',
                            help='obliviate the branching program')
-    parser_bp.add_argument('--no-layered', action='store_true',
-                           help='use standard branching programs instead of the layered variant')
+    parser_bp.add_argument('--old', action='store_true',
+                           help='use standard branching programs instead of the relaxed variant')
     parser_bp.add_argument('-v', '--verbose', action='store_true',
                            help='be verbose')
     parser_bp.set_defaults(func=bp)
@@ -133,8 +134,8 @@ def main():
 
     parser_obf.add_argument('--obliviate', action='store_true',
                             help='obliviate the branching program')
-    parser_obf.add_argument('--no-layered', action='store_true',
-                            help='use standard branching programs instead of the layered variant')
+    parser_obf.add_argument('--old', action='store_true',
+                            help='use standard branching programs instead of the relaxed variant')
     parser_obf.add_argument('--small-params', action='store_true',
                              help='use smaller parameters so things run faster')
     parser_obf.add_argument('--slow-prime-gen', action='store_true',

@@ -80,8 +80,7 @@ class AbstractBranchingProgram(object):
                 newbp.append(Layer(i, self.zero, self.zero))
         assert len(newbp) == ms_needed
         self.bp = newbp
-    # def obliviate(self):
-    #     raise NotImplementedError
+
     def randomize(self, prime):
         raise NotImplementedError
     def evaluate(self, inp):

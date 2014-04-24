@@ -172,16 +172,20 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
         if not output:
             raise ParseException("no output gate found")
         self.graph = bp[-1]
+        self._obliviate_graph(self.graph)
         self.size = len(self.graph.graph)
         self._to_relaxed_matrix_bp(self.graph)
+
+    def _obliviate_graph(self, graph):
+        graph.graph.add_node(('dummy', 0))
 
     def _to_relaxed_matrix_bp(self, graph):
         # convert graph to a topological sorting of the vertices, with the
         # accept node coming last
         nodes = nx.topological_sort(graph.graph)
-        if nodes.index(('acc', graph.num)) != len(nodes) - 1:
-            a = nodes.index(('acc', graph.num))
-            b = nodes.index(('rej', graph.num))
+        a = nodes.index(('acc', graph.num))
+        b = nodes.index(('rej', graph.num))
+        if a < b:
             nodes[b], nodes[a] = nodes[a], nodes[b]
         mapping = dict(zip(nodes, range(self.size)))
         g = nx.relabel_nodes(graph.graph, mapping)
