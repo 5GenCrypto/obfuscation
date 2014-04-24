@@ -13,6 +13,7 @@
 
 // XXX: these are never cleaned up
 static gmp_randstate_t g_rng;
+static long g_secparam;
 static long g_n;
 static long g_nzs;
 static long g_rho;
@@ -192,8 +193,10 @@ encode(mpz_t out, const PyObject *in, const long row, const long idx1,
     for (long i = 0; i < g_n; ++i) {
         mpz_genrandom(r, g_rho);
         mpz_mul(tmp, r, g_gs[i]);
-        py_to_mpz(r, PyList_GET_ITEM(PyList_GET_ITEM(in, i), row));
-        mpz_add(tmp, tmp, r);
+        if (i < g_secparam) {
+            py_to_mpz(r, PyList_GET_ITEM(PyList_GET_ITEM(in, i), row));
+            mpz_add(tmp, tmp, r);
+        }
         mpz_mul(tmp, tmp, g_crt_coeffs[i]);
         mpz_add(out, out, tmp);
     }
@@ -289,8 +292,9 @@ obf_setup(PyObject *self, PyObject *args)
     long niter;
     int use_fastprimes;
 
-    if (!PyArg_ParseTuple(args, "llllllllsO", &size, &g_n, &alpha, &beta, &eta,
-                          &g_nu, &g_rho, &g_nzs, &g_dir, &py_fastprimes))
+    if (!PyArg_ParseTuple(args, "lllllllllsO", &g_secparam, &size, &g_n, &alpha,
+                          &beta, &eta, &g_nu, &g_rho, &g_nzs, &g_dir,
+                          &py_fastprimes))
         return NULL;
 
     // initialization
@@ -550,7 +554,7 @@ obf_encode_scalars(PyObject *self, PyObject *args)
 
     end = current_time();
 
-    fprintf(stderr, "  Encoding scalar: %f seconds\n", end - start);
+    fprintf(stderr, "  Encoding one element: %f seconds\n", end - start);
 
     if (err) {
         return NULL;
@@ -590,7 +594,7 @@ obf_encode_vectors(PyObject *self, PyObject *args)
         encode(vector[i], py_vectors, i, idx1, idx2);
     }
     end = current_time();
-    fprintf(stderr, "  Encoding %ld-size vector: %f seconds\n", size, end - start);
+    fprintf(stderr, "  Encoding %ld elements: %f seconds\n", size, end - start);
 
     start = current_time();
     {
@@ -702,7 +706,7 @@ obf_encode_layers(PyObject *self, PyObject *args)
 
     end = current_time();
 
-    fprintf(stderr, "  Encoding %ld-size layer: %f seconds\n", size, end - start);
+    fprintf(stderr, "  Encoding %ld elements: %f seconds\n", 2 * size, end - start);
 
     if (err)
         Py_RETURN_FALSE;

@@ -56,31 +56,32 @@ class AbstractObfuscator(object):
         if self._use_fast_prime_gen:
             self.logger('* Using CLT13 prime generation')
 
-    def _gen_mlm_params(self, size, nzs, directory):
+    def _gen_mlm_params(self, secparam, size, nzs, directory):
         self.logger('Generating MLM parameters...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        primes = _obf.setup(size, self.n, self.alpha, self.beta, self.eta,
-                            self.nu, self.rho, nzs, directory,
+        primes = _obf.setup(secparam, size, self.n, self.alpha, self.beta,
+                            self.eta, self.nu, self.rho, nzs, directory,
                             self._use_fast_prime_gen)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
         return primes
 
-    def _randomize(self, bp, primes, islayered):
+    def _randomize(self, secparam, bp, primes, islayered):
         self.logger('Randomizing BPs...')
+        num = secparam
         start = time.time()
-        bps = [copy.deepcopy(bp) for _ in xrange(self.n)]
+        bps = [copy.deepcopy(bp) for _ in xrange(num)]
         if islayered:
             alphas = None
-            for bp, prime in zip(bps, primes):
+            for bp, prime in zip(bps, primes[:num]):
                 bp.randomize(prime)
         else:
-            Rs = [Zmod(prime) for prime in primes]
+            Rs = [Zmod(prime) for prime in primes[:num]]
             alphas = [[(R.random_element(), R.random_element()) for _ in
                        xrange(len(bp))] for bp, R in zip(bps, Rs)]
-            for bp, prime, alpha in zip(bps, primes, alphas):
+            for bp, prime, alpha in zip(bps, primes[:num], alphas):
                 bp.randomize(prime, alphas=alpha)
         end = time.time()
         self.logger('Took: %f seconds' % (end - start))
@@ -120,8 +121,8 @@ class AbstractObfuscator(object):
         self._set_params(secparam, kappa)
         self.logger('  Number of Zs: %d' % nzs)
         self.logger('  Size: %d' % size)
-        primes = self._gen_mlm_params(size, nzs, directory)
-        bps, alphas = self._randomize(bp, primes, islayered)
+        primes = self._gen_mlm_params(secparam, size, nzs, directory)
+        bps, alphas = self._randomize(secparam, bp, primes, islayered)
         if not islayered:
             self._construct_multiplicative_constants(bps, alphas)
         self._construct_bookend_vectors(bps, primes, nzs)
