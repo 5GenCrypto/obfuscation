@@ -12,6 +12,8 @@ class AbstractBranchingProgram(object):
     def __init__(self, verbose=False):
         self._verbose = verbose
         self.logger = utils.make_logger(self._verbose)
+        self.n_inputs = None
+        self.depth = None
         self.bp = None
         self.randomized = False
     def __len__(self):
@@ -24,6 +26,25 @@ class AbstractBranchingProgram(object):
         return self.bp[i]
     def __repr__(self):
         return repr(self.bp)
+
+    def _parse_param(self, line):
+        try:
+            _, param, value = line.split()
+        except ValueError:
+            raise ParseException("Invalid line '%s'" % line)
+        param = param.lower()
+        try:
+            value = int(value)
+        except ValueError:
+            raise ParseException("Invalid value '%s'" % value)
+        if param == 'nins':
+            self.n_inputs = value
+        elif param == 'depth':
+            self.depth = value
+        else:
+            raise ParseException("Invalid parameter '%s'" % param)
+
+
 
     def set_straddling_sets(self):
         inpdir = {}
@@ -44,11 +65,27 @@ class AbstractBranchingProgram(object):
         return n
 
     def obliviate(self):
-        raise NotImplemented()
+        assert self.n_inputs and self.depth
+        assert not self.randomized
+        newbp = []
+        for m in self.bp:
+            for i in xrange(self.n_inputs):
+                if m.inp == i:
+                    newbp.append(m)
+                else:
+                    newbp.append(Layer(i, self.zero, self.zero))
+        ms_needed = (4 ** self.depth) * self.n_inputs
+        for _ in xrange((ms_needed - len(newbp)) // self.n_inputs):
+            for i in xrange(self.n_inputs):
+                newbp.append(Layer(i, self.zero, self.zero))
+        assert len(newbp) == ms_needed
+        self.bp = newbp
+    # def obliviate(self):
+    #     raise NotImplementedError
     def randomize(self, prime):
-        raise NotImplemented()
+        raise NotImplementedError
     def evaluate(self, inp):
-        raise NotImplemented()
+        raise NotImplementedError
 
 _group = groups.S6()
 
@@ -132,23 +169,6 @@ class BranchingProgram(AbstractBranchingProgram):
             raise ParseException("XOR gates not supported for S5 group")
         return flatten([in1, in2])
 
-    def _parse_param(self, line):
-        try:
-            _, param, value = line.split()
-        except ValueError:
-            raise ParseException("Invalid line '%s'" % line)
-        param = param.lower()
-        try:
-            value = int(value)
-        except ValueError:
-            raise ParseException("Invalid value '%s'" % value)
-        if param == 'nins':
-            self.n_inputs = value
-        elif param == 'depth':
-            self.depth = value
-        else:
-            raise ParseException("Invalid parameter '%s'" % param)
-
     def _load_circuit(self, fname):
         bp = []
         gates = {
@@ -188,23 +208,6 @@ class BranchingProgram(AbstractBranchingProgram):
         if not output:
             raise ParseException("no output gate found")
         self.bp = bp[-1]
-
-    def obliviate(self):
-        assert self.n_inputs and self.depth
-        assert not self.randomized
-        newbp = []
-        for m in self.bp:
-            for i in xrange(self.n_inputs):
-                if m.inp == i:
-                    newbp.append(m)
-                else:
-                    newbp.append(Layer(i, self.zero, self.zero))
-        ms_needed = (4 ** self.depth) * self.n_inputs
-        for _ in xrange((ms_needed - len(newbp)) // self.n_inputs):
-            for i in xrange(self.n_inputs):
-                newbp.append(Layer(i, self.zero, self.zero))
-        assert len(newbp) == ms_needed
-        self.bp = newbp
 
     def randomize(self, prime, alphas=None):
         assert not self.randomized

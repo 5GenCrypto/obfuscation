@@ -7,8 +7,6 @@ from sage.all import copy, GF, MatrixSpace, VectorSpace, ZZ
 from branchingprogram import AbstractBranchingProgram, ParseException, Layer
 import utils
 
-from pprint import pprint
-
 class _Graph(object):
     def __init__(self, inp, graph, nlayers, num):
         self.inp = inp
@@ -44,6 +42,7 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
         super(LayeredBranchingProgram, self).__init__(verbose=verbose)
         self.graph = None
         self.size = None
+        self.zero = None
         self.nlayers = 0
         self._load_formula(fname)
 
@@ -141,7 +140,10 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
         output = False
         with open(fname) as f:
             for line in f:
-                if line.startswith('#') or line.startswith(':'):
+                if line.startswith('#'):
+                    continue
+                elif line.startswith(':'):
+                    self._parse_param(line)
                     continue
                 num, rest = line.split(None, 1)
                 try:
@@ -186,6 +188,7 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
         # convert graph to relaxed matrix BP
         self.bp = []
         G = MatrixSpace(GF(2), self.size)
+        self.zero = G.one()
         for layer in xrange(self.nlayers):
             zero = copy(G.one())
             one = copy(G.one())

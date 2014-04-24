@@ -23,9 +23,11 @@ def bp(args):
                 test_circuit(path, False, args)
     if args.load_circuit:
         bp = bpclass(args.load_circuit, verbose=args.verbose)
-    if args.eval:
-        r = bp.evaluate(args.eval)
-        print('Output = %d' % r)
+        if args.obliviate:
+            bp.obliviate()
+        if args.eval:
+            r = bp.evaluate(args.eval)
+            print('Output = %d' % r)
 
 def obf(args):
     from obfuscator import Obfuscator, LayeredObfuscator
