@@ -44,8 +44,6 @@ class AbstractBranchingProgram(object):
         else:
             raise ParseException("Invalid parameter '%s'" % param)
 
-
-
     def set_straddling_sets(self):
         inpdir = {}
         for layer in self.bp:
@@ -86,7 +84,7 @@ class AbstractBranchingProgram(object):
     def evaluate(self, inp):
         raise NotImplementedError
 
-_group = groups.S6()
+_group = groups.SL3()
 
 def flatten(l):
     return list(itertools.chain(*l))
@@ -104,8 +102,10 @@ class Layer(object):
     def conjugate(self, M, Mi):
         return Layer(self.inp, Mi * self.zero * M, Mi * self.one * M,
                      zeroset=self.zeroset, oneset=self.oneset)
-    def group(self, group):
-        return Layer(self.inp, group(self.zero), group(self.one),
+    def group(self, group, prime):
+        return Layer(self.inp,
+                     _group.mapneg(group(self.zero), prime),
+                     _group.mapneg(group(self.one), prime),
                      zeroset=self.zeroset, oneset=self.oneset)
     def mult_scalar(self, alphas):
         return Layer(self.inp, alphas[0] * self.zero, alphas[1] * self.one,
@@ -221,13 +221,13 @@ class BranchingProgram(AbstractBranchingProgram):
 
         m0, m0i = random_matrix()
         self.zero = m0 * MSZp(self.zero) * m0i
-        self.one = m0 * MSZp(self.one) * m0i
-        self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
+        self.one = m0 * _group.mapneg(MSZp(self.one), prime) * m0i
+        self.bp[0] = self.bp[0].group(MSZp, prime).mult_left(m0)
         for i in xrange(1, len(self.bp)):
             mi, mii = random_matrix()
-            self.bp[i-1] = self.bp[i-1].group(MSZp).mult_right(mii)
-            self.bp[i] = self.bp[i].group(MSZp).mult_left(mi)
-        self.bp[-1] = self.bp[-1].group(MSZp).mult_right(m0i)
+            self.bp[i-1] = self.bp[i-1].group(MSZp, prime).mult_right(mii)
+            self.bp[i] = self.bp[i].group(MSZp, prime).mult_left(mi)
+        self.bp[-1] = self.bp[-1].group(MSZp, prime).mult_right(m0i)
         self.m0, self.m0i = m0, m0i
         self.randomized = True
 

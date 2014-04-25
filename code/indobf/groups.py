@@ -10,6 +10,8 @@ class Group(object):
         self.C = None
         self.Cc = None
         self.conjugates = None
+    def mapneg(self, m, prime):
+        return m
 
 class S5(Group):
     def __init__(self):
@@ -146,6 +148,13 @@ class SL3(Group):
         return 'SL3'
     def __len__(self):
         return 3
+    def mapneg(self, m, prime):
+        for i, row in enumerate(m):
+            for j, elem in enumerate(row):
+                if elem == 2:
+                    m[i,j] = prime - 1
+        return m
+
 
 groupmap = {
     'S5': S5,
