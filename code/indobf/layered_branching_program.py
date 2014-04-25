@@ -219,12 +219,12 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
                 if not m.is_singular() and m.rank() == self.size:
                     return m, m.inverse()
         m0, m0i = random_matrix()
-        self.bp[0] = self.bp[0].group(MSZp).mult_left(m0)
+        self.bp[0] = self.bp[0].group(MSZp, prime).mult_left(m0)
         for i in xrange(1, len(self.bp)):
             mi, mii = random_matrix()
-            self.bp[i-1] = self.bp[i-1].group(MSZp).mult_right(mii)
-            self.bp[i] = self.bp[i].group(MSZp).mult_left(mi)
-        self.bp[-1] = self.bp[-1].group(MSZp).mult_right(m0i)
+            self.bp[i-1] = self.bp[i-1].group(MSZp, prime).mult_right(mii)
+            self.bp[i] = self.bp[i].group(MSZp, prime).mult_left(mi)
+        self.bp[-1] = self.bp[-1].group(MSZp, prime).mult_right(m0i)
         VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), self.size)
         self.e_1 = copy(VSZp.zero())
         self.e_1[0] = 1
