@@ -8,12 +8,15 @@
 
 #include "mpz_pylong.h"
 
+// #define KEEP_IN_MEMORY
+
 #define SUCCESS 1
 #define FAILURE 0
 
 // XXX: these are never cleaned up
 static gmp_randstate_t g_rng;
 static long g_secparam;
+static long g_size;
 static long g_n;
 static long g_nzs;
 static long g_rho;
@@ -276,6 +279,118 @@ is_zero(mpz_t c)
     return ret;
 }
 
+inline static int
+write_setup_params(void)
+{
+    char *fname;
+    int len;
+    mpz_t tmp;
+    double start, end;
+    start = current_time();
+
+    len = strlen(g_dir) + 10;
+
+    fname = (char *) malloc(sizeof(char) * len);
+    if (fname == NULL)
+        return FAILURE;
+
+    mpz_init(tmp);
+
+    // save size
+    mpz_set_ui(tmp, g_size);
+    (void) snprintf(fname, len, "%s/size", g_dir);
+    (void) save_mpz_scalar(fname, tmp);
+    // save nu
+    mpz_set_ui(tmp, g_nu);
+    (void) snprintf(fname, len, "%s/nu", g_dir);
+    (void) save_mpz_scalar(fname, tmp);
+    // save x0
+    (void) snprintf(fname, len, "%s/x0", g_dir);
+    (void) save_mpz_scalar(fname, g_x0);
+    // save pzt
+    (void) snprintf(fname, len, "%s/pzt", g_dir);
+    (void) save_mpz_scalar(fname, g_pzt);
+
+    mpz_clear(tmp);
+
+    free(fname);
+
+    end = current_time();
+    fprintf(stderr, "  Saving to file: %f seconds\n", end - start);
+
+    return SUCCESS;
+}
+
+inline static int
+write_scalar(mpz_t val, char *name)
+{
+    char *fname;
+    int fnamelen;
+    double start, end;
+
+    start = current_time();
+    fnamelen = strlen(g_dir) + strlen(name) + 2;
+    fname = (char *) mymalloc(sizeof(char) * fnamelen);
+    if (fname == NULL)
+        return FAILURE;
+    (void) snprintf(fname, fnamelen, "%s/%s", g_dir, name);
+    (void) save_mpz_scalar(fname, val);
+    free(fname);
+    end = current_time();
+
+    fprintf(stderr, "  Saving to file: %f seconds\n", end - start);
+    return SUCCESS;
+}
+
+inline static int
+write_vector(mpz_t *vector, long size, char *name)
+{
+    char *fname;
+    int fnamelen;
+    double start, end;
+
+    start = current_time();
+    fnamelen = strlen(g_dir) + strlen(name) + 2;
+    fname = (char *) mymalloc(sizeof(char) * fnamelen);
+    if (fname == NULL)
+        return FAILURE;
+    (void) snprintf(fname, fnamelen, "%s/%s", g_dir, name);
+    (void) save_mpz_vector(fname, vector, size);
+    free(fname);
+
+    end = current_time();
+    fprintf(stderr, "  Saving to file: %f seconds\n", end - start);
+    return SUCCESS;
+}
+
+inline static int
+write_layer(int inp, long idx, mpz_t *zero, mpz_t *one, long size)
+{
+    mpz_t z;
+    char *fname;
+    int fnamelen;
+    double start, end;
+
+    start = current_time();
+    fnamelen = strlen(g_dir) + 10;
+    fname = (char *) mymalloc(sizeof(char) * fnamelen);
+    if (fname == NULL)
+        return FAILURE;
+    mpz_init_set_ui(z, inp);
+    (void) snprintf(fname, fnamelen, "%s/%ld.input", g_dir, idx);
+    (void) save_mpz_scalar(fname, z);
+    (void) snprintf(fname, fnamelen, "%s/%ld.zero", g_dir, idx);
+    (void) save_mpz_vector(fname, zero, size);
+    (void) snprintf(fname, fnamelen, "%s/%ld.one", g_dir, idx);
+    (void) save_mpz_vector(fname, one, size);
+    free(fname);
+    mpz_clear(z);
+    end = current_time();
+
+    fprintf(stderr, "  Saving to file: %f seconds\n", end - start);
+    return SUCCESS;
+}
+
 //
 //
 // Python functions
@@ -285,14 +400,14 @@ is_zero(mpz_t c)
 static PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
-    long alpha, beta, eta, size;
+    long alpha, beta, eta;
     mpz_t *ps, *zs;
     PyObject *py_gs, *py_fastprimes;
     double start, end;
     long niter;
     int use_fastprimes;
 
-    if (!PyArg_ParseTuple(args, "lllllllllsO", &g_secparam, &size, &g_n, &alpha,
+    if (!PyArg_ParseTuple(args, "lllllllllsO", &g_secparam, &g_size, &g_n, &alpha,
                           &beta, &eta, &g_nu, &g_rho, &g_nzs, &g_dir,
                           &py_fastprimes))
         return NULL;
@@ -454,42 +569,9 @@ obf_setup(PyObject *self, PyObject *args)
 
     // save size, nu, x0, and pzt to file
 
-    start = current_time();
-    {
-        char *fname;
-        int len;
-        mpz_t tmp;
-
-        len = strlen(g_dir) + 10;
-
-        fname = (char *) malloc(sizeof(char) * len);
-        if (fname == NULL)
-            return NULL;
-
-        mpz_init(tmp);
-
-        // save size
-        mpz_set_ui(tmp, size);
-        (void) snprintf(fname, len, "%s/size", g_dir);
-        (void) save_mpz_scalar(fname, tmp);
-        // save nu
-        mpz_set_ui(tmp, g_nu);
-        (void) snprintf(fname, len, "%s/nu", g_dir);
-        (void) save_mpz_scalar(fname, tmp);
-        // save x0
-        (void) snprintf(fname, len, "%s/x0", g_dir);
-        (void) save_mpz_scalar(fname, g_x0);
-        // save pzt
-        (void) snprintf(fname, len, "%s/pzt", g_dir);
-        (void) save_mpz_scalar(fname, g_pzt);
-
-        mpz_clear(tmp);
-
-        free(fname);
-    }
-    end = current_time();
-
-    fprintf(stderr, "  Saving to file: %f seconds\n", end - start);
+#ifndef KEEP_IN_MEMORY
+    (void) write_setup_params();
+#endif
 
     // cleanup
 
@@ -539,17 +621,11 @@ obf_encode_scalars(PyObject *self, PyObject *args)
 
     mpz_init(val);
     encode(val, py_scalars, 0, idx1, idx2);
-    {
-        int fnamelen = strlen(g_dir) + strlen(name) + 2;
-        char *fname = (char *) mymalloc(sizeof(char) * fnamelen);
-        if (fname == NULL) {
-            err = 1;
-        } else {
-            (void) snprintf(fname, fnamelen, "%s/%s", g_dir, name);
-            (void) save_mpz_scalar(fname, val);
-            free(fname);
-        }
-    }
+#ifdef KEEP_IN_MEMORY
+    // XXX: save val somehow in memory
+#else
+    (void) write_scalar(val, name);
+#endif
     mpz_clear(val);
 
     end = current_time();
@@ -596,21 +672,12 @@ obf_encode_vectors(PyObject *self, PyObject *args)
     end = current_time();
     fprintf(stderr, "  Encoding %ld elements: %f seconds\n", size, end - start);
 
-    start = current_time();
-    {
-        int fnamelen = strlen(g_dir) + strlen(name) + 2;
-        char *fname = (char *) mymalloc(sizeof(char) * fnamelen);
-        if (fname == NULL) {
-            err = 1;
-        } else {
-            (void) snprintf(fname, fnamelen, "%s/%s", g_dir, name);
-            (void) save_mpz_vector(fname, vector, size);
-            free(fname);
-        }
-    }
-    end = current_time();
-    fprintf(stderr, "  Saving to file: %f seconds\n", end - start);
 
+#ifdef KEEP_IN_MEMORY
+    // XXX: save vector in memory
+#else
+    (void) write_vector(vector, size, name);
+#endif
 
     for (Py_ssize_t i = 0; i < size; ++i) {
         mpz_clear(vector[i]);
@@ -678,24 +745,10 @@ obf_encode_layers(PyObject *self, PyObject *args)
         encode(*val, py_array, i, idx1, idx2);
     }
 
-    {
-        mpz_t z;
-        int fnamelen = strlen(g_dir) + 10;
-        char *fname = (char *) mymalloc(sizeof(char) * fnamelen);
-        if (fname == NULL) {
-            err = 1;
-        } else {
-            mpz_init_set_ui(z, inp);
-            (void) snprintf(fname, fnamelen, "%s/%ld.input", g_dir, idx);
-            (void) save_mpz_scalar(fname, z);
-            (void) snprintf(fname, fnamelen, "%s/%ld.zero", g_dir, idx);
-            (void) save_mpz_vector(fname, zero, size);
-            (void) snprintf(fname, fnamelen, "%s/%ld.one", g_dir, idx);
-            (void) save_mpz_vector(fname, one, size);
-            free(fname);
-            mpz_clear(z);
-        }
-    }
+#ifdef KEEP_IN_MEMORY
+    // XXX: save to memory
+#else
+    (void) write_layer(inp, idx, zero, one, size);
 
     for (int i = 0; i < size; ++i) {
         mpz_clear(zero[i]);
@@ -703,6 +756,8 @@ obf_encode_layers(PyObject *self, PyObject *args)
     }
     free(zero);
     free(one);
+#endif
+
 
     end = current_time();
 
@@ -921,6 +976,13 @@ obf_encode_benchmark(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject *
+obf_save(PyObject *self, PyObject *args)
+{
+    // TODO:
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef
 ObfMethods[] = {
     {"setup", obf_setup, METH_VARARGS,
@@ -931,6 +993,8 @@ ObfMethods[] = {
      "Encode a vector in each slot."},
     {"encode_layers", obf_encode_layers, METH_VARARGS,
      "Encode a branching program layer in each slot."},
+    {"save", obf_save, METH_VARARGS,
+     "Write obfuscation to disk."},
     {"encode_benchmark", obf_encode_benchmark, METH_VARARGS,
      "Output how long it takes to encode a single element."},
     {"evaluate", obf_evaluate, METH_VARARGS,

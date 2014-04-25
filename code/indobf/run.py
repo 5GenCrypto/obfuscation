@@ -125,11 +125,11 @@ def main():
     parser_obf.add_argument('--load-circuit', metavar='FILE', type=str, action='store',
                             help='load circuit from FILE and obfuscate')
     parser_obf.add_argument('--test-circuit', metavar='FILE', type=str, action='store',
-                            help='test FILE -> obfuscation')
+                            help='test circuit from FILE')
     parser_obf.add_argument('--save', metavar='DIR', type=str, action='store',
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int,
-                             action='store', default=8, help="security parameter")
+                             action='store', default=8, help='security parameter')
 
     parser_obf.add_argument('--obliviate', action='store_true',
                             help='obliviate the branching program')
