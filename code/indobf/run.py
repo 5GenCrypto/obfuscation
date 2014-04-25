@@ -100,8 +100,7 @@ def main():
     parser_bp.add_argument('--load-circuit', metavar='FILE', type=str,
                            action='store', help='load circuit from FILE')
     parser_bp.add_argument('--test-circuit', metavar='FILE', type=str,
-                           action='store', help='test FILE circuit -> bp
-                           conversion')
+                           action='store', help='test FILE circuit -> bp conversion')
     parser_bp.add_argument('--test-all', action='store_true',
                            help='test circuit -> bp conversion')
     parser_bp.add_argument('--secparam', metavar='N', type=int,
