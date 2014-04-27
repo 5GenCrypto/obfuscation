@@ -13,6 +13,8 @@ class _Graph(object):
         self.graph = graph
         self.nlayers = nlayers
         self.num = num
+    def __len__(self):
+        return len(self.graph)
 
 def relabel(g, num):
     new = [(s, num) for (s, _) in g.nodes()]
@@ -38,13 +40,19 @@ def contract(g, a, b, name):
     return g
 
 class LayeredBranchingProgram(AbstractBranchingProgram):
-    def __init__(self, fname, verbose=False):
+    def __init__(self, fname, verbose=False, obliviate=False):
         super(LayeredBranchingProgram, self).__init__(verbose=verbose)
         self.graph = None
         self.size = None
         self.zero = None
         self.nlayers = 0
-        self._load_formula(fname)
+        self.graph = self._load_formula(fname)
+        if obliviate:
+            self._obliviate_graph(self.graph)
+        self.size = len(self.graph)
+        self._to_relaxed_matrix_bp(self.graph)
+        if obliviate:
+            self.obliviate()
 
     def _load_formula(self, fname):
         # XXX: wow, this code is a total hack!  good luck trying to understand
@@ -171,28 +179,40 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
                     raise ParseException("unknown type")
         if not output:
             raise ParseException("no output gate found")
-        self.graph = bp[-1]
-        # self._obliviate_graph(self.graph)
-        self.size = len(self.graph.graph)
-        self._to_relaxed_matrix_bp(self.graph)
+        return bp[-1]
 
     def _obliviate_graph(self, graph):
-        graph.graph.add_node(('dummy', 0))
+        assert self.ninputs
+        # Boolean formulas must have ninputs - 1 gates, and we need to obliviate
+        # this such that all gates look like XOR gates (since these gates
+        # requires the largest number of vertices).  Thus, we calculate the
+        # expected number of vertices and the current number of vertices, and
+        # subtract to determine how many dummy vertices we need to add.
+        # If we have only one input, there's nothing to obliviate.
+        if self.ninputs > 1:
+            expected = 5 * (self.ninputs - 1)
+            current = len(graph)
+            for i in range(expected - current):
+                graph.graph.add_node('dummy-%d' % i)
+            assert len(graph) == expected
 
     def _to_relaxed_matrix_bp(self, graph):
-        # convert graph to a topological sorting of the vertices, with the
-        # accept node coming last
+        # convert graph to a topological sorting of the vertices
         nodes = nx.topological_sort(graph.graph)
+        # the accept vertex must be last
         a = nodes.index(('acc', graph.num))
         b = nodes.index(('rej', graph.num))
         if a < b:
             nodes[b], nodes[a] = nodes[a], nodes[b]
+        # the source vertex must be first
+        src = nodes.index(('src', graph.num))
+        nodes[0], nodes[src] = nodes[src], nodes[0]
+
         mapping = dict(zip(nodes, range(self.size)))
         g = nx.relabel_nodes(graph.graph, mapping)
         # convert graph to relaxed matrix BP
         self.bp = []
         G = MatrixSpace(GF(2), self.size)
-        self.zero = G.one()
         for layer in xrange(self.nlayers):
             zero = copy(G.one())
             one = copy(G.one())
@@ -205,6 +225,7 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
                     else:
                         one[edge[0], edge[1]] = 1
             self.bp.append(Layer(graph.inp(layer), zero, one))
+        self.zero = G.one()
 
     def randomize(self, prime):
         assert not self.randomized

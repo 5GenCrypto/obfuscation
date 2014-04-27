@@ -266,15 +266,15 @@ mat_mult_by_vects(mpz_t out, const mpz_t *s, const mpz_t *m, const mpz_t *t,
 }
 
 inline static int
-is_zero(mpz_t c)
+is_zero(mpz_t c, mpz_t pzt, mpz_t x0, long nu)
 {
     mpz_t tmp;
     int ret;
 
     mpz_init(tmp);
-    mpz_mul(tmp, c, g_pzt);
-    mpz_mod_near(tmp, tmp, g_x0);
-    ret = (mpz_sizeinbase(tmp, 2) < (mpz_sizeinbase(g_x0, 2) - g_nu)) ? 1 : 0;
+    mpz_mul(tmp, c, pzt);
+    mpz_mod_near(tmp, tmp, x0);
+    ret = (mpz_sizeinbase(tmp, 2) < (mpz_sizeinbase(x0, 2) - nu)) ? 1 : 0;
     mpz_clear(tmp);
     return ret;
 }
@@ -427,6 +427,27 @@ obf_setup(PyObject *self, PyObject *args)
     use_fastprimes = PyObject_IsTrue(py_fastprimes);
     if (use_fastprimes == -1)
         goto error;
+
+    {
+        int file;
+        unsigned long seed;
+
+        // XXX: Use of /dev/urandom not secure!
+        if ((file = open("/dev/urandom", O_RDONLY)) == -1) {
+            (void) fprintf(stderr, "Error opening /dev/urandom\n");
+        } else {
+            if (read(file, &seed, sizeof seed) == -1) {
+                (void) fprintf(stderr, "Error reading from /dev/urandom\n");
+            } else {
+                fprintf(stderr, "SEED = %lu\n", seed);
+
+                gmp_randinit_default(g_rng);
+                gmp_randseed_ui(g_rng, seed);
+            }
+        }
+        if (file != -1)
+            (void) close(file);
+    }
 
     mpz_init_set_ui(g_x0, 1);
     mpz_init_set_ui(g_pzt, 0);
@@ -768,6 +789,7 @@ obf_encode_layers(PyObject *self, PyObject *args)
 static PyObject *
 obf_evaluate(PyObject *self, PyObject *args)
 {
+    char *dir = NULL;
     char *input = NULL;
     char *fname = NULL;
     int fnamelen;
@@ -782,10 +804,10 @@ obf_evaluate(PyObject *self, PyObject *args)
     int err = 0;
     int islayered;
 
-    if (!PyArg_ParseTuple(args, "ssli", &g_dir, &input, &bplen, &islayered))
+    if (!PyArg_ParseTuple(args, "ssli", &dir, &input, &bplen, &islayered))
         return NULL;
 
-    fnamelen = strlen(g_dir) + 10; // XXX: should include bplen somewhere
+    fnamelen = strlen(dir) + 10; // XXX: should include bplen somewhere
 
     fname = (char *) mymalloc(sizeof(char) * fnamelen);
     if (fname == NULL)
@@ -793,7 +815,7 @@ obf_evaluate(PyObject *self, PyObject *args)
 
     mpz_init(tmp);
 
-    (void) snprintf(fname, fnamelen, "%s/size", g_dir);
+    (void) snprintf(fname, fnamelen, "%s/size", dir);
     (void) load_mpz_scalar(fname, tmp);
     size = mpz_get_ui(tmp);
 
@@ -820,7 +842,7 @@ obf_evaluate(PyObject *self, PyObject *args)
     }
 
     if (!islayered) {
-        (void) snprintf(fname, fnamelen, "%s/p_enc", g_dir);
+        (void) snprintf(fname, fnamelen, "%s/p_enc", dir);
         (void) load_mpz_scalar(fname, p2);
     }
 
@@ -831,7 +853,7 @@ obf_evaluate(PyObject *self, PyObject *args)
         start = current_time();
 
         // find out the input bit for the given layer
-        (void) snprintf(fname, fnamelen, "%s/%d.input", g_dir, layer);
+        (void) snprintf(fname, fnamelen, "%s/%d.input", dir, layer);
         (void) load_mpz_scalar(fname, tmp);
         input_idx = mpz_get_ui(tmp);
         if (input_idx < 0 || input_idx >= strlen(input)) {
@@ -846,9 +868,9 @@ obf_evaluate(PyObject *self, PyObject *args)
         }
         // load in appropriate matrix for the given input value
         if (input[input_idx] == '0') {
-            (void) snprintf(fname, fnamelen, "%s/%d.zero", g_dir, layer);
+            (void) snprintf(fname, fnamelen, "%s/%d.zero", dir, layer);
         } else {
-            (void) snprintf(fname, fnamelen, "%s/%d.one", g_dir, layer);
+            (void) snprintf(fname, fnamelen, "%s/%d.one", dir, layer);
         }
 
         if (layer == 0) {
@@ -862,9 +884,9 @@ obf_evaluate(PyObject *self, PyObject *args)
         }
         if (!islayered) {
             if (input[input_idx] == '0') {
-                (void) snprintf(fname, fnamelen, "%s/%d.a0_enc", g_dir, layer);
+                (void) snprintf(fname, fnamelen, "%s/%d.a0_enc", dir, layer);
             } else {
-                (void) snprintf(fname, fnamelen, "%s/%d.a1_enc", g_dir, layer);
+                (void) snprintf(fname, fnamelen, "%s/%d.a1_enc", dir, layer);
             }
             (void) load_mpz_scalar(fname, tmp);
             mpz_mul(p2, p2, tmp);
@@ -877,23 +899,34 @@ obf_evaluate(PyObject *self, PyObject *args)
 
     if (!err) {
         double start, end;
+        mpz_t pzt, x0, nu;
 
         start = current_time();
 
-        (void) snprintf(fname, fnamelen, "%s/s_enc", g_dir);
+        mpz_init(pzt);
+        mpz_init(x0);
+        mpz_init(nu);
+        (void) snprintf(fname, fnamelen, "%s/s_enc", dir);
         (void) load_mpz_vector(fname, s, size);
-        (void) snprintf(fname, fnamelen, "%s/t_enc", g_dir);
+        (void) snprintf(fname, fnamelen, "%s/t_enc", dir);
         (void) load_mpz_vector(fname, t, size);
         mat_mult_by_vects(p1, s, comp, t, size);
+        (void) snprintf(fname, fnamelen, "%s/pzt", dir);
+        (void) load_mpz_scalar(fname, pzt);
+        (void) snprintf(fname, fnamelen, "%s/x0", dir);
+        (void) load_mpz_scalar(fname, x0);
+        (void) snprintf(fname, fnamelen, "%s/nu", dir);
+        (void) load_mpz_scalar(fname, nu);
         if (islayered) {
-            iszero = is_zero(p1);
+            iszero = is_zero(p1, pzt, x0, mpz_get_ui(nu));
         } else {
             mpz_sub(tmp, p1, p2);
-            iszero = is_zero(tmp);
+            iszero = is_zero(tmp, pzt, x0, mpz_get_ui(nu));
         }
-
+        mpz_clear(pzt);
+        mpz_clear(x0);
+        mpz_clear(nu);
         end = current_time();
-
         fprintf(stderr, "  Zero test: %f seconds\n", end - start);
     }
 
@@ -979,6 +1012,26 @@ obf_save(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject *
+obf_cleanup(PyObject *self, PyObject *args)
+{
+    gmp_randclear(g_rng);
+    mpz_clear(g_x0);
+    mpz_clear(g_pzt);
+    for (int i = 0; i < g_n; ++i) {
+        mpz_clear(g_gs[i]);
+        mpz_clear(g_crt_coeffs[i]);
+    }
+    free(g_gs);
+    free(g_crt_coeffs);
+    for (int i = 0; i < g_nzs; ++i) {
+        mpz_clear(g_zinvs[i]);
+    }
+    free(g_zinvs);
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef
 ObfMethods[] = {
     {"setup", obf_setup, METH_VARARGS,
@@ -991,6 +1044,8 @@ ObfMethods[] = {
      "Encode a branching program layer in each slot."},
     {"save", obf_save, METH_VARARGS,
      "Write obfuscation to disk."},
+    {"cleanup", obf_cleanup, METH_VARARGS,
+     "Clean up objects created during setup."},
     {"encode_benchmark", obf_encode_benchmark, METH_VARARGS,
      "Output how long it takes to encode a single element."},
     {"evaluate", obf_evaluate, METH_VARARGS,
@@ -1001,28 +1056,5 @@ ObfMethods[] = {
 PyMODINIT_FUNC
 init_obfuscator(void)
 {
-    int file;
-    unsigned long seed;
-
     (void) Py_InitModule("_obfuscator", ObfMethods);
-
-    // XXX: Use of /dev/urandom not secure!
-    if ((file = open("/dev/urandom", O_RDONLY)) == -1) {
-        (void) fprintf(stderr, "Error opening /dev/random\n");
-        goto cleanup;
-    }
-    if (read(file, &seed, sizeof seed) == -1) {
-        (void) fprintf(stderr, "Error reading from /dev/random\n");
-        goto cleanup;
-    }
-
-    seed = 17785509081853966106UL;
-    fprintf(stderr, "SEED = %lu\n", seed);
-
-    gmp_randinit_default(g_rng);
-    gmp_randseed_ui(g_rng, seed);
-
- cleanup:
-    if (file != -1)
-        (void) close(file);
 }

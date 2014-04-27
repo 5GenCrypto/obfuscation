@@ -23,27 +23,26 @@ def test_circuit(path, bpclass, obfclass, obfuscate, args):
         print('no test cases')
         return
     try:
-        bp = bpclass(path, verbose=args.verbose)
+        bp = bpclass(path, verbose=args.verbose, obliviate=args.obliviate)
     except ParseException as e:
         print('\x1b[33mParse Error:\x1b[0m %s' % e)
         return False
     program = bp
-    if args.obliviate:
-        bp.obliviate()
     success = True
     if obfuscate:
-        obf = obfclass(verbose=args.verbose, use_small_params=args.small_params,
-                       use_fast_prime_gen=(not args.slow_prime_gen))
-        if args.save:
-            directory = args.save
-        else:
-            directory = '%s.obf.%d' % (path, args.secparam)
+        def create_obf():
+            return obfclass(verbose=args.verbose, use_small_params=args.small_params,
+                            use_fast_prime_gen=(not args.slow_prime_gen))
+        obf = create_obf()
+        directory = args.save if args.save \
+                    else '%s.obf.%d' % (path, args.secparam)
         obf.obfuscate(bp, args.secparam, directory)
+        obf.encode_benchmark()
+        obf.cleanup()
         for k, v in testcases.items():
             if obf.evaluate(directory, k) != v:
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
                 success = False
-        obf.encode_benchmark()
     else:
         prime = random_prime(2 ** args.secparam - 1)
         bp.randomize(prime)

@@ -42,31 +42,26 @@ def obf(args):
     else:
         obf = obfclass(verbose=args.verbose, use_small_params=args.small_params,
                        use_fast_prime_gen=(not args.slow_prime_gen))
-        directory = args.load_obf
+        directory = None
         if args.load_obf:
-            print("Loading obfuscation from '%s'..." % directory)
-            start = time.time()
-            obf.load(directory)
-            end = time.time()
-            print("Took: %f seconds" % (end - start))
+            directory = args.load_obf
         elif args.load_circuit:
             print("Converting '%s' -> bp..." % args.load_circuit)
             bp = bpclass(args.load_circuit, verbose=args.verbose)
+            directory = args.save if args.save \
+                        else '%s.obf.%d' % (path, args.secparam)
             print('Obfuscating BP of length %d...' % len(bp))
             start = time.time()
             obf.obfuscate(bp, args.secparam, directory)
             end = time.time()
             print("Obfuscation took: %f seconds" % (end - start))
         else:
-            print('One of --load-obf, --load-circuit, --test-circuit must be used!')
+            print("One of --load-obf, --load-circuit, or --test-circuit must be used")
             sys.exit(1)
 
-        if args.save is not None:
-            print("Saving obfuscation to '%s'..." % args.save)
-            obf.save(args.save)
-
-        if args.eval is not None:
-            print("Evaluating on input '%s'..." % args.eval)
+        if args.eval:
+            assert directory
+            print("Evaluating %s on input '%s'..." % (directory, args.eval))
             start = time.time()
             r = obf.evaluate(directory, args.eval)
             print('Output = %d' % r)

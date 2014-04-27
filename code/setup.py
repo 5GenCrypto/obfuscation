@@ -14,7 +14,7 @@ obfuscator = Extension(
     ],
     extra_compile_args = [
         '-fopenmp',
-        '-ggdb',
+        '-g',
         '-Wall',
     ],
     sources = [

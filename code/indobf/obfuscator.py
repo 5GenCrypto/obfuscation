@@ -143,6 +143,9 @@ class AbstractObfuscator(object):
     def encode_benchmark(self):
         _obf.encode_benchmark()
 
+    def cleanup(self):
+        _obf.cleanup()
+
 class Obfuscator(AbstractObfuscator):
     def __init__(self, **kwargs):
         super(Obfuscator, self).__init__(**kwargs)

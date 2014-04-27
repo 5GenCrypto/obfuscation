@@ -12,7 +12,7 @@ class AbstractBranchingProgram(object):
     def __init__(self, verbose=False):
         self._verbose = verbose
         self.logger = utils.make_logger(self._verbose)
-        self.n_inputs = None
+        self.ninputs = None
         self.depth = None
         self.bp = None
         self.randomized = False
@@ -38,7 +38,7 @@ class AbstractBranchingProgram(object):
         except ValueError:
             raise ParseException("Invalid value '%s'" % value)
         if param == 'nins':
-            self.n_inputs = value
+            self.ninputs = value
         elif param == 'depth':
             self.depth = value
         else:
@@ -63,18 +63,18 @@ class AbstractBranchingProgram(object):
         return n
 
     def obliviate(self):
-        assert self.n_inputs and self.depth
+        assert self.ninputs and self.depth
         assert not self.randomized
         newbp = []
         for m in self.bp:
-            for i in xrange(self.n_inputs):
+            for i in xrange(self.ninputs):
                 if m.inp == i:
                     newbp.append(m)
                 else:
                     newbp.append(Layer(i, self.zero, self.zero))
-        ms_needed = (4 ** self.depth) * self.n_inputs
-        for _ in xrange((ms_needed - len(newbp)) // self.n_inputs):
-            for i in xrange(self.n_inputs):
+        ms_needed = (4 ** self.depth) * self.ninputs
+        for _ in xrange((ms_needed - len(newbp)) // self.ninputs):
+            for i in xrange(self.ninputs):
                 newbp.append(Layer(i, self.zero, self.zero))
         assert len(newbp) == ms_needed
         self.bp = newbp
@@ -136,13 +136,13 @@ def notgate(layers):
         return append(prepend(layers, _group.Cc), _group.Cc * _group.C)
 
 class BranchingProgram(AbstractBranchingProgram):
-    def __init__(self, fname, verbose=False):
+    def __init__(self, fname, verbose=False, obliviate=False):
         super(BranchingProgram, self).__init__(verbose=verbose)
-        self.n_inputs = None
-        self.depth = None
         self.zero = _group.I
         self.one = _group.C
         self._load_circuit(fname)
+        if obliviate:
+            self.obliviate()
 
     def _and_gate(self, in1, in2):
         a = conjugate(in1, 'A')
