@@ -104,7 +104,7 @@ def main():
     parser_bp.add_argument('--test-all', action='store_true',
                            help='test circuit -> bp conversion')
     parser_bp.add_argument('--secparam', metavar='N', type=int,
-                           action='store', default=8, help="security parameter")
+                           action='store', default=16, help="security parameter")
 
     parser_bp.add_argument('--obliviate', action='store_true',
                            help='obliviate the branching program')
@@ -129,7 +129,7 @@ def main():
     parser_obf.add_argument('--save', metavar='DIR', type=str, action='store',
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int,
-                             action='store', default=8, help='security parameter')
+                             action='store', default=16, help='security parameter')
 
     parser_obf.add_argument('--obliviate', action='store_true',
                             help='obliviate the branching program')

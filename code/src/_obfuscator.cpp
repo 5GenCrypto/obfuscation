@@ -407,12 +407,10 @@ obf_setup(PyObject *self, PyObject *args)
     long niter;
     int use_fastprimes;
 
-    if (!PyArg_ParseTuple(args, "lllllllllsO", &g_secparam, &g_size, &g_n, &alpha,
-                          &beta, &eta, &g_nu, &g_rho, &g_nzs, &g_dir,
+    if (!PyArg_ParseTuple(args, "lllllllllsO", &g_secparam, &g_size, &g_n,
+                          &alpha, &beta, &eta, &g_nu, &g_rho, &g_nzs, &g_dir,
                           &py_fastprimes))
         return NULL;
-
-    // initialization
 
     ps = (mpz_t *) mymalloc(sizeof(mpz_t) * g_n);
     g_gs = (mpz_t *) mymalloc(sizeof(mpz_t) * g_n);
@@ -432,7 +430,6 @@ obf_setup(PyObject *self, PyObject *args)
 
     mpz_init_set_ui(g_x0, 1);
     mpz_init_set_ui(g_pzt, 0);
-
     for (int i = 0; i < g_n; ++i) {
         mpz_init_set_ui(ps[i], 1);
         mpz_init(g_gs[i]);
@@ -443,7 +440,6 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_init(g_zinvs[i]);
     }
 
-    // generate p_i's and g_i's, as well as compute x0
 
     start = current_time();
     if (use_fastprimes) {
@@ -461,10 +457,8 @@ obf_setup(PyObject *self, PyObject *args)
 #pragma omp parallel for
     for (int i = 0; i < g_n; ++i) {
         mpz_t p_unif;
-        mpz_t p_tmp;
         mpz_init(p_unif);
-        mpz_init(p_tmp);
-
+        // XXX: the primes generated here aren't officially uniform
         if (use_fastprimes) {
             //
             // Use CLT optimization of generating "small" primes and multiplying
@@ -475,30 +469,39 @@ obf_setup(PyObject *self, PyObject *args)
                                  ? alpha
                                  : eta - alpha * (niter - 1);
                 mpz_urandomb(p_unif, g_rng, psize);
-                mpz_nextprime(p_tmp, p_unif);
-                mpz_mul(ps[i], ps[i], p_tmp);
+                mpz_nextprime(p_unif, p_unif);
+                mpz_mul(ps[i], ps[i], p_unif);
             }
         } else {
-            // XXX: not uniform primes
             mpz_urandomb(p_unif, g_rng, eta);
             mpz_nextprime(ps[i], p_unif);
         }
-        // XXX: not uniform primes
         mpz_urandomb(p_unif, g_rng, alpha);
         mpz_nextprime(g_gs[i], p_unif);
-#pragma omp critical
-        {
-            PyList_SetItem(py_gs, i, mpz_to_py(g_gs[i]));
-            mpz_mul(g_x0, g_x0, ps[i]);
-        }
         mpz_clear(p_unif);
-        mpz_clear(p_tmp);
     }
     end = current_time();
+    fprintf(stderr, "  Generating p_i's and g_i's: %f seconds\n",
+            end - start);
 
-    fprintf(stderr, "  Generating p_i's and g_i's: %f seconds\n", end - start);
 
-    // generate CRT coefficients
+    start = current_time();
+    for (int i = 0; i < g_n; ++i) {
+        mpz_mul(g_x0, g_x0, ps[i]);
+    }
+    end = current_time();
+    fprintf(stderr, "  Computing x_0: %f seconds\n", end - start);
+
+
+    start = current_time();
+    // Only convert the first secparam g_i values to python objects
+    for (int i = 0; i < g_secparam; ++i) {
+        PyList_SetItem(py_gs, i, mpz_to_py(g_gs[i]));
+    }
+    end = current_time();
+    fprintf(stderr, "  Converting g_i's to python objects: %f seconds\n",
+            end - start);
+
 
     start = current_time();
 #pragma omp parallel for
@@ -511,10 +514,8 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_clear(q);
     }
     end = current_time();
-
     fprintf(stderr, "  Generating CRT coefficients: %f seconds\n", end - start);
 
-    // generate z_i's
 
     start = current_time();
 #pragma omp parallel for
@@ -524,10 +525,8 @@ obf_setup(PyObject *self, PyObject *args)
         } while (mpz_invert(g_zinvs[i], zs[i], g_x0) == 0);
     }
     end = current_time();
-
     fprintf(stderr, "  Generating z_i's: %f seconds\n", end - start);
 
-    // generate pzt
 
     start = current_time();
     {
@@ -564,16 +563,13 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_clear(zk);
     }
     end = current_time();
-
     fprintf(stderr, "  Generating pzt: %f seconds\n", end - start);
 
-    // save size, nu, x0, and pzt to file
 
 #ifndef KEEP_IN_MEMORY
     (void) write_setup_params();
 #endif
 
-    // cleanup
 
     for (int i = 0; i < g_n; ++i) {
         mpz_clear(ps[i]);
