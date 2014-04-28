@@ -84,7 +84,7 @@ class AbstractBranchingProgram(object):
     def evaluate(self, inp):
         raise NotImplementedError
 
-_group = groups.SL3()
+_group = groups.S6()
 
 def flatten(l):
     return list(itertools.chain(*l))

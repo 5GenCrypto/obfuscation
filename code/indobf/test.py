@@ -47,8 +47,12 @@ def test_circuit(path, bpclass, obfclass, obfuscate, args):
         prime = random_prime(2 ** args.secparam - 1)
         bp.randomize(prime)
         for k, v in testcases.items():
-            if program.evaluate(k) != v:
-                print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
+            try:
+                if program.evaluate(k) != v:
+                    print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
+                    success = False
+            except Exception:
+                print('\x1b[31mFail\x1b[0m (%s: evaluation failed)' % k)
                 success = False
 
     if success:

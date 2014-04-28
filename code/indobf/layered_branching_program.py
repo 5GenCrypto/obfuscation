@@ -60,6 +60,17 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
         bp = []
         self.nlayers = 0
         def _new_gate(num):
+            #
+            # New gates are constructed as follows:
+            #         1
+            #       ------- accept
+            #      /
+            # src -
+            #      \
+            #       ------- reject
+            #          0
+            # with the source set to Layer 0.
+            #
             g = nx.digraph.DiGraph()
             g.add_node(('src', num), layer=0)
             g.add_node(('acc', num))
@@ -146,8 +157,9 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
             'XOR': lambda num, in1, in2: _xor_gate(num, bp[in1], in1, bp[in2], in2),
         }
         output = False
+        wires = set()
         with open(fname) as f:
-            for line in f:
+            for lineno, line in enumerate(f, 1):
                 if line.startswith('#'):
                     continue
                 elif line.startswith(':'):
@@ -157,28 +169,37 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
                 try:
                     num = int(num)
                 except ValueError:
-                    raise ParseException("gate index not a number")
+                    raise ParseException(
+                        'Line %d: gate index not a number' % lineno)
                 if rest.startswith('input'):
                     bp.append(_new_gate(num))
                     self.nlayers += 1
                 elif rest.startswith('gate') or rest.startswith('output'):
                     if rest.startswith('output'):
                         if output:
-                            raise ParseException('only support single output gate')
+                            raise ParseException(
+                                'Line %d: only one output gate supported' % lineno)
                         else:
                             output = True
                     _, gate, rest = rest.split(None, 2)
                     inputs = [int(i) for i in rest.split()]
+                    for input in inputs:
+                        if input in wires:
+                            raise ParseException(
+                                'Line %d: only Boolean formulas supported' % lineno)
+                    wires.update(inputs)
                     try:
                         bp.append(gates[gate.upper()](num, *inputs))
                     except KeyError:
-                        raise ParseException("unsupported gate '%s'" % gate)
+                        raise ParseException(
+                            'Line %d: unsupported gate %s' % (lineno, gate))
                     except TypeError:
-                        raise ParseException("incorrect number of arguments given")
+                        raise ParseException(
+                            'Line %d: incorrect number of arguments given' % lineno)
                 else:
-                    raise ParseException("unknown type")
+                    raise ParseException('Line %d: unknown gate type' % lineno)
         if not output:
-            raise ParseException("no output gate found")
+            raise ParseException('no output gate found')
         return bp[-1]
 
     def _obliviate_graph(self, graph):

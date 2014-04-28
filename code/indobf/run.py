@@ -20,7 +20,7 @@ def bp(args):
         for circuit in os.listdir('circuits'):
             path = os.path.join(testdir, circuit)
             if os.path.isfile(path) and path.endswith('.circ'):
-                test_circuit(path, False, args)
+                test_circuit(path, bpclass, None, False, args)
     if args.load_circuit:
         bp = bpclass(args.load_circuit, verbose=args.verbose)
         if args.obliviate:
@@ -40,8 +40,10 @@ def obf(args):
     if args.test_circuit:
         test_circuit(args.test_circuit, bpclass, obfclass, True, args)
     else:
-        obf = obfclass(verbose=args.verbose, use_small_params=args.small_params,
-                       use_fast_prime_gen=(not args.slow_prime_gen))
+        def create_obf():
+            return obfclass(verbose=args.verbose,
+                            use_small_params=args.small_params,
+                            use_fast_prime_gen=(not args.slow_prime_gen))
         directory = None
         if args.load_obf:
             directory = args.load_obf
@@ -52,9 +54,11 @@ def obf(args):
                         else '%s.obf.%d' % (path, args.secparam)
             print('Obfuscating BP of length %d...' % len(bp))
             start = time.time()
+            obf = create_obf()
             obf.obfuscate(bp, args.secparam, directory)
             end = time.time()
             print("Obfuscation took: %f seconds" % (end - start))
+            obf.cleanup()
         else:
             print("One of --load-obf, --load-circuit, or --test-circuit must be used")
             sys.exit(1)
@@ -63,22 +67,11 @@ def obf(args):
             assert directory
             print("Evaluating %s on input '%s'..." % (directory, args.eval))
             start = time.time()
+            obf = create_obf()
             r = obf.evaluate(directory, args.eval)
             print('Output = %d' % r)
             end = time.time()
             print("Evalution took: %f seconds" % (end - start))
-
-# def test(args):
-#     assert False                # XXX: not fixed up yet!
-#     paths = ['not.circ', 'and.circ', 'twoands.circ']
-#     params = TestParams(obliviate=False, obfuscate=True, fast=True)
-#     secparams = [8, 16, 24, 28, 32, 40]
-#     for path in paths:
-#         path = 'circuits/%s' % path
-#         print('Testing circuit "%s"' % path)
-#         for secparam in secparams:
-#             print('Security parameter = %d' % secparam)
-#             test_circuit(path, secparam, False, params)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -95,11 +88,12 @@ def main():
     parser_bp.add_argument('--load-circuit', metavar='FILE', type=str,
                            action='store', help='load circuit from FILE')
     parser_bp.add_argument('--test-circuit', metavar='FILE', type=str,
-                           action='store', help='test FILE circuit -> bp conversion')
+                           action='store',
+                           help='test FILE circuit -> bp conversion')
     parser_bp.add_argument('--test-all', action='store_true',
                            help='test circuit -> bp conversion')
-    parser_bp.add_argument('--secparam', metavar='N', type=int,
-                           action='store', default=16, help="security parameter")
+    parser_bp.add_argument('--secparam', metavar='N', type=int, action='store',
+                           default=24, help='security parameter')
 
     parser_bp.add_argument('--obliviate', action='store_true',
                            help='obliviate the branching program')
@@ -124,7 +118,7 @@ def main():
     parser_obf.add_argument('--save', metavar='DIR', type=str, action='store',
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int,
-                             action='store', default=16, help='security parameter')
+                             action='store', default=24, help='security parameter')
 
     parser_obf.add_argument('--obliviate', action='store_true',
                             help='obliviate the branching program')
@@ -137,12 +131,6 @@ def main():
     parser_obf.add_argument('-v', '--verbose', action='store_true', 
                             help='be verbose')
     parser_obf.set_defaults(func=obf)
-
-    # parser_test = subparsers.add_parser(
-    #     'test',
-    #     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    #     help='run test suite')
-    # parser_test.set_defaults(func=test)
 
     args = parser.parse_args()
     args.func(args)
