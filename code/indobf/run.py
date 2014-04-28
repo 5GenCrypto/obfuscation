@@ -51,7 +51,7 @@ def obf(args):
             print("Converting '%s' -> bp..." % args.load_circuit)
             bp = bpclass(args.load_circuit, verbose=args.verbose)
             directory = args.save if args.save \
-                        else '%s.obf.%d' % (path, args.secparam)
+                        else '%s.obf.%d' % (args.load_circuit, args.secparam)
             print('Obfuscating BP of length %d...' % len(bp))
             start = time.time()
             obf = create_obf()

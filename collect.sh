@@ -10,7 +10,7 @@ mkdir -p $LOG_DIR
 ################################################################################
 
 MIN=24
-MAX=24
+MAX=32
 echo "* Varying the security parameter ($MIN -> $MAX)"
 
 circuit='id.circ'
@@ -22,19 +22,24 @@ for secparam in `seq $MIN 8 $MAX`
 do
     echo "* Running $circuit with security parameter $secparam"
     $SAGE $CODE_DIR/indobf/run.py obf \
-        --test-circuit $CIRCUIT_DIR/$circuit \
+        --load-circuit $CIRCUIT_DIR/$circuit \
         --secparam $secparam \
-        --verbose 2>&1 | tee $dir/$circuit-$secparam-time.log
-    du --bytes $CIRCUIT_DIR/$circuit.obf.$secparam/* \
+        --verbose 2>&1 | tee $dir/$circuit-$secparam-obf-time.log
+    obf=$circuit.obf.$secparam
+    du --bytes $CIRCUIT_DIR/$obf/* \
         | tee $dir/$circuit-$secparam-size.log
+    $SAGE $CODE_DIR/indobf/run.py obf \
+        --load-obf $CIRCUIT_DIR/$obf \
+        --eval 1 \
+        --verbose 2>&1 | tee $dir/$circuit-$secparam-eval-time.log
     rm -rf $CIRCUIT_DIR/$circuit.obf.$secparam
 done
 
 ################################################################################
 
 MIN=8
-MAX=40
-echo "* Running point functions ($MIN -> MAX)"
+MAX=8
+echo "* Running point functions ($MIN -> $MAX)"
 
 pushd $CIRCUIT_DIR
 for point in `seq $MIN 8 $MAX`
@@ -52,6 +57,7 @@ for point in `seq $MIN 8 $MAX`
 do
     circuit="point-$point.circ"
     echo "* Running $circuit with security parameter $secparam"
+    # XXX: split into separate obfuscate and eval phases
     $SAGE $CODE_DIR/indobf/run.py obf \
         --test-circuit $CIRCUIT_DIR/$circuit \
         --secparam $secparam \

@@ -590,13 +590,6 @@ obf_setup(PyObject *self, PyObject *args)
     end = current_time();
     (void) fprintf(stderr, "  Generating pzt: %f\n", end - start);
 
-    {
-        struct rusage usage;
-
-        (void) getrusage(RUSAGE_SELF, &usage);
-        (void) fprintf(stderr, "  Memory usage: %ld\n", usage.ru_maxrss);
-    }
-
 #ifndef KEEP_IN_MEMORY
     (void) write_setup_params();
 #endif
@@ -931,6 +924,7 @@ obf_evaluate(PyObject *self, PyObject *args)
             mpz_sub(tmp, p1, p2);
             iszero = is_zero(tmp, pzt, x0, mpz_get_ui(nu));
         }
+
         mpz_clear(pzt);
         mpz_clear(x0);
         mpz_clear(nu);
@@ -1015,9 +1009,13 @@ obf_encode_benchmark(PyObject *self, PyObject *args)
 }
 
 static PyObject *
-obf_save(PyObject *self, PyObject *args)
+obf_max_mem_usage(PyObject *self, PyObject *args)
 {
-    // TODO:
+    struct rusage usage;
+
+    (void) getrusage(RUSAGE_SELF, &usage);
+    (void) fprintf(stderr, "Max memory usage: %ld\n", usage.ru_maxrss);
+
     Py_RETURN_NONE;
 }
 
@@ -1051,8 +1049,8 @@ ObfMethods[] = {
      "Encode a vector in each slot."},
     {"encode_layers", obf_encode_layers, METH_VARARGS,
      "Encode a branching program layer in each slot."},
-    {"save", obf_save, METH_VARARGS,
-     "Write obfuscation to disk."},
+    {"max_mem_usage", obf_max_mem_usage, METH_VARARGS,
+     "Print out the maximum memory usage."},
     {"cleanup", obf_cleanup, METH_VARARGS,
      "Clean up objects created during setup."},
     {"encode_benchmark", obf_encode_benchmark, METH_VARARGS,

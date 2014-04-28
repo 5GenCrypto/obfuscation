@@ -129,6 +129,7 @@ class AbstractObfuscator(object):
         self._obfuscate(bps)
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))
+        _obf.max_mem_usage()
 
     def evaluate(self, directory, inp):
         start = time.time()
@@ -138,6 +139,7 @@ class AbstractObfuscator(object):
         result = _obf.evaluate(directory, inp, len(inputs), islayered)
         end = time.time()
         self.logger('Evaluating %s took: %f' % (inp, end - start))
+        _obf.max_mem_usage()
         return result
 
     def encode_benchmark(self):
