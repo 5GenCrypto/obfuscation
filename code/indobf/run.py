@@ -64,13 +64,9 @@ def obf(args):
 
         if args.eval:
             assert directory
-            print("Evaluating %s on input '%s'..." % (directory, args.eval))
-            start = time.time()
             obf = create_obf()
             r = obf.evaluate(directory, args.eval)
             print('Output = %d' % r)
-            end = time.time()
-            print("Evalution took: %f seconds" % (end - start))
 
 def main():
     parser = argparse.ArgumentParser(

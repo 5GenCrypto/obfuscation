@@ -11,12 +11,13 @@ LOG_DIR='runs'
 
 mkdir -p $LOG_DIR
 
-if [[ "$1" = "" ]]
+if [[ "$1" = "" || "$2" = "" ]]
 then
-    echo "Usage: secparam.sh <circuit-name>"
+    echo "Usage: secparam.sh <circuit-name> <input-length>"
     exit 1
 fi
 circuit=$1
+eval=`$PYTHON -c "print('0' * $2)"`
 
 MIN=24
 MAX=160
@@ -38,7 +39,7 @@ do
         | tee $dir/$circuit-$secparam-obf-size.log
     $SAGE $CODE_DIR/indobf/run.py obf \
         --load-obf $CIRCUIT_DIR/$obf \
-        --eval 1 \
+        --eval $eval \
         --verbose 2>&1 | tee $dir/$circuit-$secparam-eval-time.log
     rm -rf $CIRCUIT_DIR/$circuit.obf.$secparam
 done
