@@ -526,6 +526,10 @@ obf_setup(PyObject *self, PyObject *args)
         }
         mpz_urandomb(p_unif, g_rng, alpha);
         mpz_nextprime(g_gs[i], p_unif);
+        #pragma omp critical
+        {
+            mpz_mul(g_x0, g_x0, ps[i]);
+        }
         mpz_clear(p_unif);
     }
     end = current_time();
@@ -534,13 +538,13 @@ obf_setup(PyObject *self, PyObject *args)
                        end - start);
 
 
-    start = current_time();
-    for (int i = 0; i < g_n; ++i) {
-        mpz_mul(g_x0, g_x0, ps[i]);
-    }
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Computing x_0: %f\n", end - start);
+    // start = current_time();
+    // for (int i = 0; i < g_n; ++i) {
+    //     mpz_mul(g_x0, g_x0, ps[i]);
+    // }
+    // end = current_time();
+    // if (g_verbose)
+    //     (void) fprintf(stderr, "  Computing x_0: %f\n", end - start);
 
 
     start = current_time();
