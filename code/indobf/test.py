@@ -31,7 +31,7 @@ def test_circuit(path, bpclass, obfclass, obfuscate, args):
     success = True
     if obfuscate:
         def create_obf():
-            return obfclass(verbose=args.verbose, use_small_params=args.small_params,
+            return obfclass(verbose=args.verbose,
                             use_fast_prime_gen=(not args.slow_prime_gen))
         obf = create_obf()
         directory = args.save if args.save \

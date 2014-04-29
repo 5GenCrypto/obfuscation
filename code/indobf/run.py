@@ -42,7 +42,6 @@ def obf(args):
     else:
         def create_obf():
             return obfclass(verbose=args.verbose,
-                            use_small_params=args.small_params,
                             use_fast_prime_gen=(not args.slow_prime_gen))
         directory = None
         if args.load_obf:
@@ -124,8 +123,6 @@ def main():
                             help='obliviate the branching program')
     parser_obf.add_argument('--old', action='store_true',
                             help='use standard branching programs instead of the relaxed variant')
-    parser_obf.add_argument('--small-params', action='store_true',
-                             help='use smaller parameters so things run faster')
     parser_obf.add_argument('--slow-prime-gen', action='store_true',
                              help='do not use the CLT13 optimization for generating primes fast')
     parser_obf.add_argument('-v', '--verbose', action='store_true', 

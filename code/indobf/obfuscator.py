@@ -5,15 +5,12 @@ import _obfuscator as _obf
 import utils
 
 from sage.all import copy, VectorSpace, Zmod, ZZ
+from numpy import log2
 
 import copy, os, time
-import numpy as np
 
 def to_long(lst):
     return [long(i) for i in lst]
-
-class ObfuscationException(Exception):
-    pass
 
 class AbstractObfuscator(object):
     def _print_params(self):
@@ -38,21 +35,14 @@ class AbstractObfuscator(object):
         self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
         self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
         assert self.nu >= self.alpha + self.beta + 5
-        if self._use_small_params:
-            self.n = self.eta
-        else:
-            self.n = int(self.eta * np.log2(self.secparam))
+        self.n = int(self.eta * log2(self.secparam))
         self._print_params()
 
-    def __init__(self, verbose=False, use_small_params=False,
-                 use_fast_prime_gen=True):
+    def __init__(self, verbose=False, use_fast_prime_gen=True):
         self.obfuscation = None
         self._verbose = verbose
-        self._use_small_params = use_small_params
         self._use_fast_prime_gen = use_fast_prime_gen
         self.logger = utils.make_logger(self._verbose)
-        if self._use_small_params:
-            self.logger('* Using small (and *insecure*) parameters for speed')
         if self._use_fast_prime_gen:
             self.logger('* Using CLT13 prime generation')
 
@@ -63,7 +53,7 @@ class AbstractObfuscator(object):
             os.mkdir(directory)
         primes = _obf.setup(secparam, size, self.n, self.alpha, self.beta,
                             self.eta, self.nu, self.rho, nzs, directory,
-                            self._use_fast_prime_gen)
+                            self._use_fast_prime_gen, self._verbose)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         return primes
@@ -99,10 +89,10 @@ class AbstractObfuscator(object):
             self.logger('Took: %f' % (end - start))
 
     def obfuscate(self, bp, secparam, directory):
+        assert not bp.randomized
+
         start = time.time()
         islayered = True if type(self) == LayeredObfuscator else False
-        if bp.randomized:
-            raise ObfuscationException('BPs must not be randomized')
         # remove old files in obfuscation directory
         if os.path.isdir(directory):
             files = os.listdir(directory)
@@ -112,15 +102,15 @@ class AbstractObfuscator(object):
 
         # add two to kappa due to the bookend vectors
         kappa = len(bp) + 2
+        self._set_params(secparam, kappa)
         # construct straddling sets, and add two to the number of Zs to take
         # bookend vectors into account
         nzs = bp.set_straddling_sets() + 2
+        self.logger('  Number of Zs: %d' % nzs)
         # size is the column/row-length of the matrices
         size = bp.size if islayered else len(_group)
-
-        self._set_params(secparam, kappa)
-        self.logger('  Number of Zs: %d' % nzs)
         self.logger('  Size: %d' % size)
+
         primes = self._gen_mlm_params(secparam, size, nzs, directory)
         bps, alphas = self._randomize(secparam, bp, primes, islayered)
         if not islayered:
@@ -129,17 +119,20 @@ class AbstractObfuscator(object):
         self._obfuscate(bps)
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))
-        _obf.max_mem_usage()
+        if self._verbose:
+            _obf.max_mem_usage()
 
     def evaluate(self, directory, inp):
+        self.logger('Evaluating %s...' % inp)
         start = time.time()
+        islayered = True if type(self) == LayeredObfuscator else False
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        islayered = True if type(self) == LayeredObfuscator else False
         result = _obf.evaluate(directory, inp, len(inputs), islayered)
         end = time.time()
-        self.logger('Evaluating %s took: %f' % (inp, end - start))
-        _obf.max_mem_usage()
+        self.logger('Took: %f' % (end - start))
+        if self._verbose:
+            _obf.max_mem_usage()
         return result
 
     def encode_benchmark(self):
@@ -153,6 +146,7 @@ class Obfuscator(AbstractObfuscator):
         super(Obfuscator, self).__init__(**kwargs)
 
     def _construct_multiplicative_constants(self, bps, alphas):
+        self.logger('Constructing multiplicative constants...')
         start = time.time()
         for layer_idx in xrange(len(bps[0])):
             a0s = []
@@ -161,12 +155,15 @@ class Obfuscator(AbstractObfuscator):
                 a0, a1 = alphas[i][layer_idx]
                 a0s.append([long(a0)])
                 a1s.append([long(a1)])
-            _obf.encode_scalars(a0s, bps[0][layer_idx].zeroset, "%d.a0_enc" % layer_idx)
-            _obf.encode_scalars(a1s, bps[0][layer_idx].oneset, "%d.a1_enc" % layer_idx)
+            _obf.encode_scalars(a0s, bps[0][layer_idx].zeroset,
+                                '%d.a0_enc' % layer_idx)
+            _obf.encode_scalars(a1s, bps[0][layer_idx].oneset,
+                                '%d.a1_enc' % layer_idx)
         end = time.time()
-        self.logger('Constructing multiplicative constants took: %f' % (end - start))
+        self.logger('Took: %f' % (end - start))
 
     def _construct_bookend_vectors(self, bps, primes, nzs):
+        self.logger('Constructing bookend vectors...')
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
         ss = []
@@ -179,11 +176,11 @@ class Obfuscator(AbstractObfuscator):
             ss.append(to_long(s))
             ts.append(to_long(t))
             ps.append([long(s * t)])
-        _obf.encode_scalars(ps, [sidx, tidx], "p_enc")
-        _obf.encode_vectors(ss, [sidx], "s_enc")
-        _obf.encode_vectors(ts, [tidx], "t_enc")
+        _obf.encode_scalars(ps, [sidx, tidx], 'p_enc')
+        _obf.encode_vectors(ss, [sidx], 's_enc')
+        _obf.encode_vectors(ts, [tidx], 't_enc')
         end = time.time()
-        self.logger('Constructing bookend vectors took: %f' % (end - start))
+        self.logger('Took: %f' % (end - start))
 
 class LayeredObfuscator(AbstractObfuscator):
     def __init__(self, **kwargs):
@@ -197,10 +194,11 @@ class LayeredObfuscator(AbstractObfuscator):
             end = time.time()
             self.logger('  Computing bookend vectors: %f' % (end - start))
             return ss, ts
+        self.logger('Constructing bookend vectors...')
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
         ss, ts = compute_vectors()
         _obf.encode_vectors(ss, [sidx], "s_enc")
         _obf.encode_vectors(ts, [tidx], "t_enc")
         end = time.time()
-        self.logger('Constructing bookend vectors took: %f' % (end - start))
+        self.logger('Took: %f' % (end - start))

@@ -20,6 +20,7 @@
 #define FAILURE 0
 
 static gmp_randstate_t g_rng;
+static int g_verbose;
 static long g_secparam;
 static long g_size;
 static long g_n;
@@ -321,7 +322,8 @@ write_setup_params(void)
     free(fname);
 
     end = current_time();
-    (void) fprintf(stderr, "  Saving to file: %f\n", end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Saving to file: %f\n", end - start);
 
     return SUCCESS;
 }
@@ -343,7 +345,8 @@ write_scalar(mpz_t val, char *name)
     free(fname);
     end = current_time();
 
-    (void) fprintf(stderr, "  Saving to file: %f\n", end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Saving to file: %f\n", end - start);
     return SUCCESS;
 }
 
@@ -364,7 +367,8 @@ write_vector(mpz_t *vector, long size, char *name)
     free(fname);
 
     end = current_time();
-    (void) fprintf(stderr, "  Saving to file: %f\n", end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Saving to file: %f\n", end - start);
     return SUCCESS;
 }
 
@@ -392,7 +396,8 @@ write_layer(int inp, long idx, mpz_t *zero, mpz_t *one, long size)
     mpz_clear(z);
     end = current_time();
 
-    (void) fprintf(stderr, "  Saving to file: %f\n", end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Saving to file: %f\n", end - start);
     return SUCCESS;
 }
 
@@ -407,14 +412,14 @@ obf_setup(PyObject *self, PyObject *args)
 {
     long alpha, beta, eta;
     mpz_t *ps, *zs;
-    PyObject *py_gs, *py_fastprimes;
+    PyObject *py_gs, *py_fastprimes, *py_verbose;
     double start, end;
     long niter;
     int use_fastprimes;
 
-    if (!PyArg_ParseTuple(args, "lllllllllsO", &g_secparam, &g_size, &g_n,
+    if (!PyArg_ParseTuple(args, "lllllllllsOO", &g_secparam, &g_size, &g_n,
                           &alpha, &beta, &eta, &g_nu, &g_rho, &g_nzs, &g_dir,
-                          &py_fastprimes))
+                          &py_fastprimes, &py_verbose))
         return NULL;
 
     ps = (mpz_t *) mymalloc(sizeof(mpz_t) * g_n);
@@ -432,17 +437,24 @@ obf_setup(PyObject *self, PyObject *args)
     use_fastprimes = PyObject_IsTrue(py_fastprimes);
     if (use_fastprimes == -1)
         goto error;
+    g_verbose = PyObject_IsTrue(py_verbose);
+    if (g_verbose == -1)
+        goto error;
 
     {
         int file;
         if ((file = open(RANDFILE, O_RDONLY)) == -1) {
             (void) fprintf(stderr, "Error opening %s\n", RANDFILE);
+            goto error;
         } else {
             unsigned long seed;
             if (read(file, &seed, sizeof seed) == -1) {
                 (void) fprintf(stderr, "Error reading from %s\n", RANDFILE);
+                (void) close(file);
+                goto error;
             } else {
-                (void) fprintf(stderr, "  Seed: %lu\n", seed);
+                if (g_verbose)
+                    (void) fprintf(stderr, "  Seed: %lu\n", seed);
 
                 gmp_randinit_default(g_rng);
                 gmp_randseed_ui(g_rng, seed);
@@ -467,7 +479,7 @@ obf_setup(PyObject *self, PyObject *args)
 
     start = current_time();
     if (use_fastprimes) {
-        if (alpha < 24) {
+        if (g_verbose && alpha < 24) {
             (void) fprintf(stderr, "\x1b[33mWARNING\x1b[0m: "
                            "using CLT13 fast prime generation may not work for "
                            "security parameters below 24\n");
@@ -505,8 +517,9 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_clear(p_unif);
     }
     end = current_time();
-    (void) fprintf(stderr, "  Generating p_i's and g_i's: %f\n",
-                   end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Generating p_i's and g_i's: %f\n",
+                       end - start);
 
 
     start = current_time();
@@ -514,7 +527,8 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_mul(g_x0, g_x0, ps[i]);
     }
     end = current_time();
-    (void) fprintf(stderr, "  Computing x_0: %f\n", end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Computing x_0: %f\n", end - start);
 
 
     start = current_time();
@@ -523,8 +537,9 @@ obf_setup(PyObject *self, PyObject *args)
         PyList_SetItem(py_gs, i, mpz_to_py(g_gs[i]));
     }
     end = current_time();
-    (void) fprintf(stderr, "  Converting g_i's to python objects: %f\n",
-                   end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Converting g_i's to python objects: %f\n",
+                       end - start);
 
 
     start = current_time();
@@ -538,8 +553,9 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_clear(q);
     }
     end = current_time();
-    (void) fprintf(stderr, "  Generating CRT coefficients: %f\n",
-                   end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Generating CRT coefficients: %f\n",
+                       end - start);
 
 
     start = current_time();
@@ -550,7 +566,8 @@ obf_setup(PyObject *self, PyObject *args)
         } while (mpz_invert(g_zinvs[i], zs[i], g_x0) == 0);
     }
     end = current_time();
-    (void) fprintf(stderr, "  Generating z_i's: %f\n", end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Generating z_i's: %f\n", end - start);
 
 
     start = current_time();
@@ -588,7 +605,8 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_clear(zk);
     }
     end = current_time();
-    (void) fprintf(stderr, "  Generating pzt: %f\n", end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Generating pzt: %f\n", end - start);
 
 #ifndef KEEP_IN_MEMORY
     (void) write_setup_params();
@@ -650,7 +668,8 @@ obf_encode_scalars(PyObject *self, PyObject *args)
 
     end = current_time();
 
-    (void) fprintf(stderr, "  Encoding one element: %f\n", end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Encoding one element: %f\n", end - start);
 
     if (err) {
         return NULL;
@@ -690,8 +709,9 @@ obf_encode_vectors(PyObject *self, PyObject *args)
         encode(vector[i], py_vectors, i, idx1, idx2);
     }
     end = current_time();
-    (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
-                   size, end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
+                       size, end - start);
 
 #ifdef KEEP_IN_MEMORY
     // XXX: save vector in memory
@@ -764,8 +784,9 @@ obf_encode_layers(PyObject *self, PyObject *args)
         encode(*val, py_array, i, idx1, idx2);
     }
     end = current_time();
-    (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
-                   2 * size, end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
+                       2 * size, end - start);
 
 #ifdef KEEP_IN_MEMORY
     // XXX: save to memory
@@ -894,8 +915,9 @@ obf_evaluate(PyObject *self, PyObject *args)
 
         end = current_time();
 
-        (void) fprintf(stderr, "  Multiplying matrices: %f\n",
-                       end - start);
+        if (g_verbose)
+            (void) fprintf(stderr, "  Multiplying matrices: %f\n",
+                           end - start);
     }
 
     if (!err) {
@@ -929,7 +951,8 @@ obf_evaluate(PyObject *self, PyObject *args)
         mpz_clear(x0);
         mpz_clear(nu);
         end = current_time();
-        (void) fprintf(stderr, "  Zero test: %f\n", end - start);
+        if (g_verbose)
+            (void) fprintf(stderr, "  Zero test: %f\n", end - start);
     }
 
     mpz_clear(tmp);
@@ -998,8 +1021,9 @@ obf_encode_benchmark(PyObject *self, PyObject *args)
 
     end = current_time();
 
-    (void) fprintf(stderr, "Encoding a single element takes: %f\n",
-                   end - start);
+    if (g_verbose)
+        (void) fprintf(stderr, "Encoding a single element takes: %f\n",
+                       end - start);
 
     mpz_clear(r);
     mpz_clear(tmp);
