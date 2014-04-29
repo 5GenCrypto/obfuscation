@@ -3,7 +3,7 @@
 #
 # Change these as needed
 #
-SAGE='/home/amaloz/Desktop/sage-6.1.1-x86_64-Linux/sage --python'
+SAGE='sage'
 PYTHON='python2'
 CODE_DIR='code'
 CIRCUIT_DIR='code/circuits'
