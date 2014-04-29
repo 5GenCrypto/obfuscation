@@ -4,7 +4,7 @@ from setuptools import setup, Extension, find_packages
 
 __name__ = 'ind_obfuscation'
 __author__ = 'Alex J. Malozemoff'
-__version__ = '1.0a1.dev'
+__version__ = '0.5'
 
 obfuscator = Extension(
     'indobf._obfuscator',
@@ -14,7 +14,7 @@ obfuscator = Extension(
     ],
     extra_compile_args = [
         '-fopenmp',
-        '-g',
+        '-O3',
         '-Wall',
     ],
     sources = [
@@ -36,8 +36,9 @@ setup(name = __name__,
       classifiers = [
           'Topic :: Security :: Cryptography',
           'Environment :: Console',
-          'Development Status :: 2 - Pre-Alpha',
+          'Development Status :: 3 - Alpha',
           'Intended Audience :: Science/Research',
+          'Operating System :: Unix',
           'License :: OSI Approved :: Free For Educational Use',
           'Programming Language :: C',
           'Programming Language :: Sage',
