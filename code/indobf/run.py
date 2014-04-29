@@ -57,6 +57,7 @@ def obf(args):
             obf.obfuscate(bp, args.secparam, directory)
             end = time.time()
             print("Obfuscation took: %f seconds" % (end - start))
+            obf.encode_benchmark()
             obf.cleanup()
         else:
             print("One of --load-obf, --load-circuit, or --test-circuit must be used")
