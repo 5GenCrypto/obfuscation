@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+#
+# Change these as needed
+#
 SAGE='/home/amaloz/Desktop/sage-6.1.1-x86_64-Linux/sage --python'
 PYTHON='python2'
 CODE_DIR='code'
@@ -58,7 +61,6 @@ for point in `seq $MIN 8 $MAX`
 do
     circuit="point-$point.circ"
     echo "* Running $circuit with security parameter $secparam"
-    # XXX: split into separate obfuscate and eval phases
     $SAGE $CODE_DIR/indobf/run.py obf \
         --load-circuit $CIRCUIT_DIR/$circuit \
         --secparam $secparam \
