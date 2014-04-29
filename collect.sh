@@ -10,36 +10,36 @@ mkdir -p $LOG_DIR
 
 ################################################################################
 
-# MIN=24
-# MAX=32
-# echo "* Varying the security parameter ($MIN -> $MAX)"
+MIN=24
+MAX=160
+echo "* Varying the security parameter ($MIN -> $MAX)"
 
-# circuit='id.circ'
+circuit='id.circ'
 
-# dir="$LOG_DIR/secparam.$circuit"
-# mkdir -p $dir
+dir="$LOG_DIR/secparam.$circuit"
+mkdir -p $dir
 
-# for secparam in `seq $MIN 8 $MAX`
-# do
-#     echo "* Running $circuit with security parameter $secparam"
-#     $SAGE $CODE_DIR/indobf/run.py obf \
-#         --load-circuit $CIRCUIT_DIR/$circuit \
-#         --secparam $secparam \
-#         --verbose 2>&1 | tee $dir/$circuit-$secparam-obf-time.log
-#     obf=$circuit.obf.$secparam
-#     du --bytes $CIRCUIT_DIR/$obf/* \
-#         | tee $dir/$circuit-$secparam-obf-size.log
-#     $SAGE $CODE_DIR/indobf/run.py obf \
-#         --load-obf $CIRCUIT_DIR/$obf \
-#         --eval 1 \
-#         --verbose 2>&1 | tee $dir/$circuit-$secparam-eval-time.log
-#     rm -rf $CIRCUIT_DIR/$circuit.obf.$secparam
-# done
+for secparam in `seq $MIN 8 $MAX`
+do
+    echo "* Running $circuit with security parameter $secparam"
+    $SAGE $CODE_DIR/indobf/run.py obf \
+        --load-circuit $CIRCUIT_DIR/$circuit \
+        --secparam $secparam \
+        --verbose 2>&1 | tee $dir/$circuit-$secparam-obf-time.log
+    obf=$circuit.obf.$secparam
+    du --bytes $CIRCUIT_DIR/$obf/* \
+        | tee $dir/$circuit-$secparam-obf-size.log
+    $SAGE $CODE_DIR/indobf/run.py obf \
+        --load-obf $CIRCUIT_DIR/$obf \
+        --eval 1 \
+        --verbose 2>&1 | tee $dir/$circuit-$secparam-eval-time.log
+    rm -rf $CIRCUIT_DIR/$circuit.obf.$secparam
+done
 
 ################################################################################
 
 MIN=8
-MAX=8
+MAX=40
 echo "* Running point functions ($MIN -> $MAX)"
 
 pushd $CIRCUIT_DIR
