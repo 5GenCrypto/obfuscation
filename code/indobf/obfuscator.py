@@ -41,6 +41,7 @@ class AbstractObfuscator(object):
     def __init__(self, verbose=False, use_fast_prime_gen=True):
         self.obfuscation = None
         self._verbose = verbose
+        _obf.verbose(self._verbose)
         self._use_fast_prime_gen = use_fast_prime_gen
         self.logger = utils.make_logger(self._verbose)
         if self._use_fast_prime_gen:
@@ -53,7 +54,7 @@ class AbstractObfuscator(object):
             os.mkdir(directory)
         primes = _obf.setup(secparam, size, self.n, self.alpha, self.beta,
                             self.eta, self.nu, self.rho, nzs, directory,
-                            self._use_fast_prime_gen, self._verbose)
+                            self._use_fast_prime_gen)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         return primes

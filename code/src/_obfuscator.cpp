@@ -408,18 +408,33 @@ write_layer(int inp, long idx, mpz_t *zero, mpz_t *one, long size)
 //
 
 static PyObject *
+obf_verbose(PyObject *self, PyObject *args)
+{
+    PyObject *py_verbose;
+
+    if (!PyArg_ParseTuple(args, "O", &py_verbose))
+        return NULL;
+
+    g_verbose = PyObject_IsTrue(py_verbose);
+    if (g_verbose == -1)
+        return NULL;
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
     long alpha, beta, eta;
     mpz_t *ps, *zs;
-    PyObject *py_gs, *py_fastprimes, *py_verbose;
+    PyObject *py_gs, *py_fastprimes;
     double start, end;
     long niter;
     int use_fastprimes;
 
-    if (!PyArg_ParseTuple(args, "lllllllllsOO", &g_secparam, &g_size, &g_n,
+    if (!PyArg_ParseTuple(args, "lllllllllsO", &g_secparam, &g_size, &g_n,
                           &alpha, &beta, &eta, &g_nu, &g_rho, &g_nzs, &g_dir,
-                          &py_fastprimes, &py_verbose))
+                          &py_fastprimes))
         return NULL;
 
     ps = (mpz_t *) mymalloc(sizeof(mpz_t) * g_n);
@@ -436,9 +451,6 @@ obf_setup(PyObject *self, PyObject *args)
 
     use_fastprimes = PyObject_IsTrue(py_fastprimes);
     if (use_fastprimes == -1)
-        goto error;
-    g_verbose = PyObject_IsTrue(py_verbose);
-    if (g_verbose == -1)
         goto error;
 
     {
@@ -1065,6 +1077,8 @@ obf_cleanup(PyObject *self, PyObject *args)
 
 static PyMethodDef
 ObfMethods[] = {
+    {"verbose", obf_verbose, METH_VARARGS,
+     "Set verbosity."},
     {"setup", obf_setup, METH_VARARGS,
      "Set up obfuscator."},
     {"encode_scalars", obf_encode_scalars, METH_VARARGS,
