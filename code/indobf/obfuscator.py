@@ -1,8 +1,9 @@
 from __future__ import print_function
 
-from branchingprogram import _group
 import _obfuscator as _obf
 import utils
+from layered_branching_program import LayeredBranchingProgram
+from branchingprogram import BranchingProgram
 
 from sage.all import copy, VectorSpace, Zmod, ZZ
 from numpy import log2
@@ -13,30 +14,6 @@ def to_long(lst):
     return [long(i) for i in lst]
 
 class AbstractObfuscator(object):
-    def _print_params(self):
-        self.logger('Graded encoding parameters:')
-        self.logger('  Security Parameter: %d' % self.secparam)
-        self.logger('  Kappa: %d' % self.kappa)
-        self.logger('  Alpha: %d' % self.alpha)
-        self.logger('  Beta: %d' % self.beta)
-        self.logger('  Eta: %d' % self.eta)
-        self.logger('  Nu: %d' % self.nu)
-        self.logger('  Rho: %d' % self.rho)
-        self.logger('  Rho_f: %d' % self.rho_f)
-        self.logger('  N: %d' % self.n)
-
-    def _set_params(self, secparam, kappa):
-        self.secparam = secparam
-        self.kappa = kappa
-        self.alpha = self.secparam
-        self.beta = self.secparam
-        self.rho = self.secparam
-        self.rho_f = self.kappa * (self.rho + self.alpha + 2)
-        self.eta = self.rho_f + self.alpha + 2 * self.beta + self.secparam + 8
-        self.nu = self.eta - self.beta - self.rho_f - self.secparam - 3
-        assert self.nu >= self.alpha + self.beta + 5
-        self.n = int(self.eta * log2(self.secparam))
-        self._print_params()
 
     def __init__(self, verbose=False, use_fast_prime_gen=True):
         self.obfuscation = None
@@ -47,36 +24,48 @@ class AbstractObfuscator(object):
         if self._use_fast_prime_gen:
             self.logger('* Using CLT13 prime generation')
 
-    def _gen_mlm_params(self, secparam, size, nzs, directory):
+    def _gen_mlm_params(self, secparam, kappa, size, nzs, directory):
         self.logger('Generating MLM parameters...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        primes = _obf.setup(secparam, size, self.n, self.alpha, self.beta,
-                            self.eta, self.nu, self.rho, nzs, directory,
+        primes = _obf.setup(secparam, kappa, size, nzs, directory,
                             self._use_fast_prime_gen)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         return primes
 
-    def _randomize(self, secparam, bp, primes, islayered):
-        self.logger('Randomizing BPs...')
-        num = secparam
+    def _construct_bps(self, circuit, primes, obliviate, bpclass):
+        self.logger('Constructing %d BPs...' % len(primes))
         start = time.time()
-        bps = [copy.deepcopy(bp) for _ in xrange(num)]
-        if islayered:
-            alphas = None
-            for bp, prime in zip(bps, primes[:num]):
-                bp.randomize(prime)
-        else:
-            Rs = [Zmod(prime) for prime in primes[:num]]
-            alphas = [[(R.random_element(), R.random_element()) for _ in
-                       xrange(len(bp))] for bp, R in zip(bps, Rs)]
-            for bp, prime, alpha in zip(bps, primes[:num], alphas):
-                bp.randomize(prime, alphas=alpha)
+        bps  = []
+        for prime in primes:
+            bp = bpclass(circuit, prime, verbose=self._verbose,
+                         obliviate=obliviate)
+            bp.set_straddling_sets()
+            bps.append(bp)
         end = time.time()
         self.logger('Took: %f' % (end - start))
-        return bps, alphas
+        return bps
+
+    def _randomize(self, secparam, bps, primes, islayered):
+        self.logger('Randomizing BPs...')
+        start = time.time()
+        if islayered:
+            alphas = None
+            for bp, prime in zip(bps, primes):
+                bp.randomize(prime)
+                bp.set_straddling_sets()
+        else:
+            Rs = [Zmod(prime) for prime in primes]
+            alphas = [[(R.random_element(), R.random_element()) for _ in
+                       xrange(len(bp))] for bp, R in zip(bps, Rs)]
+            for bp, prime, alpha in zip(bps, primes, alphas):
+                bp.randomize(prime, alpha)
+                bp.set_straddling_sets()
+        end = time.time()
+        self.logger('Took: %f' % (end - start))
+        return alphas
 
     def _obfuscate(self, bps):
         for i in xrange(len(bps[0])):
@@ -89,31 +78,31 @@ class AbstractObfuscator(object):
             end = time.time()
             self.logger('Took: %f' % (end - start))
 
-    def obfuscate(self, bp, secparam, directory):
-        assert not bp.randomized
-
-        start = time.time()
-        islayered = True if type(self) == LayeredObfuscator else False
+    def obfuscate(self, circuit, secparam, directory, obliviate=False):
         # remove old files in obfuscation directory
         if os.path.isdir(directory):
             files = os.listdir(directory)
             for file in os.listdir(directory):
-                path = os.path.join(directory, file)
-                os.unlink(path)
+                p = os.path.join(directory, file)
+                os.unlink(p)
+
+        islayered = True if type(self) == LayeredObfuscator else False
+        bpclass = LayeredBranchingProgram if islayered else BranchingProgram
+        # create a dummy branching program to determine parameters
+        bp = bpclass(circuit, 3, verbose=self._verbose, obliviate=obliviate)
 
         # add two to kappa due to the bookend vectors
         kappa = len(bp) + 2
-        self._set_params(secparam, kappa)
         # construct straddling sets, and add two to the number of Zs to take
         # bookend vectors into account
         nzs = bp.set_straddling_sets() + 2
-        self.logger('  Number of Zs: %d' % nzs)
         # size is the column/row-length of the matrices
-        size = bp.size if islayered else len(_group)
-        self.logger('  Size: %d' % size)
+        size = bp.size if islayered else len(bp.group)
 
-        primes = self._gen_mlm_params(secparam, size, nzs, directory)
-        bps, alphas = self._randomize(secparam, bp, primes, islayered)
+        start = time.time()
+        primes = self._gen_mlm_params(secparam, kappa, size, nzs, directory)
+        bps = self._construct_bps(circuit, primes, obliviate, bpclass)
+        alphas = self._randomize(secparam, bps, primes, islayered)
         if not islayered:
             self._construct_multiplicative_constants(bps, alphas)
         self._construct_bookend_vectors(bps, primes, nzs)
@@ -164,19 +153,18 @@ class Obfuscator(AbstractObfuscator):
         self.logger('Took: %f' % (end - start))
 
     def _construct_bookend_vectors(self, bps, primes, nzs):
+        def compute_vectors():
+            start = time.time()
+            ss = [to_long(bp.s * bp.m0i) for bp in bps]
+            ts = [to_long(bp.m0 * bp.t) for bp in bps]
+            ps = [[long(bp.s * bp.t)] for bp in bps]
+            end = time.time()
+            self.logger('  Computing bookend vectors: %f' % (end - start))
+            return ss, ts, ps
         self.logger('Constructing bookend vectors...')
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
-        ss = []
-        ts = []
-        ps = []
-        for bp, prime in zip(bps, primes):
-            VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), _group.length)
-            s = VSZp.random_element() * bp.m0i
-            t = bp.m0 * VSZp.random_element()
-            ss.append(to_long(s))
-            ts.append(to_long(t))
-            ps.append([long(s * t)])
+        ss, ts, ps = compute_vectors()
         _obf.encode_scalars(ps, [sidx, tidx], 'p_enc')
         _obf.encode_vectors(ss, [sidx], 's_enc')
         _obf.encode_vectors(ts, [tidx], 't_enc')
@@ -190,8 +178,8 @@ class LayeredObfuscator(AbstractObfuscator):
     def _construct_bookend_vectors(self, bps, primes, nzs):
         def compute_vectors():
             start = time.time()
-            ss = [to_long(bp.e_1 * bp.m0i) for bp in bps]
-            ts = [to_long(bp.m0 * bp.e_w) for bp in bps]
+            ss = [to_long(bp.s * bp.m0i) for bp in bps]
+            ts = [to_long(bp.m0 * bp.t) for bp in bps]
             end = time.time()
             self.logger('  Computing bookend vectors: %f' % (end - start))
             return ss, ts
@@ -199,7 +187,7 @@ class LayeredObfuscator(AbstractObfuscator):
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
         ss, ts = compute_vectors()
-        _obf.encode_vectors(ss, [sidx], "s_enc")
-        _obf.encode_vectors(ts, [tidx], "t_enc")
+        _obf.encode_vectors(ss, [sidx], 's_enc')
+        _obf.encode_vectors(ts, [tidx], 't_enc')
         end = time.time()
         self.logger('Took: %f' % (end - start))

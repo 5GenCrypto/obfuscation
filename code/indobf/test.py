@@ -1,7 +1,6 @@
 from __future__ import print_function
 
-from branchingprogram import BranchingProgram, ParseException
-from layered_branching_program import LayeredBranchingProgram
+from branchingprogram import ParseException
 import _obfuscator as _obf
 
 from sage.all import random_prime
@@ -22,12 +21,6 @@ def test_circuit(path, bpclass, obfclass, obfuscate, args):
     if len(testcases) == 0:
         print('no test cases')
         return
-    try:
-        bp = bpclass(path, verbose=args.verbose, obliviate=args.obliviate)
-    except ParseException as e:
-        print('\x1b[33mParse Error:\x1b[0m %s' % e)
-        return False
-    program = bp
     success = True
     if obfuscate:
         def create_obf():
@@ -36,19 +29,25 @@ def test_circuit(path, bpclass, obfclass, obfuscate, args):
         obf = create_obf()
         directory = args.save if args.save \
                     else '%s.obf.%d' % (path, args.secparam)
-        obf.obfuscate(bp, args.secparam, directory)
+        obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate)
         obf.encode_benchmark()
-        obf.cleanup()
+        # obf.cleanup()
         for k, v in testcases.items():
             if obf.evaluate(directory, k) != v:
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
                 success = False
     else:
         prime = random_prime(2 ** args.secparam - 1)
+        try:
+            bp = bpclass(path, prime, verbose=args.verbose,
+                         obliviate=args.obliviate)
+        except ParseException as e:
+            print('\x1b[33mParse Error:\x1b[0m %s' % e)
+            return False
         bp.randomize(prime)
         for k, v in testcases.items():
             try:
-                if program.evaluate(k) != v:
+                if bp.evaluate(k) != v:
                     print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
                     success = False
             except Exception:

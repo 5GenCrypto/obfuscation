@@ -40,7 +40,7 @@ def contract(g, a, b, name):
     return g
 
 class LayeredBranchingProgram(AbstractBranchingProgram):
-    def __init__(self, fname, verbose=False, obliviate=False):
+    def __init__(self, fname, prime, verbose=False, obliviate=False):
         super(LayeredBranchingProgram, self).__init__(verbose=verbose)
         self.graph = None
         self.size = None
@@ -264,10 +264,10 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
             self.bp[i] = self.bp[i].group(MSZp, prime).mult_left(mi)
         self.bp[-1] = self.bp[-1].group(MSZp, prime).mult_right(m0i)
         VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), self.size)
-        self.e_1 = copy(VSZp.zero())
-        self.e_1[0] = 1
-        self.e_w = copy(VSZp.zero())
-        self.e_w[len(self.e_w) - 1] = 1
+        self.s = copy(VSZp.zero())
+        self.s[0] = 1
+        self.t = copy(VSZp.zero())
+        self.t[len(self.t) - 1] = 1
         self.m0, self.m0i = m0, m0i
         self.randomized = True
 

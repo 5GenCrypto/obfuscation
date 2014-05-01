@@ -9,8 +9,6 @@
 
 #include "mpz_pylong.h"
 
-// #define KEEP_IN_MEMORY
-
 // XXX: The use of /dev/urandom is not secure; however, the supercomputer we run
 // on doesn't appear to have enough entropy, and blocks for long periods of
 // time.  Thus, we use /dev/urandom instead.
@@ -282,6 +280,7 @@ is_zero(mpz_t c, mpz_t pzt, mpz_t x0, long nu)
     mpz_mod_near(tmp, tmp, x0);
     ret = (mpz_sizeinbase(tmp, 2) < (mpz_sizeinbase(x0, 2) - nu)) ? 1 : 0;
     mpz_clear(tmp);
+
     return ret;
 }
 
@@ -425,17 +424,39 @@ obf_verbose(PyObject *self, PyObject *args)
 static PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
-    long alpha, beta, eta;
+    long alpha, beta, eta, kappa, rho, rho_f;
     mpz_t *ps, *zs;
     PyObject *py_gs, *py_fastprimes;
     double start, end;
     long niter;
     int use_fastprimes;
 
-    if (!PyArg_ParseTuple(args, "lllllllllsO", &g_secparam, &g_size, &g_n,
-                          &alpha, &beta, &eta, &g_nu, &g_rho, &g_nzs, &g_dir,
-                          &py_fastprimes))
+    if (!PyArg_ParseTuple(args, "llllsO", &g_secparam, &kappa, &g_size, &g_nzs,
+                          &g_dir, &py_fastprimes))
         return NULL;
+
+    alpha = g_secparam;
+    beta = g_secparam;
+    rho = g_secparam;
+    rho_f = kappa * (rho + alpha + 2);
+    eta = rho_f + alpha + 2 * beta + g_secparam + 8;
+    g_nu = eta - beta - rho_f - g_secparam + 3;
+    // g_n = (int) (g_secparam * log2((float) g_secparam));
+    g_n = (int) (eta * log2((float) g_secparam));
+
+    if (g_verbose) {
+        fprintf(stderr, "  Security Parameter: %ld\n", g_secparam);
+        fprintf(stderr, "  Kappa: %ld\n", kappa);
+        fprintf(stderr, "  Alpha: %ld\n", alpha);
+        fprintf(stderr, "  Beta: %ld\n", beta);
+        fprintf(stderr, "  Eta: %ld\n", eta);
+        fprintf(stderr, "  Nu: %ld\n", g_nu);
+        fprintf(stderr, "  Rho: %ld\n", rho);
+        fprintf(stderr, "  Rho_f: %ld\n", rho_f);
+        fprintf(stderr, "  N: %ld\n", g_n);
+        fprintf(stderr, "  Number of Zs: %ld\n", g_nzs);
+        fprintf(stderr, "  Size: %ld\n", g_size);
+    }
 
     ps = (mpz_t *) mymalloc(sizeof(mpz_t) * g_n);
     g_gs = (mpz_t *) mymalloc(sizeof(mpz_t) * g_n);
@@ -445,7 +466,7 @@ obf_setup(PyObject *self, PyObject *args)
     if (!ps || !g_gs || !g_crt_coeffs || !zs || !g_zinvs)
         goto error;
 
-    py_gs = PyList_New(g_n);
+    py_gs = PyList_New(g_secparam);
     if (!py_gs)
         goto error;
 
@@ -487,7 +508,6 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_init(zs[i]);
         mpz_init(g_zinvs[i]);
     }
-
 
     start = current_time();
     if (use_fastprimes) {
@@ -536,16 +556,6 @@ obf_setup(PyObject *self, PyObject *args)
     if (g_verbose)
         (void) fprintf(stderr, "  Generating p_i's and g_i's: %f\n",
                        end - start);
-
-
-    // start = current_time();
-    // for (int i = 0; i < g_n; ++i) {
-    //     mpz_mul(g_x0, g_x0, ps[i]);
-    // }
-    // end = current_time();
-    // if (g_verbose)
-    //     (void) fprintf(stderr, "  Computing x_0: %f\n", end - start);
-
 
     start = current_time();
     // Only convert the first secparam g_i values to python objects
@@ -624,10 +634,7 @@ obf_setup(PyObject *self, PyObject *args)
     if (g_verbose)
         (void) fprintf(stderr, "  Generating pzt: %f\n", end - start);
 
-#ifndef KEEP_IN_MEMORY
     (void) write_setup_params();
-#endif
-
 
     for (int i = 0; i < g_n; ++i) {
         mpz_clear(ps[i]);
@@ -672,20 +679,14 @@ obf_encode_scalars(PyObject *self, PyObject *args)
     (void) extract_indices(py_list, &idx1, &idx2);
 
     start = current_time();
-
     mpz_init(val);
     encode(val, py_scalars, 0, idx1, idx2);
-#ifdef KEEP_IN_MEMORY
-    // XXX: save val somehow in memory
-#else
-    (void) write_scalar(val, name);
-#endif
-    mpz_clear(val);
-
     end = current_time();
-
     if (g_verbose)
         (void) fprintf(stderr, "  Encoding one element: %f\n", end - start);
+
+    (void) write_scalar(val, name);
+    mpz_clear(val);
 
     if (err) {
         return NULL;
@@ -729,11 +730,7 @@ obf_encode_vectors(PyObject *self, PyObject *args)
         (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
                        size, end - start);
 
-#ifdef KEEP_IN_MEMORY
-    // XXX: save vector in memory
-#else
     (void) write_vector(vector, size, name);
-#endif
 
     for (Py_ssize_t i = 0; i < size; ++i) {
         mpz_clear(vector[i]);
@@ -767,6 +764,11 @@ obf_encode_layers(PyObject *self, PyObject *args)
         return NULL;
     (void) extract_indices(py_zero_set, &zeroidx1, &zeroidx2);
     (void) extract_indices(py_one_set, &oneidx1, &oneidx2);
+
+    if (zeroidx1 < 0 && zeroidx2 < 0)
+        return NULL;
+    if (oneidx1 < 0 && oneidx2 < 0)
+        return NULL;
 
     size = PyList_GET_SIZE(PyList_GET_ITEM(py_zero_ms, 0));
     zero = (mpz_t *) mymalloc(sizeof(mpz_t) * size);
@@ -804,9 +806,6 @@ obf_encode_layers(PyObject *self, PyObject *args)
         (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
                        2 * size, end - start);
 
-#ifdef KEEP_IN_MEMORY
-    // XXX: save to memory
-#else
     (void) write_layer(inp, idx, zero, one, size);
 
     for (int i = 0; i < size; ++i) {
@@ -815,7 +814,6 @@ obf_encode_layers(PyObject *self, PyObject *args)
     }
     free(zero);
     free(one);
-#endif
 
     if (err)
         Py_RETURN_FALSE;
@@ -831,12 +829,8 @@ obf_evaluate(PyObject *self, PyObject *args)
     char *fname = NULL;
     int fnamelen;
     int iszero = -1;
-    mpz_t *comp;
-    mpz_t *tmp1;
-    mpz_t *tmp2;
-    mpz_t *s;
-    mpz_t *t;
-    mpz_t p1, p2, tmp;
+    mpz_t *comp, *tmp1, *tmp2, *s, *t;
+    mpz_t p, tmp;
     long bplen, size;
     int err = 0;
     int islayered;
@@ -844,7 +838,7 @@ obf_evaluate(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "ssli", &dir, &input, &bplen, &islayered))
         return NULL;
 
-    fnamelen = strlen(dir) + 10; // XXX: should include bplen somewhere
+    fnamelen = strlen(dir) + 20; // XXX: should include bplen somewhere
 
     fname = (char *) mymalloc(sizeof(char) * fnamelen);
     if (fname == NULL)
@@ -852,6 +846,7 @@ obf_evaluate(PyObject *self, PyObject *args)
 
     mpz_init(tmp);
 
+    // Get the size of the matrices
     (void) snprintf(fname, fnamelen, "%s/size", dir);
     (void) load_mpz_scalar(fname, tmp);
     size = mpz_get_ui(tmp);
@@ -866,8 +861,7 @@ obf_evaluate(PyObject *self, PyObject *args)
         goto cleanup;
     }
 
-    mpz_init(p1);
-    mpz_init(p2);
+    mpz_init(p);
     for (int i = 0; i < size; ++i) {
         mpz_init(s[i]);
         mpz_init(t[i]);
@@ -880,7 +874,7 @@ obf_evaluate(PyObject *self, PyObject *args)
 
     if (!islayered) {
         (void) snprintf(fname, fnamelen, "%s/p_enc", dir);
-        (void) load_mpz_scalar(fname, p2);
+        (void) load_mpz_scalar(fname, p);
     }
 
     for (int layer = 0; layer < bplen; ++layer) {
@@ -926,7 +920,7 @@ obf_evaluate(PyObject *self, PyObject *args)
                 (void) snprintf(fname, fnamelen, "%s/%d.a1_enc", dir, layer);
             }
             (void) load_mpz_scalar(fname, tmp);
-            mpz_mul(p2, p2, tmp);
+            mpz_mul(p, p, tmp);
         }
 
         end = current_time();
@@ -949,31 +943,29 @@ obf_evaluate(PyObject *self, PyObject *args)
         (void) load_mpz_vector(fname, s, size);
         (void) snprintf(fname, fnamelen, "%s/t_enc", dir);
         (void) load_mpz_vector(fname, t, size);
-        mat_mult_by_vects(p1, s, comp, t, size);
+        mat_mult_by_vects(tmp, s, comp, t, size);
         (void) snprintf(fname, fnamelen, "%s/pzt", dir);
         (void) load_mpz_scalar(fname, pzt);
         (void) snprintf(fname, fnamelen, "%s/x0", dir);
         (void) load_mpz_scalar(fname, x0);
         (void) snprintf(fname, fnamelen, "%s/nu", dir);
         (void) load_mpz_scalar(fname, nu);
-        if (islayered) {
-            iszero = is_zero(p1, pzt, x0, mpz_get_ui(nu));
-        } else {
-            mpz_sub(tmp, p1, p2);
-            iszero = is_zero(tmp, pzt, x0, mpz_get_ui(nu));
+        if (!islayered) {
+            mpz_sub(tmp, tmp, p);
         }
+        iszero = is_zero(tmp, pzt, x0, mpz_get_ui(nu));
 
         mpz_clear(pzt);
         mpz_clear(x0);
         mpz_clear(nu);
+
         end = current_time();
         if (g_verbose)
             (void) fprintf(stderr, "  Zero test: %f\n", end - start);
     }
 
     mpz_clear(tmp);
-    mpz_clear(p1);
-    mpz_clear(p2);
+    mpz_clear(p);
     for (int i = 0; i < size; ++i) {
         mpz_clear(s[i]);
         mpz_clear(t[i]);
@@ -1032,7 +1024,7 @@ obf_encode_benchmark(PyObject *self, PyObject *args)
     mpz_mod(out, out, g_x0);
     mpz_mul(out, out, g_zinvs[0]);
     mpz_mod(out, out, g_x0);
-    mpz_mul(out, out, g_zinvs[0]);
+    mpz_mul(out, out, g_zinvs[1]);
     mpz_mod(out, out, g_x0);
 
     end = current_time();

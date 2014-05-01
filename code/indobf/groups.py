@@ -10,8 +10,6 @@ class Group(object):
         self.C = None
         self.Cc = None
         self.conjugates = None
-    def mapneg(self, m, prime):
-        return m
 
 class S5(Group):
     def __init__(self):
@@ -127,9 +125,9 @@ class SL3(Group):
     SL3 group.
     NOTE: Doesn't work with randomization!
     '''
-    def __init__(self):
+    def __init__(self, prime):
         self.length = 3
-        self.G = MatrixSpace(GF(3), self.length)
+        self.G = MatrixSpace(GF(prime), self.length)
         self.I = self.G.one()
         self.C = self.G([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])
         self.Cc = self.G([[-1, 0, -1], [0, -1, 0], [0, 0, 1]])
@@ -148,16 +146,3 @@ class SL3(Group):
         return 'SL3'
     def __len__(self):
         return 3
-    def mapneg(self, m, prime):
-        for i, row in enumerate(m):
-            for j, elem in enumerate(row):
-                if elem == 2:
-                    m[i,j] = prime - 1
-        return m
-
-
-groupmap = {
-    'S5': S5,
-    'S6': S6,
-    'SL3': SL3,
-}

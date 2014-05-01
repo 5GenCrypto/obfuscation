@@ -1,7 +1,7 @@
 from __future__ import print_function
 import itertools
 
-from sage.all import MatrixSpace, ZZ
+from sage.all import MatrixSpace, VectorSpace, ZZ
 
 import groups, utils
 
@@ -84,8 +84,6 @@ class AbstractBranchingProgram(object):
     def evaluate(self, inp):
         raise NotImplementedError
 
-_group = groups.S6()
-
 def flatten(l):
     return list(itertools.chain(*l))
 
@@ -103,9 +101,7 @@ class Layer(object):
         return Layer(self.inp, Mi * self.zero * M, Mi * self.one * M,
                      zeroset=self.zeroset, oneset=self.oneset)
     def group(self, group, prime):
-        return Layer(self.inp,
-                     _group.mapneg(group(self.zero), prime),
-                     _group.mapneg(group(self.one), prime),
+        return Layer(self.inp, group(self.zero), group(self.one),
                      zeroset=self.zeroset, oneset=self.oneset)
     def mult_scalar(self, alphas):
         return Layer(self.inp, alphas[0] * self.zero, alphas[1] * self.one,
@@ -122,33 +118,34 @@ def prepend(layers, M):
 def append(layers, M):
     return layers[:-1] + [layers[-1].mult_right(M)]
 
-def conjugate(layers, target):
+def conjugate(layers, target, group):
     if len(layers) == 1:
-        return [layers[0].conjugate(*_group.conjugates[target])]
+        return [layers[0].conjugate(*group.conjugates[target])]
     else:
-        layers = prepend(layers, _group.conjugates[target][1])
-        return append(layers, _group.conjugates[target][0])
+        layers = prepend(layers, group.conjugates[target][1])
+        return append(layers, group.conjugates[target][0])
 
-def notgate(layers):
+def notgate(layers, group):
     if len(layers) == 1:
-        return [layers[0].mult_left(_group.Cc).mult_right(_group.Cc * _group.C)]
+        return [layers[0].mult_left(group.Cc).mult_right(group.Cc * group.C)]
     else:
-        return append(prepend(layers, _group.Cc), _group.Cc * _group.C)
+        return append(prepend(layers, group.Cc), group.Cc * group.C)
 
 class BranchingProgram(AbstractBranchingProgram):
-    def __init__(self, fname, verbose=False, obliviate=False):
+    def __init__(self, fname, prime, verbose=False, obliviate=False):
         super(BranchingProgram, self).__init__(verbose=verbose)
-        self.zero = _group.I
-        self.one = _group.C
+        self.group = groups.SL3(prime)
+        self.zero = self.group.I
+        self.one = self.group.C
         self._load_circuit(fname)
         if obliviate:
             self.obliviate()
 
     def _and_gate(self, in1, in2):
-        a = conjugate(in1, 'A')
-        b = conjugate(in2, 'B')
-        c = conjugate(in1, 'Ai')
-        d = conjugate(in2, 'Bi')
+        a = conjugate(in1, 'A', self.group)
+        b = conjugate(in2, 'B', self.group)
+        c = conjugate(in1, 'Ai', self.group)
+        d = conjugate(in2, 'Bi', self.group)
         return flatten([a, b, c, d])
 
     def _id_gate(self, in1):
@@ -161,10 +158,10 @@ class BranchingProgram(AbstractBranchingProgram):
         return self._not_gate(r)
 
     def _not_gate(self, in1):
-        return notgate(in1)
+        return notgate(in1, self.group)
 
     def _xor_gate(self, in1, in2):
-        if repr(_group) == 'S5':
+        if repr(self.group) == 'S5':
             raise ParseException("XOR gates not supported for S5 group")
         return flatten([in1, in2])
 
@@ -200,8 +197,8 @@ class BranchingProgram(AbstractBranchingProgram):
                         bp.append(gates[gate.upper()](*inputs))
                     except KeyError:
                         raise ParseException("unsupported gate '%s'" % gate)
-                    except TypeError:
-                        raise ParseException("incorrect number of arguments given")
+                    # except TypeError:
+                    #     raise ParseException("incorrect number of arguments given")
                 else:
                     raise ParseException("unknown type")
         if not output:
@@ -210,24 +207,24 @@ class BranchingProgram(AbstractBranchingProgram):
 
     def randomize(self, prime, alphas=None):
         assert not self.randomized
-
-        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), _group.length)
-
+        MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), self.group.length)
         def random_matrix():
             while True:
                 m = MSZp.random_element()
                 if not m.is_singular():
                     return m, m.inverse()
-
         m0, m0i = random_matrix()
         self.zero = m0 * MSZp(self.zero) * m0i
-        self.one = m0 * _group.mapneg(MSZp(self.one), prime) * m0i
+        self.one = m0 * MSZp(self.one) * m0i
         self.bp[0] = self.bp[0].group(MSZp, prime).mult_left(m0)
         for i in xrange(1, len(self.bp)):
             mi, mii = random_matrix()
             self.bp[i-1] = self.bp[i-1].group(MSZp, prime).mult_right(mii)
             self.bp[i] = self.bp[i].group(MSZp, prime).mult_left(mi)
         self.bp[-1] = self.bp[-1].group(MSZp, prime).mult_right(m0i)
+        VSZp = VectorSpace(ZZ.residue_field(ZZ.ideal(prime)), self.group.length)
+        self.s = VSZp.random_element()
+        self.t = VSZp.random_element()
         self.m0, self.m0i = m0, m0i
         self.randomized = True
 
@@ -241,6 +238,7 @@ class BranchingProgram(AbstractBranchingProgram):
         comp = m.zero if inp[m.inp] == '0' else m.one
         for m in self.bp[1:]:
             comp *= m.zero if inp[m.inp] == '0' else m.one
+        print(comp)
         if comp == self.zero:
             return 0
         elif comp == self.one:
