@@ -222,23 +222,32 @@ encode(mpz_t out, const PyObject *in, const long row, const long idx1,
 
 
 inline static void
-mat_mult(mpz_t *out, const mpz_t *a, const mpz_t *b, int size)
+mat_mult(mpz_t *a, const mpz_t *b, int size)
 {
+    mpz_t *tmparray;
+
+    tmparray = (mpz_t *) malloc(sizeof(mpz_t) * size * size);
+    for (int i = 0; i < size * size; ++i) {
+        mpz_init(tmparray[i]);
+    }
 #pragma omp parallel for
     for (int ctr = 0; ctr < size * size; ++ctr) {
         mpz_t tmp, sum;
-        mpz_init(tmp);
-        mpz_init_set_ui(sum, 0);
+        mpz_inits(tmp, sum, NULL);
         for (int i = 0; i < size; ++i) {
             mpz_mul(tmp,
                     a[i * size + ctr % size],
                     b[i + size * (ctr / size)]);
             mpz_add(sum, sum, tmp);
         }
-        mpz_set(out[ctr], sum);
-        mpz_clear(tmp);
-        mpz_clear(sum);
+        mpz_set(tmparray[ctr], sum);
+        mpz_clears(tmp, sum, NULL);
     }
+    for (int i = 0; i < size * size; ++i) {
+        mpz_swap(a[i], tmparray[i]);
+        mpz_clear(tmparray[i]);
+    }
+    free(tmparray);
 }
 
 inline static void
@@ -440,8 +449,8 @@ obf_setup(PyObject *self, PyObject *args)
     rho_f = kappa * (rho + alpha + 2);
     eta = rho_f + alpha + 2 * beta + g_secparam + 8;
     nu = eta - beta - rho_f - g_secparam + 3;
-    // g_n = (int) (g_secparam * log2((float) g_secparam));
-    g_n = (int) (eta * log2((float) g_secparam));
+    g_n = (int) (g_secparam * log2((float) g_secparam));
+    // g_n = (int) (eta * log2((float) g_secparam));
 
     if (g_verbose) {
         fprintf(stderr, "  Security Parameter: %ld\n", g_secparam);
@@ -828,7 +837,7 @@ obf_evaluate(PyObject *self, PyObject *args)
     char *fname = NULL;
     int fnamelen;
     int iszero = -1;
-    mpz_t *comp, *tmp1, *tmp2, *s, *t;
+    mpz_t *comp, *s, *t;
     mpz_t p, tmp;
     long bplen, size;
     int err = 0;
@@ -851,11 +860,9 @@ obf_evaluate(PyObject *self, PyObject *args)
     size = mpz_get_ui(tmp);
 
     comp = (mpz_t *) mymalloc(sizeof(mpz_t) * size * size);
-    tmp1 = (mpz_t *) mymalloc(sizeof(mpz_t) * size * size);
-    tmp2 = (mpz_t *) mymalloc(sizeof(mpz_t) * size * size);
     s = (mpz_t *) mymalloc(sizeof(mpz_t) * size);
     t = (mpz_t *) mymalloc(sizeof(mpz_t) * size);
-    if (!comp || !tmp1 || !tmp2 || !s || !t) {
+    if (!comp || !s || !t) {
         err = 1;
         goto cleanup;
     }
@@ -867,8 +874,6 @@ obf_evaluate(PyObject *self, PyObject *args)
     }
     for (int i = 0; i < size * size; ++i) {
         mpz_init(comp[i]);
-        mpz_init(tmp1[i]);
-        mpz_init(tmp2[i]);
     }
 
     if (!islayered) {
@@ -906,11 +911,18 @@ obf_evaluate(PyObject *self, PyObject *args)
         if (layer == 0) {
             (void) load_mpz_vector(fname, comp, size * size);
         } else {
-            (void) load_mpz_vector(fname, tmp1, size * size);
-            mat_mult(tmp2, comp, tmp1, size);
-            for (int ctr = 0; ctr < size * size; ++ctr) {
-                mpz_set(comp[ctr], tmp2[ctr]);
+            mpz_t *tmparray;
+
+            tmparray = (mpz_t *) malloc(sizeof(mpz_t) * size * size);
+            for (int i = 0; i < size * size; ++i) {
+                mpz_init(tmparray[i]);
             }
+            (void) load_mpz_vector(fname, tmparray, size * size);
+            mat_mult(comp, tmparray, size);
+            for (int i = 0; i < size * size; ++i) {
+                mpz_clear(tmparray[i]);
+            }
+            free(tmparray);
         }
         if (!islayered) {
             if (input[input_idx] == '0') {
@@ -971,17 +983,11 @@ obf_evaluate(PyObject *self, PyObject *args)
     }
     for (int i = 0; i < size * size; ++i) {
         mpz_clear(comp[i]);
-        mpz_clear(tmp1[i]);
-        mpz_clear(tmp2[i]);
     }
 
  cleanup:
     if (comp)
         free(comp);
-    if (tmp1)
-        free(tmp1);
-    if (tmp2)
-        free(tmp2);
     if (s)
         free(s);
     if (t)
