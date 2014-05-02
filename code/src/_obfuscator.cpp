@@ -24,7 +24,6 @@ static long g_size;
 static long g_n;
 static long g_nzs;
 static long g_rho;
-static long g_nu;
 static mpz_t g_x0;
 static mpz_t g_pzt;
 static mpz_t *g_gs;
@@ -285,7 +284,7 @@ is_zero(mpz_t c, mpz_t pzt, mpz_t x0, long nu)
 }
 
 inline static int
-write_setup_params(void)
+write_setup_params(long nu)
 {
     char *fname;
     int len;
@@ -306,7 +305,7 @@ write_setup_params(void)
     (void) snprintf(fname, len, "%s/size", g_dir);
     (void) save_mpz_scalar(fname, tmp);
     // save nu
-    mpz_set_ui(tmp, g_nu);
+    mpz_set_ui(tmp, nu);
     (void) snprintf(fname, len, "%s/nu", g_dir);
     (void) save_mpz_scalar(fname, tmp);
     // save x0
@@ -424,7 +423,7 @@ obf_verbose(PyObject *self, PyObject *args)
 static PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
-    long alpha, beta, eta, kappa, rho, rho_f;
+    long alpha, beta, eta, nu, kappa, rho, rho_f;
     mpz_t *ps, *zs;
     PyObject *py_gs, *py_fastprimes;
     double start, end;
@@ -440,7 +439,7 @@ obf_setup(PyObject *self, PyObject *args)
     rho = g_secparam;
     rho_f = kappa * (rho + alpha + 2);
     eta = rho_f + alpha + 2 * beta + g_secparam + 8;
-    g_nu = eta - beta - rho_f - g_secparam + 3;
+    nu = eta - beta - rho_f - g_secparam + 3;
     // g_n = (int) (g_secparam * log2((float) g_secparam));
     g_n = (int) (eta * log2((float) g_secparam));
 
@@ -450,7 +449,7 @@ obf_setup(PyObject *self, PyObject *args)
         fprintf(stderr, "  Alpha: %ld\n", alpha);
         fprintf(stderr, "  Beta: %ld\n", beta);
         fprintf(stderr, "  Eta: %ld\n", eta);
-        fprintf(stderr, "  Nu: %ld\n", g_nu);
+        fprintf(stderr, "  Nu: %ld\n", nu);
         fprintf(stderr, "  Rho: %ld\n", rho);
         fprintf(stderr, "  Rho_f: %ld\n", rho_f);
         fprintf(stderr, "  N: %ld\n", g_n);
@@ -634,7 +633,7 @@ obf_setup(PyObject *self, PyObject *args)
     if (g_verbose)
         (void) fprintf(stderr, "  Generating pzt: %f\n", end - start);
 
-    (void) write_setup_params();
+    (void) write_setup_params(nu);
 
     for (int i = 0; i < g_n; ++i) {
         mpz_clear(ps[i]);
