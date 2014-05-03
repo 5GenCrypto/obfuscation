@@ -449,8 +449,8 @@ obf_setup(PyObject *self, PyObject *args)
     rho_f = kappa * (rho + alpha + 2);
     eta = rho_f + alpha + 2 * beta + g_secparam + 8;
     nu = eta - beta - rho_f - g_secparam + 3;
-    g_n = (int) (g_secparam * log2((float) g_secparam));
-    // g_n = (int) (eta * log2((float) g_secparam));
+    // g_n = (int) (g_secparam * log2((float) g_secparam));
+    g_n = (int) (eta * log2((float) g_secparam));
 
     if (g_verbose) {
         fprintf(stderr, "  Security Parameter: %ld\n", g_secparam);
