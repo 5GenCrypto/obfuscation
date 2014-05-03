@@ -47,14 +47,12 @@ def obf(args):
         if args.load_obf:
             directory = args.load_obf
         elif args.load_circuit:
-            print("Converting '%s' -> bp..." % args.load_circuit)
-            bp = bpclass(args.load_circuit, verbose=args.verbose)
-            directory = args.save if args.save \
-                        else '%s.obf.%d' % (args.load_circuit, args.secparam)
-            print('Obfuscating BP of length %d...' % len(bp))
             start = time.time()
             obf = create_obf()
-            obf.obfuscate(bp, args.secparam, directory)
+            directory = args.save if args.save \
+                        else '%s.obf.%d' % (args.load_circuit, args.secparam)
+            obf.obfuscate(args.load_circuit, args.secparam, directory,
+                          obliviate=args.obliviate)
             end = time.time()
             print("Obfuscation took: %f seconds" % (end - start))
             obf.encode_benchmark()
