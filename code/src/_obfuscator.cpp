@@ -170,19 +170,14 @@ mpz_mod_near(mpz_t out, const mpz_t a, const mpz_t b)
 {
     mpz_t res, shift;
 
-    mpz_init(res);
-    mpz_init(shift);
-
+    mpz_inits(res, shift, NULL);
     mpz_mod(res, a, b);
     mpz_tdiv_q_2exp(shift, b, 1);
     if (mpz_cmp(res, shift) > 0) {
         mpz_sub(res, res, b);
     }
-
     mpz_set(out, res);
-
-    mpz_clear(res);
-    mpz_clear(shift);
+    mpz_clears(res, shift, NULL);
 }
 
 static void
@@ -191,8 +186,7 @@ encode(mpz_t out, const PyObject *in, const long row, const long idx1,
 {
     mpz_t r, tmp;
 
-    mpz_init(r);
-    mpz_init(tmp);
+    mpz_inits(r, tmp, NULL);
 
     mpz_set_ui(out, 0);
 
@@ -216,8 +210,7 @@ encode(mpz_t out, const PyObject *in, const long row, const long idx1,
         mpz_mod(out, out, g_x0);
     }
 
-    mpz_clear(r);
-    mpz_clear(tmp);
+    mpz_clears(r, tmp, NULL);
 }
 
 
@@ -260,8 +253,7 @@ mat_mult_by_vects(mpz_t out, const mpz_t *s, const mpz_t *m, const mpz_t *t,
     for (int col = 0; col < size; ++col) {
         mpz_t tmp;
         mpz_t sum;
-        mpz_init(tmp);
-        mpz_init_set_ui(sum, 0);
+        mpz_inits(tmp, sum, NULL);
         for (int row = 0; row < size; ++row) {
             int elem = col * size + row;
             mpz_mul(tmp, s[row], m[elem]);
@@ -272,8 +264,7 @@ mat_mult_by_vects(mpz_t out, const mpz_t *s, const mpz_t *m, const mpz_t *t,
         {
             mpz_add(out, out, tmp);
         }
-        mpz_clear(tmp);
-        mpz_clear(sum);
+        mpz_clears(tmp, sum, NULL);
     }
 }
 
@@ -509,12 +500,10 @@ obf_setup(PyObject *self, PyObject *args)
     mpz_init_set_ui(g_pzt, 0);
     for (int i = 0; i < g_n; ++i) {
         mpz_init_set_ui(ps[i], 1);
-        mpz_init(g_gs[i]);
-        mpz_init(g_crt_coeffs[i]);
+        mpz_inits(g_gs[i], g_crt_coeffs[i], NULL);
     }
     for (int i = 0; i < g_nzs; ++i) {
-        mpz_init(zs[i]);
-        mpz_init(g_zinvs[i]);
+        mpz_inits(zs[i], g_zinvs[i], NULL);
     }
 
     start = current_time();
@@ -616,9 +605,7 @@ obf_setup(PyObject *self, PyObject *args)
 #pragma omp parallel for
         for (int i = 0; i < g_n; ++i) {
             mpz_t tmp, x0pi, rnd;
-            mpz_init(tmp);
-            mpz_init(x0pi);
-            mpz_init(rnd);
+            mpz_inits(tmp, x0pi, rnd, NULL);
             // compute (((g_i)^{-1} mod p_i) * z^k mod p_i) * r_i * (x_0 / p_i)
             mpz_invert(tmp, g_gs[i], ps[i]);
             mpz_mul(tmp, tmp, zk);
@@ -631,9 +618,7 @@ obf_setup(PyObject *self, PyObject *args)
             {
                 mpz_add(g_pzt, g_pzt, tmp);
             }
-            mpz_clear(tmp);
-            mpz_clear(x0pi);
-            mpz_clear(rnd);
+            mpz_clears(tmp, x0pi, rnd, NULL);
         }
         mpz_mod(g_pzt, g_pzt, g_x0);
         mpz_clear(zk);
@@ -817,8 +802,7 @@ obf_encode_layers(PyObject *self, PyObject *args)
     (void) write_layer(inp, idx, zero, one, size);
 
     for (int i = 0; i < size; ++i) {
-        mpz_clear(zero[i]);
-        mpz_clear(one[i]);
+        mpz_clears(zero[i], one[i], NULL);
     }
     free(zero);
     free(one);
@@ -852,7 +836,7 @@ obf_evaluate(PyObject *self, PyObject *args)
     if (fname == NULL)
         return NULL;
 
-    mpz_init(tmp);
+    mpz_inits(tmp, p, NULL);
 
     // Get the size of the matrices
     (void) snprintf(fname, fnamelen, "%s/size", dir);
@@ -867,10 +851,8 @@ obf_evaluate(PyObject *self, PyObject *args)
         goto cleanup;
     }
 
-    mpz_init(p);
     for (int i = 0; i < size; ++i) {
-        mpz_init(s[i]);
-        mpz_init(t[i]);
+        mpz_inits(s[i], t[i], NULL);
     }
     for (int i = 0; i < size * size; ++i) {
         mpz_init(comp[i]);
@@ -947,9 +929,7 @@ obf_evaluate(PyObject *self, PyObject *args)
 
         start = current_time();
 
-        mpz_init(pzt);
-        mpz_init(x0);
-        mpz_init(nu);
+        mpz_inits(pzt, x0, nu, NULL);
         (void) snprintf(fname, fnamelen, "%s/s_enc", dir);
         (void) load_mpz_vector(fname, s, size);
         (void) snprintf(fname, fnamelen, "%s/t_enc", dir);
@@ -966,26 +946,23 @@ obf_evaluate(PyObject *self, PyObject *args)
         }
         iszero = is_zero(tmp, pzt, x0, mpz_get_ui(nu));
 
-        mpz_clear(pzt);
-        mpz_clear(x0);
-        mpz_clear(nu);
+        mpz_clears(pzt, x0, nu, NULL);
 
         end = current_time();
         if (g_verbose)
             (void) fprintf(stderr, "  Zero test: %f\n", end - start);
     }
 
-    mpz_clear(tmp);
-    mpz_clear(p);
     for (int i = 0; i < size; ++i) {
-        mpz_clear(s[i]);
-        mpz_clear(t[i]);
+        mpz_clears(s[i], t[i], NULL);
     }
     for (int i = 0; i < size * size; ++i) {
         mpz_clear(comp[i]);
     }
 
  cleanup:
+    mpz_clears(tmp, p, NULL);
+
     if (comp)
         free(comp);
     if (s)
@@ -1008,13 +985,9 @@ obf_encode_benchmark(PyObject *self, PyObject *args)
     mpz_t r, tmp, out;
     double start, end;
 
-    mpz_init(r);
-    mpz_init(tmp);
-    mpz_init(out);
+    mpz_inits(r, tmp, out, NULL);
 
     start = current_time();
-
-    mpz_init_set_ui(out, 0);
 
     for (long i = 0; i < g_n; ++i) {
         mpz_genrandom(r, g_rho);
@@ -1038,9 +1011,7 @@ obf_encode_benchmark(PyObject *self, PyObject *args)
         (void) fprintf(stderr, "Encoding a single element takes: %f\n",
                        end - start);
 
-    mpz_clear(r);
-    mpz_clear(tmp);
-    mpz_clear(out);
+    mpz_clears(r, tmp, out, NULL);
 
     Py_RETURN_NONE;
 }
@@ -1060,11 +1031,9 @@ static PyObject *
 obf_cleanup(PyObject *self, PyObject *args)
 {
     gmp_randclear(g_rng);
-    mpz_clear(g_x0);
-    mpz_clear(g_pzt);
+    mpz_clears(g_x0, g_pzt, NULL);
     for (int i = 0; i < g_n; ++i) {
-        mpz_clear(g_gs[i]);
-        mpz_clear(g_crt_coeffs[i]);
+        mpz_clears(g_gs[i], g_crt_coeffs[i], NULL);
     }
     free(g_gs);
     free(g_crt_coeffs);
