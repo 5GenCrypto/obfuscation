@@ -238,7 +238,6 @@ class BranchingProgram(AbstractBranchingProgram):
         comp = m.zero if inp[m.inp] == '0' else m.one
         for m in self.bp[1:]:
             comp *= m.zero if inp[m.inp] == '0' else m.one
-        print(comp)
         if comp == self.zero:
             return 0
         elif comp == self.one:
