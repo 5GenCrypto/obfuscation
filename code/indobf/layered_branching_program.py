@@ -295,7 +295,7 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
         for i, m in enumerate(self.bp[1:]):
             comp *= m.zero if inp[m.inp] == '0' else m.one
         if self.randomized:
-            r = self.e_1 * self.m0i * comp * self.m0 * self.e_w
+            r = self.s * self.m0i * comp * self.m0 * self.t
             return 1 if r == 1 else 0
         else:
             return 1 if comp[0, comp.nrows() - 1] == 1 else 0
