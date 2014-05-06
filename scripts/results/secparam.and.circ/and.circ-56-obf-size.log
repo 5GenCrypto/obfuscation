@@ -1,0 +1,12 @@
+4	../code/circuits/and.circ.obf.56/0.input
+5358815	../code/circuits/and.circ.obf.56/0.one
+5358814	../code/circuits/and.circ.obf.56/0.zero
+5	../code/circuits/and.circ.obf.56/1.input
+5358815	../code/circuits/and.circ.obf.56/1.one
+5358814	../code/circuits/and.circ.obf.56/1.zero
+5	../code/circuits/and.circ.obf.56/nu
+334926	../code/circuits/and.circ.obf.56/pzt
+1339703	../code/circuits/and.circ.obf.56/s_enc
+5	../code/circuits/and.circ.obf.56/size
+1339703	../code/circuits/and.circ.obf.56/t_enc
+334926	../code/circuits/and.circ.obf.56/x0

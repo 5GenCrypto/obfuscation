@@ -1,0 +1,12 @@
+4	../code/circuits/xor.circ.obf.88/0.input
+22822090	../code/circuits/xor.circ.obf.88/0.one
+22822091	../code/circuits/xor.circ.obf.88/0.zero
+5	../code/circuits/xor.circ.obf.88/1.input
+22822089	../code/circuits/xor.circ.obf.88/1.one
+22822082	../code/circuits/xor.circ.obf.88/1.zero
+5	../code/circuits/xor.circ.obf.88/nu
+912883	../code/circuits/xor.circ.obf.88/pzt
+4564418	../code/circuits/xor.circ.obf.88/s_enc
+5	../code/circuits/xor.circ.obf.88/size
+4564415	../code/circuits/xor.circ.obf.88/t_enc
+912884	../code/circuits/xor.circ.obf.88/x0

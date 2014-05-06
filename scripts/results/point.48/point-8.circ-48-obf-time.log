@@ -1,0 +1,68 @@
+* Using CLT13 prime generation
+Generating MLM parameters...
+  Security Parameter: 48
+  Kappa: 10
+  Alpha: 48
+  Beta: 48
+  Eta: 1180
+  Nu: 107
+  Rho: 48
+  Rho_f: 980
+  N: 6590
+  Number of Zs: 10
+  Size: 10
+  Seed: 5469507763140343692
+  Generating p_i's and g_i's: 15.675403
+  Converting g_i's to python objects: 0.000078
+  Generating CRT coefficients: 9.068684
+  Generating z_i's: 6.675685
+  Generating pzt: 13.146527
+  Saving to file: 0.002306
+Took: 44.572650
+Constructing 48 BPs...
+Took: 0.273587
+Randomizing BPs...
+Took: 2.095195
+Constructing bookend vectors...
+  Computing bookend vectors: 0.098338
+  Encoding 10 elements: 0.649808
+  Saving to file: 0.007583
+  Encoding 10 elements: 0.649124
+  Saving to file: 0.007602
+Took: 1.416790
+Obfuscating layer...
+  Encoding 200 elements: 7.515013
+  Saving to file: 0.136406
+Took: 7.686441
+Obfuscating layer...
+  Encoding 200 elements: 7.468741
+  Saving to file: 0.136836
+Took: 7.640987
+Obfuscating layer...
+  Encoding 200 elements: 7.333431
+  Saving to file: 0.138694
+Took: 7.510012
+Obfuscating layer...
+  Encoding 200 elements: 7.437833
+  Saving to file: 0.137654
+Took: 7.616566
+Obfuscating layer...
+  Encoding 200 elements: 7.421851
+  Saving to file: 0.136735
+Took: 7.597083
+Obfuscating layer...
+  Encoding 200 elements: 7.467879
+  Saving to file: 0.139572
+Took: 7.651311
+Obfuscating layer...
+  Encoding 200 elements: 7.512535
+  Saving to file: 0.136542
+Took: 7.690549
+Obfuscating layer...
+  Encoding 200 elements: 7.386900
+  Saving to file: 0.137480
+Took: 7.564477
+Obfuscation took: 109.316733
+Max memory usage: 7182508
+Encoding a single element takes: 0.001948
+Obfuscation took: 109.345397 seconds

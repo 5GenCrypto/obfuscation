@@ -1,0 +1,12 @@
+4	../code/circuits/and.circ.obf.88/0.input
+14604512	../code/circuits/and.circ.obf.88/0.one
+14604512	../code/circuits/and.circ.obf.88/0.zero
+5	../code/circuits/and.circ.obf.88/1.input
+14604512	../code/circuits/and.circ.obf.88/1.one
+14604510	../code/circuits/and.circ.obf.88/1.zero
+5	../code/circuits/and.circ.obf.88/nu
+912782	../code/circuits/and.circ.obf.88/pzt
+3651128	../code/circuits/and.circ.obf.88/s_enc
+5	../code/circuits/and.circ.obf.88/size
+3651128	../code/circuits/and.circ.obf.88/t_enc
+912782	../code/circuits/and.circ.obf.88/x0

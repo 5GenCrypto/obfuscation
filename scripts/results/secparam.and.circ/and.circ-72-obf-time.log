@@ -1,0 +1,44 @@
+* Using CLT13 prime generation
+Generating MLM parameters...
+  Security Parameter: 72
+  Kappa: 4
+  Alpha: 72
+  Beta: 72
+  Eta: 880
+  Nu: 155
+  Rho: 72
+  Rho_f: 584
+  N: 5429
+  Number of Zs: 4
+  Size: 4
+  Seed: 8947801546717387362
+  Generating p_i's and g_i's: 6.606850
+  Converting g_i's to python objects: 0.000125
+  Generating CRT coefficients: 5.084775
+  Generating z_i's: 3.739140
+  Generating pzt: 4.840426
+  Saving to file: 0.001735
+Took: 20.277087
+Constructing 72 BPs...
+Took: 0.047765
+Randomizing BPs...
+Took: 0.921167
+Constructing bookend vectors...
+  Computing bookend vectors: 0.172695
+  Encoding 4 elements: 0.413024
+  Saving to file: 0.002058
+  Encoding 4 elements: 0.405575
+  Saving to file: 0.001625
+Took: 0.996365
+Obfuscating layer...
+  Encoding 32 elements: 0.773018
+  Saving to file: 0.015505
+Took: 0.796257
+Obfuscating layer...
+  Encoding 32 elements: 0.735064
+  Saving to file: 0.015250
+Took: 0.757886
+Obfuscation took: 23.797358
+Max memory usage: 3602024
+Encoding a single element takes: 0.000946
+Obfuscation took: 23.802776 seconds

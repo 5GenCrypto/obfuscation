@@ -1,0 +1,84 @@
+* Using CLT13 prime generation
+Generating MLM parameters...
+  Security Parameter: 48
+  Kappa: 14
+  Alpha: 48
+  Beta: 48
+  Eta: 1572
+  Nu: 107
+  Rho: 48
+  Rho_f: 1372
+  N: 8779
+  Number of Zs: 14
+  Size: 14
+  Seed: 5118923836359827947
+  Generating p_i's and g_i's: 48.008794
+  Converting g_i's to python objects: 0.000080
+  Generating CRT coefficients: 22.661359
+  Generating z_i's: 13.989528
+  Generating pzt: 38.383919
+  Saving to file: 0.003001
+Took: 123.051131
+Constructing 48 BPs...
+Took: 0.510685
+Randomizing BPs...
+Took: 7.014759
+Constructing bookend vectors...
+  Computing bookend vectors: 0.110448
+  Encoding 14 elements: 1.317308
+  Saving to file: 0.018901
+  Encoding 14 elements: 1.291365
+  Saving to file: 0.018784
+Took: 2.766710
+Obfuscating layer...
+  Encoding 392 elements: 27.192461
+  Saving to file: 0.471481
+Took: 27.752173
+Obfuscating layer...
+  Encoding 392 elements: 27.169213
+  Saving to file: 0.472905
+Took: 27.728294
+Obfuscating layer...
+  Encoding 392 elements: 27.102360
+  Saving to file: 0.469996
+Took: 27.660048
+Obfuscating layer...
+  Encoding 392 elements: 27.314660
+  Saving to file: 0.468638
+Took: 27.875855
+Obfuscating layer...
+  Encoding 392 elements: 27.273646
+  Saving to file: 0.468123
+Took: 27.839076
+Obfuscating layer...
+  Encoding 392 elements: 27.210022
+  Saving to file: 0.483358
+Took: 27.791556
+Obfuscating layer...
+  Encoding 392 elements: 27.498413
+  Saving to file: 0.476257
+Took: 28.074212
+Obfuscating layer...
+  Encoding 392 elements: 27.599210
+  Saving to file: 0.478807
+Took: 28.181350
+Obfuscating layer...
+  Encoding 392 elements: 27.203013
+  Saving to file: 0.493170
+Took: 27.795133
+Obfuscating layer...
+  Encoding 392 elements: 27.173203
+  Saving to file: 0.468583
+Took: 27.740798
+Obfuscating layer...
+  Encoding 392 elements: 27.599108
+  Saving to file: 0.480700
+Took: 28.188332
+Obfuscating layer...
+  Encoding 392 elements: 27.278436
+  Saving to file: 0.475695
+Took: 27.853629
+Obfuscation took: 467.832302
+Max memory usage: 16919068
+Encoding a single element takes: 0.005049
+Obfuscation took: 467.882684 seconds
