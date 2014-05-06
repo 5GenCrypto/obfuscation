@@ -218,7 +218,9 @@ inline static void
 mat_mult(mpz_t *a, const mpz_t *b, int size)
 {
     mpz_t *tmparray;
+    double start, end;
 
+    start = current_time();
     tmparray = (mpz_t *) malloc(sizeof(mpz_t) * size * size);
     for (int i = 0; i < size * size; ++i) {
         mpz_init(tmparray[i]);
@@ -236,19 +238,30 @@ mat_mult(mpz_t *a, const mpz_t *b, int size)
         mpz_set(tmparray[ctr], sum);
         mpz_clears(tmp, sum, NULL);
     }
+    end = current_time();
+    if (g_verbose)
+        (void) fprintf(stderr, "    Multiplying took: %f\n", end - start);
+
+    start = current_time();
     for (int i = 0; i < size * size; ++i) {
         mpz_swap(a[i], tmparray[i]);
         mpz_clear(tmparray[i]);
     }
     free(tmparray);
+    end = current_time();
+    if (g_verbose)
+        (void) fprintf(stderr, "    Swapping took: %f\n", end - start);
 }
 
 inline static void
 mat_mult_by_vects(mpz_t out, const mpz_t *s, const mpz_t *m, const mpz_t *t,
                   int size)
 {
+    double start, end;
+
     mpz_set_ui(out, 0);
 
+    start = current_time();
 #pragma omp parallel for
     for (int col = 0; col < size; ++col) {
         mpz_t tmp;
@@ -266,6 +279,9 @@ mat_mult_by_vects(mpz_t out, const mpz_t *s, const mpz_t *m, const mpz_t *t,
         }
         mpz_clears(tmp, sum, NULL);
     }
+    end = current_time();
+    if (g_verbose)
+        (void) fprintf(stderr, "    Multiplying by vectors took: %f\n", end - start);
 }
 
 inline static int
@@ -440,7 +456,6 @@ obf_setup(PyObject *self, PyObject *args)
     rho_f = kappa * (rho + alpha + 2);
     eta = rho_f + alpha + 2 * beta + g_secparam + 8;
     nu = eta - beta - rho_f - g_secparam + 3;
-    // g_n = (int) (g_secparam * log2((float) g_secparam));
     g_n = (int) (eta * log2((float) g_secparam));
 
     if (g_verbose) {
