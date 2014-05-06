@@ -22,7 +22,7 @@ secparam=48
 dir="$LOG_DIR/versus.$POINT.$secparam"
 mkdir -p $dir
 
-circuit="point-$point.circ"
+circuit="point-$POINT.circ"
 echo "* Running $circuit with security parameter $secparam"
 $SAGE $CODE_DIR/indobf/run.py obf \
     --load-circuit $CIRCUIT_DIR/$circuit \
@@ -32,7 +32,7 @@ $SAGE $CODE_DIR/indobf/run.py obf \
 obf=$circuit.obf.$secparam
 du --bytes $CIRCUIT_DIR/$obf/* \
     | tee $dir/$circuit-$secparam-obf-size.log
-eval=`$PYTHON -c "print('0' * $point)"`
+eval=`$PYTHON -c "print('0' * $POINT)"`
 $SAGE $CODE_DIR/indobf/run.py obf \
     --load-obf $CIRCUIT_DIR/$obf \
     --eval $eval \
