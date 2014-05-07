@@ -211,9 +211,11 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
         # subtract to determine how many dummy vertices we need to add.
         # If we have only one input, there's nothing to obliviate.
         if self.ninputs > 1:
-            expected = 5 * (self.ninputs - 1)
+            # One XOR gate requires 5 nodes, and every additional XOR gate adds
+            # 2 more nodes
+            expected = 5 + 2 * (self.ninputs - 2)
             current = len(graph)
-            for i in range(expected - current):
+            for i in xrange(expected - current):
                 graph.graph.add_node('dummy-%d' % i)
             assert len(graph) == expected
 
