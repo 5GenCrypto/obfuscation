@@ -12,11 +12,13 @@ LOG_DIR='runs'
 mkdir -p $LOG_DIR
 
 MIN=8
-MAX=40
+MAX=16
+INC=4
+
 echo "* Running point functions ($MIN -> $MAX)"
 
 pushd $CIRCUIT_DIR
-for point in `seq $MIN 8 $MAX`
+for point in `seq $MIN $INC $MAX`
 do
     ./point.py $point
 done
@@ -27,7 +29,7 @@ secparam=48
 dir="$LOG_DIR/point.$secparam"
 mkdir -p $dir
 
-for point in `seq $MIN 8 $MAX`
+for point in `seq $MIN $INC $MAX`
 do
     circuit="point-$point.circ"
     echo "* Running $circuit with security parameter $secparam"
@@ -45,5 +47,3 @@ do
         --verbose 2>&1 | tee $dir/$circuit-$secparam-eval-time.log
     rm -rf $CIRCUIT_DIR/$circuit.obf.$secparam
 done
-
-################################################################################
