@@ -20,6 +20,7 @@ mkdir -p $LOG_DIR
 secparam=24
 
 circuit="fourandsnot.circ"
+eval='00000'
 dir="$LOG_DIR/obliviate.$circuit.$secparam"
 mkdir -p $dir
 
@@ -33,7 +34,6 @@ $SAGE $CODE_DIR/indobf/run.py obf \
 obf=$circuit.obf.$secparam
 du --bytes $CIRCUIT_DIR/$obf/* \
     | tee $dir/$circuit-$secparam-obv-obf-size.log
-eval='0000'
 $SAGE $CODE_DIR/indobf/run.py obf \
     --load-obf $CIRCUIT_DIR/$obf \
     --eval $eval \
@@ -48,7 +48,6 @@ $SAGE $CODE_DIR/indobf/run.py obf \
 obf=$circuit.obf.$secparam
 du --bytes $CIRCUIT_DIR/$obf/* \
     | tee $dir/$circuit-$secparam-obf-size.log
-eval='0000'
 $SAGE $CODE_DIR/indobf/run.py obf \
     --load-obf $CIRCUIT_DIR/$obf \
     --eval $eval \
