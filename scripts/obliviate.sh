@@ -9,20 +9,21 @@ CODE_DIR='../code'
 CIRCUIT_DIR='../code/circuits'
 LOG_DIR='runs'
 
-POINT=8
+# POINT=8
 
 mkdir -p $LOG_DIR
 
-pushd $CIRCUIT_DIR
-./point.py $POINT
-popd
+# pushd $CIRCUIT_DIR
+# ./point.py $POINT
+# popd
 
 secparam=24
 
-dir="$LOG_DIR/obliviate.$POINT.$secparam"
+circuit="fourandsnot.circ"
+dir="$LOG_DIR/obliviate.$circuit.$secparam"
 mkdir -p $dir
 
-circuit="point-$POINT.circ"
+
 echo "* Running $circuit with security parameter $secparam (oblivious)"
 $SAGE $CODE_DIR/indobf/run.py obf \
     --load-circuit $CIRCUIT_DIR/$circuit \
@@ -32,7 +33,7 @@ $SAGE $CODE_DIR/indobf/run.py obf \
 obf=$circuit.obf.$secparam
 du --bytes $CIRCUIT_DIR/$obf/* \
     | tee $dir/$circuit-$secparam-obv-obf-size.log
-eval=`$PYTHON -c "print('0' * $POINT)"`
+eval='0000'
 $SAGE $CODE_DIR/indobf/run.py obf \
     --load-obf $CIRCUIT_DIR/$obf \
     --eval $eval \
@@ -47,7 +48,7 @@ $SAGE $CODE_DIR/indobf/run.py obf \
 obf=$circuit.obf.$secparam
 du --bytes $CIRCUIT_DIR/$obf/* \
     | tee $dir/$circuit-$secparam-obf-size.log
-eval=`$PYTHON -c "print('0' * $POINT)"`
+eval='0000'
 $SAGE $CODE_DIR/indobf/run.py obf \
     --load-obf $CIRCUIT_DIR/$obf \
     --eval $eval \
