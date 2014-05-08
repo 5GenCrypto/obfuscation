@@ -17,27 +17,27 @@ pushd $CIRCUIT_DIR
 ./point.py $POINT
 popd
 
-secparam=16
-
-dir="$LOG_DIR/versus.$POINT.$secparam"
-mkdir -p $dir
-
+secparam=24
 circuit="point-$POINT.circ"
-echo "* Running $circuit with security parameter $secparam (old)"
-$SAGE $CODE_DIR/indobf/run.py obf \
-    --load-circuit $CIRCUIT_DIR/$circuit \
-    --secparam $secparam \
-    --old \
-    --verbose 2>&1 | tee $dir/$circuit-$secparam-old-obf-time.log
-obf=$circuit.obf.$secparam
-du --bytes $CIRCUIT_DIR/$obf/* \
-    | tee $dir/$circuit-$secparam-old-obf-size.log
-eval=`$PYTHON -c "print('0' * $POINT)"`
-$SAGE $CODE_DIR/indobf/run.py obf \
-    --load-obf $CIRCUIT_DIR/$obf \
-    --eval $eval \
-    --verbose 2>&1 | tee $dir/$circuit-$secparam-old-eval-time.log
-rm -rf $CIRCUIT_DIR/$circuit.obf.$secparam
+
+dir="$LOG_DIR/versus.$circuit.$secparam"
+mkdir -p $dir
+eval='00000000'
+
+# echo "* Running $circuit with security parameter $secparam (old)"
+# $SAGE $CODE_DIR/indobf/run.py obf \
+#     --load-circuit $CIRCUIT_DIR/$circuit \
+#     --secparam $secparam \
+#     --old \
+#     --verbose 2>&1 | tee $dir/$circuit-$secparam-old-obf-time.log
+# obf=$circuit.obf.$secparam
+# du --bytes $CIRCUIT_DIR/$obf/* \
+#     | tee $dir/$circuit-$secparam-old-obf-size.log
+# $SAGE $CODE_DIR/indobf/run.py obf \
+#     --load-obf $CIRCUIT_DIR/$obf \
+#     --eval $eval \
+#     --verbose 2>&1 | tee $dir/$circuit-$secparam-old-eval-time.log
+# rm -rf $CIRCUIT_DIR/$circuit.obf.$secparam
 
 echo "* Running $circuit with security parameter $secparam (new)"
 $SAGE $CODE_DIR/indobf/run.py obf \
@@ -47,7 +47,6 @@ $SAGE $CODE_DIR/indobf/run.py obf \
 obf=$circuit.obf.$secparam
 du --bytes $CIRCUIT_DIR/$obf/* \
     | tee $dir/$circuit-$secparam-new-obf-size.log
-eval=`$PYTHON -c "print('0' * $POINT)"`
 $SAGE $CODE_DIR/indobf/run.py obf \
     --load-obf $CIRCUIT_DIR/$obf \
     --eval $eval \
