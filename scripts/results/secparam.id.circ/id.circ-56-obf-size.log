@@ -1,9 +1,9 @@
 4	../code/circuits/id.circ.obf.56/0.input
-2098305	../code/circuits/id.circ.obf.56/0.one
-2098304	../code/circuits/id.circ.obf.56/0.zero
+2098116	../code/circuits/id.circ.obf.56/0.one
+2098116	../code/circuits/id.circ.obf.56/0.zero
 5	../code/circuits/id.circ.obf.56/nu
-233145	../code/circuits/id.circ.obf.56/pzt
-699435	../code/circuits/id.circ.obf.56/s_enc
+233124	../code/circuits/id.circ.obf.56/pzt
+699372	../code/circuits/id.circ.obf.56/s_enc
 5	../code/circuits/id.circ.obf.56/size
-699435	../code/circuits/id.circ.obf.56/t_enc
-233145	../code/circuits/id.circ.obf.56/x0
+699372	../code/circuits/id.circ.obf.56/t_enc
+233124	../code/circuits/id.circ.obf.56/x0

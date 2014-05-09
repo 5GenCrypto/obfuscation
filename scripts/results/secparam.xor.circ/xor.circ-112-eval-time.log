@@ -1,8 +1,11 @@
 * Using CLT13 prime generation
 Evaluating 00...
-  Multiplying matrices: 0.037705
-  Multiplying matrices: 1.611935
-  Zero test: 4.588088
-Took: 6.244940
-Max memory usage: 666352
+  Multiplying matrices: 0.034663
+    Multiplying took: 1.552869
+    Swapping took: 0.005246
+  Multiplying matrices: 1.595199
+    Multiplying by vectors took: 2.188488
+  Zero test: 4.577583
+Took: 6.213180
+Max memory usage: 666328
 Output = 0

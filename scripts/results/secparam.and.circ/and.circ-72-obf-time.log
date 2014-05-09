@@ -11,34 +11,33 @@ Generating MLM parameters...
   N: 5429
   Number of Zs: 4
   Size: 4
-  Seed: 8947801546717387362
-  Generating p_i's and g_i's: 6.606850
-  Converting g_i's to python objects: 0.000125
-  Generating CRT coefficients: 5.084775
-  Generating z_i's: 3.739140
-  Generating pzt: 4.840426
-  Saving to file: 0.001735
-Took: 20.277087
+  Seed: 10944562426555055245
+  Generating p_i's and g_i's: 6.578707
+  Converting g_i's to python objects: 0.000113
+  Generating CRT coefficients: 4.943910
+  Generating z_i's: 3.727837
+  Generating pzt: 4.504888
+  Saving to file: 0.001773
+Took: 19.763297
 Constructing 72 BPs...
-Took: 0.047765
+Took: 0.051926
 Randomizing BPs...
-Took: 0.921167
+Took: 0.928880
 Constructing bookend vectors...
-  Computing bookend vectors: 0.172695
-  Encoding 4 elements: 0.413024
-  Saving to file: 0.002058
-  Encoding 4 elements: 0.405575
-  Saving to file: 0.001625
-Took: 0.996365
+  Computing bookend vectors: 0.177087
+  Encoding 4 elements: 3.318604
+  Saving to file: 0.002917
+  Encoding 4 elements: 3.210784
+  Saving to file: 0.002458
+Took: 6.713166
 Obfuscating layer...
-  Encoding 32 elements: 0.773018
-  Saving to file: 0.015505
-Took: 0.796257
+  Encoding 32 elements: 5.787834
+  Saving to file: 0.014740
+Took: 5.810409
 Obfuscating layer...
-  Encoding 32 elements: 0.735064
-  Saving to file: 0.015250
-Took: 0.757886
-Obfuscation took: 23.797358
-Max memory usage: 3602024
-Encoding a single element takes: 0.000946
-Obfuscation took: 23.802776 seconds
+  Encoding 32 elements: 6.335938
+  Saving to file: 0.015038
+Took: 6.358172
+Obfuscation took: 39.626638
+Max memory usage: 3615452
+Obfuscation took: 39.632254 seconds

@@ -1,9 +1,9 @@
 4	../code/circuits/id.circ.obf.120/0.input
-11314269	../code/circuits/id.circ.obf.120/0.one
-11314268	../code/circuits/id.circ.obf.120/0.zero
+11314253	../code/circuits/id.circ.obf.120/0.one
+11314254	../code/circuits/id.circ.obf.120/0.zero
 5	../code/circuits/id.circ.obf.120/nu
-1257141	../code/circuits/id.circ.obf.120/pzt
-3771423	../code/circuits/id.circ.obf.120/s_enc
+1257139	../code/circuits/id.circ.obf.120/pzt
+3771419	../code/circuits/id.circ.obf.120/s_enc
 5	../code/circuits/id.circ.obf.120/size
-3771423	../code/circuits/id.circ.obf.120/t_enc
-1257141	../code/circuits/id.circ.obf.120/x0
+3771417	../code/circuits/id.circ.obf.120/t_enc
+1257140	../code/circuits/id.circ.obf.120/x0
