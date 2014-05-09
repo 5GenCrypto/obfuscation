@@ -94,7 +94,11 @@ save_mpz_scalar(const char *fname, const mpz_t x)
         perror(fname);
         return FAILURE;
     }
-    (void) mpz_out_raw(f, x);
+    if (mpz_out_raw(f, x) == 0) {
+        fprintf(stderr, "ERROR: saving value failed!\n");
+        (void) fclose(f);
+        return FAILURE;
+    }
 
     (void) fclose(f);
     return ret;
@@ -131,7 +135,11 @@ save_mpz_vector(const char *fname, const mpz_t *m, const int len)
     }
 
     for (int i = 0; i < len; ++i) {
-        (void) mpz_out_raw(f, m[i]);
+        if (mpz_out_raw(f, m[i]) == 0) {
+            fprintf(stderr, "ERROR: saving value failed!\n");
+            (void) fclose(f);
+            return FAILURE;
+        }
     }
 
     (void) fclose(f);
@@ -450,6 +458,7 @@ obf_setup(PyObject *self, PyObject *args)
                           &g_dir, &py_fastprimes))
         return NULL;
 
+    /* Calculate CLT parameters */
     alpha = g_secparam;
     beta = g_secparam;
     rho = g_secparam;
@@ -488,6 +497,7 @@ obf_setup(PyObject *self, PyObject *args)
     if (use_fastprimes == -1)
         goto error;
 
+    /* Seed random number generator */
     {
         int file;
         if ((file = open(RANDFILE, O_RDONLY)) == -1) {
@@ -534,6 +544,7 @@ obf_setup(PyObject *self, PyObject *args)
         //             "eta %% alpha should be 0\n");
         // }
     }
+    /* Generate p_i's and g_i's, as well as x_0 = \prod p_i */
 #pragma omp parallel for
     for (int i = 0; i < g_n; ++i) {
         mpz_t p_unif;
@@ -542,7 +553,7 @@ obf_setup(PyObject *self, PyObject *args)
         if (use_fastprimes) {
             //
             // Use CLT optimization of generating "small" primes and multiplying
-            // them together to get the resulting "prime"
+            // them together to get the resulting "prime".
             //
             for (int j = 0; j < niter; ++j) {
                 long psize = j < (niter - 1)
@@ -558,8 +569,12 @@ obf_setup(PyObject *self, PyObject *args)
         }
         mpz_urandomb(p_unif, g_rng, alpha);
         mpz_nextprime(g_gs[i], p_unif);
-        #pragma omp critical
+#pragma omp critical
         {
+            //
+            // This step is very expensive, and unfortunately it blocks the
+            // parallelism of generating the primes.
+            //
             mpz_mul(g_x0, g_x0, ps[i]);
         }
         mpz_clear(p_unif);
@@ -569,8 +584,12 @@ obf_setup(PyObject *self, PyObject *args)
         (void) fprintf(stderr, "  Generating p_i's and g_i's: %f\n",
                        end - start);
 
+    /* Convert g_i values to python objects */
     start = current_time();
-    // Only convert the first secparam g_i values to python objects
+    //
+    // Only convert the first secparam g_i values since we only need to fill in
+    // the first secparam slots of the plaintext space.
+    //
     for (int i = 0; i < g_secparam; ++i) {
         PyList_SetItem(py_gs, i, mpz_to_py(g_gs[i]));
     }
@@ -579,8 +598,12 @@ obf_setup(PyObject *self, PyObject *args)
         (void) fprintf(stderr, "  Converting g_i's to python objects: %f\n",
                        end - start);
 
-
+    /* Compute CRT coefficients */
     start = current_time();
+    //
+    // This step is needed for making encoding efficient.  Unfortunately, the
+    // CRT coefficients take an enormous amount of memory to compute / store.
+    //
 #pragma omp parallel for
     for (int i = 0; i < g_n; ++i) {
         mpz_t q;
@@ -596,13 +619,27 @@ obf_setup(PyObject *self, PyObject *args)
                        end - start);
 
 
+    /* Compute z_i's */
     start = current_time();
+    if (g_nzs > g_secparam) {
 #pragma omp parallel for
-    for (int i = 0; i < g_nzs; ++i) {
-        do {
-            mpz_urandomm(zs[i], g_rng, g_x0);
-        } while (mpz_invert(g_zinvs[i], zs[i], g_x0) == 0);
+        for (int i = 0; i < g_secparam; ++i) {
+            do {
+                mpz_urandomm(zs[i], g_rng, g_x0);
+            } while (mpz_invert(g_zinvs[i], zs[i], g_x0) == 0);
+        }
+        for (int i = g_secparam; i < g_nzs; ++i) {
+            mpz_set(g_zinvs[i], g_zinvs[i % g_secparam]);
+        }
+    } else {
+#pragma omp parallel for
+        for (int i = 0; i < g_nzs; ++i) {
+            do {
+                mpz_urandomm(zs[i], g_rng, g_x0);
+            } while (mpz_invert(g_zinvs[i], zs[i], g_x0) == 0);
+        }
     }
+
     end = current_time();
     if (g_verbose)
         (void) fprintf(stderr, "  Generating z_i's: %f\n", end - start);
