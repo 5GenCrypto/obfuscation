@@ -287,7 +287,8 @@ mat_mult_by_vects(mpz_t out, const mpz_t *s, const mpz_t *m, const mpz_t *t,
     }
     end = current_time();
     if (g_verbose)
-        (void) fprintf(stderr, "    Multiplying by vectors took: %f\n", end - start);
+        (void) fprintf(stderr, "  Multiplying by vectors took: %f\n",
+                       end - start);
 }
 
 inline static int
