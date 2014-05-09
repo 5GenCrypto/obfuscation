@@ -24,12 +24,12 @@ class AbstractObfuscator(object):
         if self._use_fast_prime_gen:
             self.logger('* Using CLT13 prime generation')
 
-    def _gen_mlm_params(self, secparam, kappa, size, nzs, directory):
+    def _gen_mlm_params(self, secparam, kappa, width, nzs, directory):
         self.logger('Generating MLM parameters...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        primes = _obf.setup(secparam, kappa, size, nzs, directory,
+        primes = _obf.setup(secparam, kappa, width, nzs, directory,
                             self._use_fast_prime_gen)
         end = time.time()
         self.logger('Took: %f' % (end - start))
@@ -57,9 +57,9 @@ class AbstractObfuscator(object):
                 bp.randomize(prime)
                 bp.set_straddling_sets()
         else:
-            Rs = [Zmod(prime) for prime in primes]
-            alphas = [[(R.random_element(), R.random_element()) for _ in
-                       xrange(len(bp))] for bp, R in zip(bps, Rs)]
+            rings = [Zmod(prime) for prime in primes]
+            alphas = [[(ring.random_element(), ring.random_element()) for _ in
+                       xrange(len(bp))] for bp, ring in zip(bps, rings)]
             for bp, prime, alpha in zip(bps, primes, alphas):
                 bp.randomize(prime, alpha)
                 bp.set_straddling_sets()
@@ -96,11 +96,11 @@ class AbstractObfuscator(object):
         # construct straddling sets, and add two to the number of Zs to take
         # bookend vectors into account
         nzs = bp.set_straddling_sets() + 2
-        # size is the column/row-length of the matrices
-        size = bp.size if islayered else len(bp.group)
+        # width is the column/row-length of the matrices
+        width = bp.size if islayered else len(bp.group)
 
         start = time.time()
-        primes = self._gen_mlm_params(secparam, kappa, size, nzs, directory)
+        primes = self._gen_mlm_params(secparam, kappa, width, nzs, directory)
         bps = self._construct_bps(circuit, primes, obliviate, bpclass)
         alphas = self._randomize(secparam, bps, primes, islayered)
         if not islayered:
