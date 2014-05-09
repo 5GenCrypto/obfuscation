@@ -118,7 +118,8 @@ class LayeredBranchingProgram(AbstractBranchingProgram):
             return _Graph(bp.inp, g, bp.nlayers, num)
         def _xor_gate(num, bp1, idx1, bp2, idx2):
             assert num > idx1 and num > idx2
-            assert len(bp1.graph) >= len(bp2.graph)
+            if len(bp1.graph) < len(bp2.graph):
+                bp1, bp2 = bp2, bp1
             tmpidx = len(bp1.graph) + len(bp2.graph)
             t1 = bp1.nlayers
             t2 = bp2.nlayers
