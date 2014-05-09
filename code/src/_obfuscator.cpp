@@ -87,21 +87,19 @@ load_mpz_scalar(const char *fname, mpz_t x)
 inline static int
 save_mpz_scalar(const char *fname, const mpz_t x)
 {
-    int ret = SUCCESS;
     FILE *f;
 
-    if ((f = fopen(fname, "w+")) == NULL) {
+    if ((f = fopen(fname, "w")) == NULL) {
         perror(fname);
         return FAILURE;
     }
     if (mpz_out_raw(f, x) == 0) {
-        fprintf(stderr, "ERROR: saving value failed!\n");
+        (void) fprintf(stderr, "ERROR: saving value failed!\n");
         (void) fclose(f);
         return FAILURE;
     }
-
     (void) fclose(f);
-    return ret;
+    return SUCCESS;
 }
 
 inline static int
@@ -129,7 +127,7 @@ save_mpz_vector(const char *fname, const mpz_t *m, const int len)
     int ret = SUCCESS;
     FILE *f;
 
-    if ((f = fopen(fname, "w+")) == NULL) {
+    if ((f = fopen(fname, "w")) == NULL) {
         perror(fname);
         return FAILURE;
     }
@@ -447,7 +445,7 @@ obf_verbose(PyObject *self, PyObject *args)
 static PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
-    long alpha, beta, eta, nu, kappa, rho, rho_f;
+    long alpha, beta, eta, nu, kappa, rho_f;
     mpz_t *ps, *zs;
     PyObject *py_gs, *py_fastprimes;
     double start, end;
@@ -461,8 +459,8 @@ obf_setup(PyObject *self, PyObject *args)
     /* Calculate CLT parameters */
     alpha = g_secparam;
     beta = g_secparam;
-    rho = g_secparam;
-    rho_f = kappa * (rho + alpha + 2);
+    g_rho = g_secparam;
+    rho_f = kappa * (g_rho + alpha + 2);
     eta = rho_f + alpha + 2 * beta + g_secparam + 8;
     nu = eta - beta - rho_f - g_secparam + 3;
     g_n = (int) (eta * log2((float) g_secparam));
@@ -474,7 +472,7 @@ obf_setup(PyObject *self, PyObject *args)
         fprintf(stderr, "  Beta: %ld\n", beta);
         fprintf(stderr, "  Eta: %ld\n", eta);
         fprintf(stderr, "  Nu: %ld\n", nu);
-        fprintf(stderr, "  Rho: %ld\n", rho);
+        fprintf(stderr, "  Rho: %ld\n", g_rho);
         fprintf(stderr, "  Rho_f: %ld\n", rho_f);
         fprintf(stderr, "  N: %ld\n", g_n);
         fprintf(stderr, "  Number of Zs: %ld\n", g_nzs);
@@ -722,9 +720,9 @@ obf_encode_scalars(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOs", &py_scalars, &py_list, &name))
         return NULL;
     (void) extract_indices(py_list, &idx1, &idx2);
+    mpz_init(val);
 
     start = current_time();
-    mpz_init(val);
     encode(val, py_scalars, 0, idx1, idx2);
     end = current_time();
     if (g_verbose)
