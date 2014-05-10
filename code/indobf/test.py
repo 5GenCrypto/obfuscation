@@ -23,15 +23,10 @@ def test_circuit(path, bpclass, obfclass, obfuscate, args):
         return
     success = True
     if obfuscate:
-        def create_obf():
-            return obfclass(verbose=args.verbose,
-                            use_fast_prime_gen=(not args.slow_prime_gen))
-        obf = create_obf()
+        obf = obfclass(verbose=args.verbose)
         directory = args.save if args.save \
                     else '%s.obf.%d' % (path, args.secparam)
         obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate)
-        obf.encode_benchmark()
-        # obf.cleanup()
         for k, v in testcases.items():
             if obf.evaluate(directory, k) != v:
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))

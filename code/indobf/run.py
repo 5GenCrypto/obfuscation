@@ -40,22 +40,18 @@ def obf(args):
     if args.test_circuit:
         test_circuit(args.test_circuit, bpclass, obfclass, True, args)
     else:
-        def create_obf():
-            return obfclass(verbose=args.verbose,
-                            use_fast_prime_gen=(not args.slow_prime_gen))
         directory = None
         if args.load_obf:
             directory = args.load_obf
         elif args.load_circuit:
             start = time.time()
-            obf = create_obf()
+            obf = obfclass(verbose=args.verbose)
             directory = args.save if args.save \
                         else '%s.obf.%d' % (args.load_circuit, args.secparam)
             obf.obfuscate(args.load_circuit, args.secparam, directory,
                           obliviate=args.obliviate)
             end = time.time()
             print("Obfuscation took: %f seconds" % (end - start))
-            # obf.encode_benchmark()
             obf.cleanup()
         else:
             print("One of --load-obf, --load-circuit, or --test-circuit must be used")
@@ -63,7 +59,7 @@ def obf(args):
 
         if args.eval:
             assert directory
-            obf = create_obf()
+            obf = obfclass(verbose=args.verbose)
             r = obf.evaluate(directory, args.eval)
             print('Output = %d' % r)
 
@@ -118,8 +114,8 @@ def main():
                             help='obliviate the branching program')
     parser_obf.add_argument('--old', action='store_true',
                             help='use standard branching programs instead of the relaxed variant')
-    parser_obf.add_argument('--slow-prime-gen', action='store_true',
-                             help='do not use the CLT13 optimization for generating primes fast')
+    # parser_obf.add_argument('--slow-prime-gen', action='store_true',
+    #                          help='do not use the CLT13 optimization for generating primes fast')
     parser_obf.add_argument('-v', '--verbose', action='store_true', 
                             help='be verbose')
     parser_obf.set_defaults(func=obf)

@@ -450,13 +450,11 @@ obf_setup(PyObject *self, PyObject *args)
 {
     long alpha, beta, eta, nu, kappa, rho_f;
     mpz_t *ps, *zs;
-    PyObject *py_gs, *py_fastprimes;
+    PyObject *py_gs;
     double start, end;
-    // long niter;
-    int use_fastprimes;
 
-    if (!PyArg_ParseTuple(args, "llllsO", &g_secparam, &kappa, &g_size, &g_nzs,
-                          &g_dir, &py_fastprimes))
+    if (!PyArg_ParseTuple(args, "lllls", &g_secparam, &kappa, &g_size, &g_nzs,
+                          &g_dir))
         return NULL;
 
     /* Calculate CLT parameters */
@@ -494,10 +492,6 @@ obf_setup(PyObject *self, PyObject *args)
     if (!py_gs)
         goto error;
 
-    use_fastprimes = PyObject_IsTrue(py_fastprimes);
-    if (use_fastprimes == -1)
-        goto error;
-
     /* Seed random number generator */
     {
         int file;
@@ -532,42 +526,15 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_inits(zs[i], g_zinvs[i], NULL);
     }
 
-    start = current_time();
-    // if (use_fastprimes) {
-    //     if (g_verbose && alpha < 24) {
-    //         (void) fprintf(stderr, "\x1b[33mWARNING\x1b[0m: "
-    //                        "using CLT13 fast prime generation may not work for "
-    //                        "security parameters below 24\n");
-    //     }
-    //     niter = eta / alpha;
-    //     // if (eta % alpha != 0) {
-    //     //     (void) fprintf(stderr, "\x1b[33mWARNING\x1b[0m: "
-    //     //             "eta %% alpha should be 0\n");
-    //     // }
-    // }
     /* Generate p_i's and g_i's, as well as x_0 = \prod p_i */
+    start = current_time();
 #pragma omp parallel for
     for (int i = 0; i < g_n; ++i) {
         mpz_t p_unif;
         mpz_init(p_unif);
         // XXX: the primes generated here aren't officially uniform
-        // if (use_fastprimes) {
-        //     //
-        //     // Use CLT optimization of generating "small" primes and multiplying
-        //     // them together to get the resulting "prime".
-        //     //
-        //     for (int j = 0; j < niter; ++j) {
-        //         long psize = j < (niter - 1)
-        //                          ? alpha
-        //                          : eta - alpha * (niter - 1);
-        //         mpz_urandomb(p_unif, g_rng, psize);
-        //         mpz_nextprime(p_unif, p_unif);
-        //         mpz_mul(ps[i], ps[i], p_unif);
-        //     }
-        // } else {
-            mpz_urandomb(p_unif, g_rng, eta);
-            mpz_nextprime(ps[i], p_unif);
-        // }
+        mpz_urandomb(p_unif, g_rng, eta);
+        mpz_nextprime(ps[i], p_unif);
         mpz_urandomb(p_unif, g_rng, alpha);
         mpz_nextprime(g_gs[i], p_unif);
 #pragma omp critical

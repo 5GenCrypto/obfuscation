@@ -15,22 +15,18 @@ def to_long(lst):
 
 class AbstractObfuscator(object):
 
-    def __init__(self, verbose=False, use_fast_prime_gen=True):
+    def __init__(self, verbose=False):
         self.obfuscation = None
         self._verbose = verbose
         _obf.verbose(self._verbose)
-        self._use_fast_prime_gen = use_fast_prime_gen
         self.logger = utils.make_logger(self._verbose)
-        if self._use_fast_prime_gen:
-            self.logger('* Using CLT13 prime generation')
 
     def _gen_mlm_params(self, secparam, kappa, width, nzs, directory):
         self.logger('Generating MLM parameters...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        primes = _obf.setup(secparam, kappa, width, nzs, directory,
-                            self._use_fast_prime_gen)
+        primes = _obf.setup(secparam, kappa, width, nzs, directory)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         return primes
