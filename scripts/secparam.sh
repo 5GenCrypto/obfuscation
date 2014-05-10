@@ -20,6 +20,7 @@ circuit=$1
 eval=`$PYTHON -c "print('0' * $2)"`
 
 MIN=24
+INC=16
 MAX=160
 echo "* Running circuit $circuit"
 echo "* Varying the security parameter ($MIN -> $MAX)"
@@ -27,7 +28,7 @@ echo "* Varying the security parameter ($MIN -> $MAX)"
 dir="$LOG_DIR/secparam.$circuit"
 mkdir -p $dir
 
-for secparam in `seq $MIN 8 $MAX`
+for secparam in `seq $MIN $INC $MAX`
 do
     echo "* Running $circuit with security parameter $secparam"
     $SAGE $CODE_DIR/indobf/run.py obf \
