@@ -9,15 +9,9 @@ CODE_DIR='../code'
 CIRCUIT_DIR='../code/circuits'
 LOG_DIR='runs'
 
-# POINT=8
-
 mkdir -p $LOG_DIR
 
-# pushd $CIRCUIT_DIR
-# ./point.py $POINT
-# popd
-
-secparam=24
+secparam=8
 
 circuit="fourandsnot.circ"
 eval='00000'
