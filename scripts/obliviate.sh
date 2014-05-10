@@ -55,7 +55,7 @@ $SAGE $CODE_DIR/indobf/run.py obf \
 rm -rf $CIRCUIT_DIR/$circuit.obf.$secparam
 
 circuit='fourxors.circ'
-echo "* Running $circuit with security parameter $secparam (std = oblivious)"
+echo "* Running $circuit with security parameter $secparam (std)"
 $SAGE $CODE_DIR/indobf/run.py obf \
     --load-circuit $CIRCUIT_DIR/$circuit \
     --secparam $secparam \
@@ -67,4 +67,19 @@ $SAGE $CODE_DIR/indobf/run.py obf \
     --load-obf $CIRCUIT_DIR/$obf \
     --eval $eval \
     --verbose 2>&1 | tee $dir/$circuit-$secparam-eval-time.log
+rm -rf $CIRCUIT_DIR/$circuit.obf.$secparam
+
+echo "* Running $circuit with security parameter $secparam (oblivious)"
+$SAGE $CODE_DIR/indobf/run.py obf \
+    --load-circuit $CIRCUIT_DIR/$circuit \
+    --secparam $secparam \
+    --obliviate \
+    --verbose 2>&1 | tee $dir/$circuit-$secparam-obv-obf-time.log
+obf=$circuit.obf.$secparam
+du --bytes $CIRCUIT_DIR/$obf/* \
+    | tee $dir/$circuit-$secparam-obv-obf-size.log
+$SAGE $CODE_DIR/indobf/run.py obf \
+    --load-obf $CIRCUIT_DIR/$obf \
+    --eval $eval \
+    --verbose 2>&1 | tee $dir/$circuit-$secparam-obv-eval-time.log
 rm -rf $CIRCUIT_DIR/$circuit.obf.$secparam
