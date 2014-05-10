@@ -620,24 +620,31 @@ obf_setup(PyObject *self, PyObject *args)
 
     /* Compute z_i's */
     start = current_time();
-    if (g_nzs > g_secparam) {
 #pragma omp parallel for
-        for (int i = 0; i < g_secparam; ++i) {
-            do {
-                mpz_urandomm(zs[i], g_rng, g_x0);
-            } while (mpz_invert(g_zinvs[i], zs[i], g_x0) == 0);
-        }
-        for (int i = g_secparam; i < g_nzs; ++i) {
-            mpz_set(g_zinvs[i], g_zinvs[i % g_secparam]);
-        }
-    } else {
-#pragma omp parallel for
-        for (int i = 0; i < g_nzs; ++i) {
-            do {
-                mpz_urandomm(zs[i], g_rng, g_x0);
-            } while (mpz_invert(g_zinvs[i], zs[i], g_x0) == 0);
-        }
+    for (int i = 0; i < g_nzs; ++i) {
+        do {
+            mpz_urandomm(zs[i], g_rng, g_x0);
+        } while (mpz_invert(g_zinvs[i], zs[i], g_x0) == 0);
     }
+
+//     if (g_nzs > g_secparam) {
+// #pragma omp parallel for
+//         for (int i = 0; i < g_secparam; ++i) {
+//             do {
+//                 mpz_urandomm(zs[i], g_rng, g_x0);
+//             } while (mpz_invert(g_zinvs[i], zs[i], g_x0) == 0);
+//         }
+//         for (int i = g_secparam; i < g_nzs; ++i) {
+//             mpz_set(g_zinvs[i], g_zinvs[i % g_secparam]);
+//         }
+//     } else {
+// #pragma omp parallel for
+//         for (int i = 0; i < g_nzs; ++i) {
+//             do {
+//                 mpz_urandomm(zs[i], g_rng, g_x0);
+//             } while (mpz_invert(g_zinvs[i], zs[i], g_x0) == 0);
+//         }
+//     }
 
     end = current_time();
     if (g_verbose)
