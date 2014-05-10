@@ -1,0 +1,10 @@
+: nins 4
+: depth 2
+# TEST 0000 0
+0 input
+1 input
+2 input
+3 input
+4 gate XOR 0 1
+5 gate XOR 2 3
+6 output XOR 4 5
