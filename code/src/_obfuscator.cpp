@@ -199,12 +199,14 @@ encode(mpz_t out, const PyObject *in, const long row, const long idx1,
     for (long i = 0; i < g_n; ++i) {
         mpz_genrandom(r, g_rho);
         mpz_mul(tmp, r, g_gs[i]);
+
         if (i < g_secparam) {
             py_to_mpz(r, PyList_GET_ITEM(PyList_GET_ITEM(in, i), row));
             mpz_add(tmp, tmp, r);
         }
         mpz_mul(tmp, tmp, g_crt_coeffs[i]);
         mpz_add(out, out, tmp);
+
     }
     mpz_mod(out, out, g_x0);
     if (idx1 >= 0) {
@@ -450,7 +452,7 @@ obf_setup(PyObject *self, PyObject *args)
     mpz_t *ps, *zs;
     PyObject *py_gs, *py_fastprimes;
     double start, end;
-    long niter;
+    // long niter;
     int use_fastprimes;
 
     if (!PyArg_ParseTuple(args, "llllsO", &g_secparam, &kappa, &g_size, &g_nzs,
@@ -531,41 +533,41 @@ obf_setup(PyObject *self, PyObject *args)
     }
 
     start = current_time();
-    if (use_fastprimes) {
-        if (g_verbose && alpha < 24) {
-            (void) fprintf(stderr, "\x1b[33mWARNING\x1b[0m: "
-                           "using CLT13 fast prime generation may not work for "
-                           "security parameters below 24\n");
-        }
-        niter = eta / alpha;
-        // if (eta % alpha != 0) {
-        //     (void) fprintf(stderr, "\x1b[33mWARNING\x1b[0m: "
-        //             "eta %% alpha should be 0\n");
-        // }
-    }
+    // if (use_fastprimes) {
+    //     if (g_verbose && alpha < 24) {
+    //         (void) fprintf(stderr, "\x1b[33mWARNING\x1b[0m: "
+    //                        "using CLT13 fast prime generation may not work for "
+    //                        "security parameters below 24\n");
+    //     }
+    //     niter = eta / alpha;
+    //     // if (eta % alpha != 0) {
+    //     //     (void) fprintf(stderr, "\x1b[33mWARNING\x1b[0m: "
+    //     //             "eta %% alpha should be 0\n");
+    //     // }
+    // }
     /* Generate p_i's and g_i's, as well as x_0 = \prod p_i */
 #pragma omp parallel for
     for (int i = 0; i < g_n; ++i) {
         mpz_t p_unif;
         mpz_init(p_unif);
         // XXX: the primes generated here aren't officially uniform
-        if (use_fastprimes) {
-            //
-            // Use CLT optimization of generating "small" primes and multiplying
-            // them together to get the resulting "prime".
-            //
-            for (int j = 0; j < niter; ++j) {
-                long psize = j < (niter - 1)
-                                 ? alpha
-                                 : eta - alpha * (niter - 1);
-                mpz_urandomb(p_unif, g_rng, psize);
-                mpz_nextprime(p_unif, p_unif);
-                mpz_mul(ps[i], ps[i], p_unif);
-            }
-        } else {
+        // if (use_fastprimes) {
+        //     //
+        //     // Use CLT optimization of generating "small" primes and multiplying
+        //     // them together to get the resulting "prime".
+        //     //
+        //     for (int j = 0; j < niter; ++j) {
+        //         long psize = j < (niter - 1)
+        //                          ? alpha
+        //                          : eta - alpha * (niter - 1);
+        //         mpz_urandomb(p_unif, g_rng, psize);
+        //         mpz_nextprime(p_unif, p_unif);
+        //         mpz_mul(ps[i], ps[i], p_unif);
+        //     }
+        // } else {
             mpz_urandomb(p_unif, g_rng, eta);
             mpz_nextprime(ps[i], p_unif);
-        }
+        // }
         mpz_urandomb(p_unif, g_rng, alpha);
         mpz_nextprime(g_gs[i], p_unif);
 #pragma omp critical
@@ -612,6 +614,7 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_mul(g_crt_coeffs[i], g_crt_coeffs[i], q);
         mpz_clear(q);
     }
+
     end = current_time();
     if (g_verbose)
         (void) fprintf(stderr, "  Generating CRT coefficients: %f\n",
@@ -753,46 +756,42 @@ static PyObject *
 obf_encode_vectors(PyObject *self, PyObject *args)
 {
     PyObject *py_vectors = NULL, *py_list = NULL;
-    int idx1, idx2, err = 0;
-    mpz_t *vector;
-    Py_ssize_t size;
     char *name;
+    int idx1, idx2;
+    mpz_t *vector;
+    Py_ssize_t length;
     double start, end;
 
     if (!PyArg_ParseTuple(args, "OOs", &py_vectors, &py_list, &name))
         return NULL;
     (void) extract_indices(py_list, &idx1, &idx2);
 
-    // We assume that all vectors are the same size, and thus just grab the size
-    // of the first vector
-    size = PyList_GET_SIZE(PyList_GET_ITEM(py_vectors, 0));
-    vector = (mpz_t *) mymalloc(sizeof(mpz_t) * size);
+    // We assume that all vectors have the same length, and thus just grab the
+    // length of the first vector
+    length = PyList_GET_SIZE(PyList_GET_ITEM(py_vectors, 0));
+    vector = (mpz_t *) mymalloc(sizeof(mpz_t) * length);
     if (vector == NULL)
         return NULL;
 
     start = current_time();
 #pragma omp parallel for
-    for (Py_ssize_t i = 0; i < size; ++i) {
+    for (Py_ssize_t i = 0; i < length; ++i) {
         mpz_init(vector[i]);
         encode(vector[i], py_vectors, i, idx1, idx2);
     }
     end = current_time();
     if (g_verbose)
         (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
-                       size, end - start);
+                       length, end - start);
 
-    (void) write_vector(vector, size, name);
+    (void) write_vector(vector, length, name);
 
-    for (Py_ssize_t i = 0; i < size; ++i) {
+    for (Py_ssize_t i = 0; i < length; ++i) {
         mpz_clear(vector[i]);
     }
     free(vector);
 
-
-    if (err)
-        return NULL;
-    else
-        Py_RETURN_NONE;
+    Py_RETURN_NONE;
 }
 
 //
