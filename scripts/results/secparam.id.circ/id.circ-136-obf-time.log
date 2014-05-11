@@ -1,4 +1,3 @@
-* Using CLT13 prime generation
 Generating MLM parameters...
   Security Parameter: 136
   Kappa: 3
@@ -11,29 +10,29 @@ Generating MLM parameters...
   N: 9738
   Number of Zs: 3
   Size: 3
-  Seed: 8826406614285155303
-  Generating p_i's and g_i's: 48.789408
-  Converting g_i's to python objects: 0.000663
-  Generating CRT coefficients: 23.368912
-  Generating z_i's: 13.565300
-  Generating pzt: 26.425829
-  Saving to file: 0.002467
-Took: 112.157273
+  Seed: 2561433521571486352
+  Generating p_i's and g_i's: 122.788851
+  Converting g_i's to python objects: 0.006677
+  Generating CRT coefficients: 23.833083
+  Generating z_i's: 13.799949
+  Generating pzt: 26.790928
+  Saving to file: 0.002611
+Took: 187.227937
 Constructing 136 BPs...
-Took: 0.043943
+Took: 0.044679
 Randomizing BPs...
-Took: 7.444326
+Took: 7.491845
 Constructing bookend vectors...
-  Computing bookend vectors: 0.221880
-  Encoding 3 elements: 24.161967
-  Saving to file: 0.004419
-  Encoding 3 elements: 24.150011
-  Saving to file: 0.003801
-Took: 48.544191
+  Computing bookend vectors: 0.223131
+  Encoding 3 elements: 24.346078
+  Saving to file: 0.004697
+  Encoding 3 elements: 24.273130
+  Saving to file: 0.004709
+Took: 48.854651
 Obfuscating layer...
-  Encoding 18 elements: 34.784533
-  Saving to file: 0.022450
-Took: 34.817492
-Obfuscation took: 203.007852
-Max memory usage: 16428000
-Obfuscation took: 203.012633 seconds
+  Encoding 18 elements: 35.406346
+  Saving to file: 0.022618
+Took: 35.440931
+Obfuscation took: 279.060772
+Max memory usage: 16639904
+Obfuscation took: 279.065455 seconds

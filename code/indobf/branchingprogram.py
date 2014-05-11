@@ -197,8 +197,8 @@ class BranchingProgram(AbstractBranchingProgram):
                         bp.append(gates[gate.upper()](*inputs))
                     except KeyError:
                         raise ParseException("unsupported gate '%s'" % gate)
-                    # except TypeError:
-                    #     raise ParseException("incorrect number of arguments given")
+                    except TypeError:
+                        raise ParseException("incorrect number of arguments given")
                 else:
                     raise ParseException("unknown type")
         if not output:

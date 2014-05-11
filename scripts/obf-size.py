@@ -8,21 +8,24 @@ import pylab
 import numpy as np
 import utils
 
+MB = 2 ** 20
+
 def main(argv):
     utils.init()
 
-    xs, id_y = utils.dir_obfsize(os.path.join('results', 'secparam.id.circ'))
-    _, and_y = utils.dir_obfsize(os.path.join('results', 'secparam.and.circ'))
-    _, xor_y = utils.dir_obfsize(os.path.join('results', 'secparam.xor.circ'))
+    xs, idsizes = utils.dir_obfsize(os.path.join('results', 'secparam.id.circ'))
+    _, andsizes = utils.dir_obfsize(os.path.join('results', 'secparam.and.circ'))
+    _, xorsizes = utils.dir_obfsize(os.path.join('results', 'secparam.xor.circ'))
 
-    xs = xs[::2]
-    id_y = id_y[::2]
-    and_y = and_y[::2]
-    xor_y = xor_y[::2]
+    xs, idsizes, andsizes, xorsizes = xs[1:], idsizes[1:], andsizes[1:], xorsizes[1:]
 
-    id_y = [i / 1024 / 1024 for i in id_y]
-    and_y = [i / 1024 / 1024 for i in and_y]
-    xor_y = [i / 1024 / 1024 for i in xor_y]
+    idsizes = [i / MB for i in idsizes]
+    andsizes = [i / MB for i in andsizes]
+    xorsizes = [i / MB for i in xorsizes]
+
+    print(idsizes)
+    print(andsizes)
+    print(xorsizes)
 
     ind = np.arange(len(xs))
     width = 0.2
@@ -30,14 +33,14 @@ def main(argv):
     pylab.figure(1)
     pylab.clf()
     pylab.axes([0.125,0.2,0.95-0.125,0.95-0.2])
-    p1 = pylab.bar(ind + width, id_y, width, color='black', log=True)
-    p2 = pylab.bar(ind + 2 * width, and_y, width, color='gray', log=True)
-    p3 = pylab.bar(ind + 3 * width, xor_y, width, color='white', log=True)
+    p1 = pylab.bar(ind + width, idsizes, width, color='black', log=True)
+    p2 = pylab.bar(ind + 2 * width, andsizes, width, color='gray', log=True)
+    p3 = pylab.bar(ind + 3 * width, xorsizes, width, color='white', log=True)
     pylab.legend((p1[0], p2[0], p3[0]), ('ID', 'AND', 'XOR'), loc='upper left')
     pylab.xlabel(r'Security Parameter')
     pylab.ylabel(r'Size (MB)')
     pylab.xticks(np.arange(len(xs)) + 0.5, xs)
-    # pylab.ylim(1, 10 ** 3.2)
+    pylab.ylim(1, 10 ** 3)
 
     pylab.savefig('/home/amaloz/umd-svn/iO-implementation/writeup/figs/single-gate-obf-size.eps')
     pylab.show()

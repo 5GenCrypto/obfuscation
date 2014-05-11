@@ -21,11 +21,11 @@ def main(argv):
 
     with open('point-%d.circ' % bitlength, 'w') as f:
         secret = random_bitstring(bitlength)
+        f.write('# TEST %s 1\n' % secret)
         for _ in xrange(5):
             test = random_bitstring(bitlength)
             if test != secret:
                 f.write('# TEST %s 0\n' % test)
-        f.write('# TEST %s 1\n' % secret)
         for i in xrange(bitlength):
             f.write('%d input\n' % i)
         for i in xrange(bitlength):

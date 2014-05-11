@@ -32,8 +32,15 @@ def obftime(fname):
             if line.startswith('Obfuscation took'):
                 a, b, c = line.rstrip().rsplit(' ', 2)
                 if c == 'seconds':
-                    time = float(b)
-                    return secparam, time
+                    return secparam, float(b)
+
+def obfN(fname):
+    secparam = [int(s) for s in fname.split('-') if s.isdigit()][0]
+    with open(fname, 'r') as f:
+        for line in f:
+            if line.strip().startswith('N:'):
+                _, b = line.rstrip().rsplit(' ', 1)
+                return secparam, float(b)
 
 def obfsize(fname):
     secparam = [int(s) for s in fname.split('-') if s.isdigit()][0]
@@ -56,7 +63,7 @@ def evaltime(fname):
                 a, b = line.rstrip().rsplit(' ', 1)
                 return secparam, float(b)
 
-def _dir(directory, name, func):
+def dir(directory, name, func):
     results = []
     for file in os.listdir(directory):
         if name in file:
@@ -72,10 +79,10 @@ def _dir(directory, name, func):
     return xs, ys
 
 def dir_obftime(directory):
-    return _dir(directory, 'obf-time', obftime)
+    return dir(directory, 'obf-time', obftime)
 def dir_obfsize(directory):
-    return _dir(directory, 'obf-size', obfsize)
+    return dir(directory, 'obf-size', obfsize)
 def dir_evaltime(directory):
-    return _dir(directory, 'eval-time', evaltime)
+    return dir(directory, 'eval-time', evaltime)
 
     

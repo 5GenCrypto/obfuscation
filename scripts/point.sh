@@ -24,7 +24,7 @@ do
 done
 popd
 
-secparam=48
+secparam=52
 
 dir="$LOG_DIR/point.$secparam"
 mkdir -p $dir
@@ -40,7 +40,8 @@ do
     obf=$circuit.obf.$secparam
     du --bytes $CIRCUIT_DIR/$obf/* \
         | tee $dir/$circuit-$secparam-obf-size.log
-    eval=`$PYTHON -c "print('0' * $point)"`
+    eval=`sed -n 1p $CIRCUIT_DIR/$circuit | awk '{ print $3 }'`
+    echo $eval
     $SAGE $CODE_DIR/indobf/run.py obf \
         --load-obf $CIRCUIT_DIR/$obf \
         --eval $eval \
