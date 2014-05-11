@@ -1,0 +1,14 @@
+: nins 5
+: depth 4
+# TEST 00000 1
+# TEST 11111 0
+0 input
+1 input
+2 input
+3 input
+4 input
+5 gate AND 0 1
+6 gate AND 5 2
+7 gate AND 6 3
+8 gate AND 7 4
+9 output NOT 8
