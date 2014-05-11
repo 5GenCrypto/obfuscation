@@ -1,0 +1,134 @@
+Generating MLM parameters...
+  Security Parameter: 8
+  Kappa: 27
+  Alpha: 8
+  Beta: 8
+  Eta: 526
+  Nu: 27
+  Rho: 8
+  Rho_f: 486
+  N: 1578
+  Number of Zs: 47
+  Size: 11
+  Seed: 3719699294369752364
+  Generating p_i's and g_i's: 0.672957
+  Converting g_i's to python objects: 0.000015
+  Generating CRT coefficients: 0.684412
+  Generating z_i's: 1.079631
+  Generating pzt: 2.184567
+  Saving to file: 0.000658
+Took: 4.625160
+Constructing 8 BPs...
+Took: 0.028778
+Randomizing BPs...
+Took: 0.186835
+Constructing bookend vectors...
+  Computing bookend vectors: 0.007196
+  Encoding 11 elements: 0.125779
+  Saving to file: 0.001584
+  Encoding 11 elements: 0.120621
+  Saving to file: 0.001599
+Took: 0.259185
+Obfuscating layer...
+  Encoding 242 elements: 2.067928
+  Saving to file: 0.021950
+Took: 2.099153
+Obfuscating layer...
+  Encoding 242 elements: 2.044464
+  Saving to file: 0.021725
+Took: 2.075731
+Obfuscating layer...
+  Encoding 242 elements: 1.942845
+  Saving to file: 0.021086
+Took: 1.973251
+Obfuscating layer...
+  Encoding 242 elements: 2.059758
+  Saving to file: 0.023231
+Took: 2.092197
+Obfuscating layer...
+  Encoding 242 elements: 1.921590
+  Saving to file: 0.021083
+Took: 1.952240
+Obfuscating layer...
+  Encoding 242 elements: 2.159705
+  Saving to file: 0.020510
+Took: 2.189376
+Obfuscating layer...
+  Encoding 242 elements: 2.261117
+  Saving to file: 0.020781
+Took: 2.291284
+Obfuscating layer...
+  Encoding 242 elements: 2.186054
+  Saving to file: 0.020597
+Took: 2.215896
+Obfuscating layer...
+  Encoding 242 elements: 2.217256
+  Saving to file: 0.022016
+Took: 2.249051
+Obfuscating layer...
+  Encoding 242 elements: 2.320291
+  Saving to file: 0.020493
+Took: 2.350464
+Obfuscating layer...
+  Encoding 242 elements: 2.255391
+  Saving to file: 0.020818
+Took: 2.285525
+Obfuscating layer...
+  Encoding 242 elements: 2.207022
+  Saving to file: 0.020754
+Took: 2.236946
+Obfuscating layer...
+  Encoding 242 elements: 2.200930
+  Saving to file: 0.020611
+Took: 2.231021
+Obfuscating layer...
+  Encoding 242 elements: 2.311740
+  Saving to file: 0.020762
+Took: 2.341815
+Obfuscating layer...
+  Encoding 242 elements: 2.198318
+  Saving to file: 0.019851
+Took: 2.227541
+Obfuscating layer...
+  Encoding 242 elements: 2.215609
+  Saving to file: 0.021129
+Took: 2.245988
+Obfuscating layer...
+  Encoding 242 elements: 2.143131
+  Saving to file: 0.020689
+Took: 2.173214
+Obfuscating layer...
+  Encoding 242 elements: 2.223866
+  Saving to file: 0.020597
+Took: 2.253661
+Obfuscating layer...
+  Encoding 242 elements: 2.286563
+  Saving to file: 0.020706
+Took: 2.316788
+Obfuscating layer...
+  Encoding 242 elements: 2.109004
+  Saving to file: 0.020530
+Took: 2.138847
+Obfuscating layer...
+  Encoding 242 elements: 2.074530
+  Saving to file: 0.021233
+Took: 2.105118
+Obfuscating layer...
+  Encoding 242 elements: 2.123537
+  Saving to file: 0.020282
+Took: 2.153040
+Obfuscating layer...
+  Encoding 242 elements: 1.967868
+  Saving to file: 0.020905
+Took: 1.997842
+Obfuscating layer...
+  Encoding 242 elements: 2.150521
+  Saving to file: 0.021199
+Took: 2.180970
+Obfuscating layer...
+  Encoding 242 elements: 1.983947
+  Saving to file: 0.019938
+Took: 2.013396
+Obfuscation took: 59.492259
+Max memory usage: 409468
+Obfuscation took: 59.498036 seconds

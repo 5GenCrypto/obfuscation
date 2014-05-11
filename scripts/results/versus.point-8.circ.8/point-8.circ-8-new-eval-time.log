@@ -1,0 +1,28 @@
+Evaluating 00000000...
+  Multiplying matrices: 0.001807
+    Multiplying took: 0.081400
+    Swapping took: 0.000024
+  Multiplying matrices: 0.083345
+    Multiplying took: 0.130479
+    Swapping took: 0.000025
+  Multiplying matrices: 0.132995
+    Multiplying took: 0.184264
+    Swapping took: 0.000027
+  Multiplying matrices: 0.186940
+    Multiplying took: 0.305536
+    Swapping took: 0.000023
+  Multiplying matrices: 0.308059
+    Multiplying took: 0.304098
+    Swapping took: 0.000031
+  Multiplying matrices: 0.306810
+    Multiplying took: 0.333018
+    Swapping took: 0.000032
+  Multiplying matrices: 0.335558
+    Multiplying took: 0.413734
+    Swapping took: 0.000035
+  Multiplying matrices: 0.416379
+  Multiplying by vectors took: 0.098273
+  Zero test: 0.130946
+Took: 1.905287
+Max memory usage: 185640
+Output = 0

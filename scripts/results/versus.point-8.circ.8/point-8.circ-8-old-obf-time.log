@@ -1,0 +1,550 @@
+Generating MLM parameters...
+  Security Parameter: 8
+  Kappa: 66
+  Alpha: 8
+  Beta: 8
+  Eta: 1228
+  Nu: 27
+  Rho: 8
+  Rho_f: 1188
+  N: 3684
+  Number of Zs: 122
+  Size: 3
+  Seed: 17885606618276420508
+  Generating p_i's and g_i's: 31.311741
+  Converting g_i's to python objects: 0.000039
+  Generating CRT coefficients: 3.770236
+  Generating z_i's: 24.612261
+  Generating pzt: 49.247361
+  Saving to file: 0.001620
+Took: 108.956084
+Constructing 8 BPs...
+Took: 0.029470
+Randomizing BPs...
+Took: 0.370949
+Constructing multiplicative constants...
+  Encoding one element: 1.260698
+  Saving to file: 0.000482
+  Encoding one element: 1.532017
+  Saving to file: 0.000496
+  Encoding one element: 1.178777
+  Saving to file: 0.000493
+  Encoding one element: 1.536470
+  Saving to file: 0.000548
+  Encoding one element: 1.628860
+  Saving to file: 0.000488
+  Encoding one element: 1.529858
+  Saving to file: 0.000473
+  Encoding one element: 1.530588
+  Saving to file: 0.000486
+  Encoding one element: 1.579722
+  Saving to file: 0.000487
+  Encoding one element: 1.177535
+  Saving to file: 0.000502
+  Encoding one element: 1.528438
+  Saving to file: 0.000495
+  Encoding one element: 1.181708
+  Saving to file: 0.000508
+  Encoding one element: 1.632914
+  Saving to file: 0.000490
+  Encoding one element: 1.530470
+  Saving to file: 0.000495
+  Encoding one element: 1.530446
+  Saving to file: 0.000478
+  Encoding one element: 1.608283
+  Saving to file: 0.000514
+  Encoding one element: 1.524565
+  Saving to file: 0.000504
+  Encoding one element: 1.525966
+  Saving to file: 0.000510
+  Encoding one element: 1.534626
+  Saving to file: 0.000485
+  Encoding one element: 1.534011
+  Saving to file: 0.000483
+  Encoding one element: 1.523387
+  Saving to file: 0.000476
+  Encoding one element: 1.526911
+  Saving to file: 0.000431
+  Encoding one element: 1.616754
+  Saving to file: 0.000488
+  Encoding one element: 1.521750
+  Saving to file: 0.000474
+  Encoding one element: 1.526567
+  Saving to file: 0.000477
+  Encoding one element: 1.636709
+  Saving to file: 0.000483
+  Encoding one element: 1.520772
+  Saving to file: 0.000462
+  Encoding one element: 1.522115
+  Saving to file: 0.000475
+  Encoding one element: 1.608990
+  Saving to file: 0.000504
+  Encoding one element: 1.518698
+  Saving to file: 0.000506
+  Encoding one element: 1.517956
+  Saving to file: 0.000502
+  Encoding one element: 1.558927
+  Saving to file: 0.000490
+  Encoding one element: 1.605684
+  Saving to file: 0.000488
+  Encoding one element: 1.164483
+  Saving to file: 0.000475
+  Encoding one element: 1.517646
+  Saving to file: 0.000472
+  Encoding one element: 1.205657
+  Saving to file: 0.000477
+  Encoding one element: 1.514364
+  Saving to file: 0.000481
+  Encoding one element: 1.515116
+  Saving to file: 0.000476
+  Encoding one element: 1.524951
+  Saving to file: 0.000479
+  Encoding one element: 1.516651
+  Saving to file: 0.000477
+  Encoding one element: 1.516125
+  Saving to file: 0.000475
+  Encoding one element: 1.167853
+  Saving to file: 0.000517
+  Encoding one element: 1.519389
+  Saving to file: 0.000509
+  Encoding one element: 1.163974
+  Saving to file: 0.000506
+  Encoding one element: 1.514440
+  Saving to file: 0.000502
+  Encoding one element: 1.519918
+  Saving to file: 0.000502
+  Encoding one element: 1.518282
+  Saving to file: 0.000487
+  Encoding one element: 1.515215
+  Saving to file: 0.000491
+  Encoding one element: 1.520302
+  Saving to file: 0.000458
+  Encoding one element: 1.517594
+  Saving to file: 0.000513
+  Encoding one element: 1.515988
+  Saving to file: 0.000504
+  Encoding one element: 1.517597
+  Saving to file: 0.000501
+  Encoding one element: 1.525880
+  Saving to file: 0.000492
+  Encoding one element: 1.517261
+  Saving to file: 0.000477
+  Encoding one element: 1.516948
+  Saving to file: 0.000493
+  Encoding one element: 1.525633
+  Saving to file: 0.000508
+  Encoding one element: 1.512658
+  Saving to file: 0.000500
+  Encoding one element: 1.515621
+  Saving to file: 0.000508
+  Encoding one element: 1.519120
+  Saving to file: 0.000492
+  Encoding one element: 1.521374
+  Saving to file: 0.000501
+  Encoding one element: 1.513981
+  Saving to file: 0.000486
+  Encoding one element: 1.517874
+  Saving to file: 0.000482
+  Encoding one element: 1.522834
+  Saving to file: 0.000511
+  Encoding one element: 1.514781
+  Saving to file: 0.000500
+  Encoding one element: 1.516957
+  Saving to file: 0.000507
+  Encoding one element: 1.523836
+  Saving to file: 0.000503
+  Encoding one element: 1.514564
+  Saving to file: 0.000482
+  Encoding one element: 1.514564
+  Saving to file: 0.000491
+  Encoding one element: 1.522202
+  Saving to file: 0.000468
+  Encoding one element: 1.514297
+  Saving to file: 0.000506
+  Encoding one element: 1.515499
+  Saving to file: 0.000502
+  Encoding one element: 1.517603
+  Saving to file: 0.000501
+  Encoding one element: 1.520110
+  Saving to file: 0.000503
+  Encoding one element: 1.516009
+  Saving to file: 0.000480
+  Encoding one element: 1.517146
+  Saving to file: 0.000482
+  Encoding one element: 1.521771
+  Saving to file: 0.000498
+  Encoding one element: 1.513976
+  Saving to file: 0.000501
+  Encoding one element: 1.512567
+  Saving to file: 0.000504
+  Encoding one element: 1.514604
+  Saving to file: 0.000506
+  Encoding one element: 1.514736
+  Saving to file: 0.000505
+  Encoding one element: 1.514493
+  Saving to file: 0.000494
+  Encoding one element: 1.516090
+  Saving to file: 0.000562
+  Encoding one element: 1.515099
+  Saving to file: 0.000488
+  Encoding one element: 1.515584
+  Saving to file: 0.000488
+  Encoding one element: 1.516559
+  Saving to file: 0.000491
+  Encoding one element: 1.517216
+  Saving to file: 0.000491
+  Encoding one element: 1.165429
+  Saving to file: 0.000489
+  Encoding one element: 1.514238
+  Saving to file: 0.000488
+  Encoding one element: 1.169747
+  Saving to file: 0.000462
+  Encoding one element: 1.516467
+  Saving to file: 0.000492
+  Encoding one element: 1.514913
+  Saving to file: 0.000488
+  Encoding one element: 1.519983
+  Saving to file: 0.000491
+  Encoding one element: 1.530768
+  Saving to file: 0.000490
+  Encoding one element: 1.515495
+  Saving to file: 0.000468
+  Encoding one element: 1.166085
+  Saving to file: 0.000489
+  Encoding one element: 1.518861
+  Saving to file: 0.000492
+  Encoding one element: 1.169484
+  Saving to file: 0.000497
+  Encoding one element: 1.514083
+  Saving to file: 0.000497
+  Encoding one element: 1.515630
+  Saving to file: 0.000492
+  Encoding one element: 1.521994
+  Saving to file: 0.000488
+  Encoding one element: 1.515423
+  Saving to file: 0.000465
+  Encoding one element: 1.514137
+  Saving to file: 0.000485
+  Encoding one element: 1.517132
+  Saving to file: 0.000490
+  Encoding one element: 1.517020
+  Saving to file: 0.000505
+  Encoding one element: 1.515016
+  Saving to file: 0.000508
+  Encoding one element: 1.514081
+  Saving to file: 0.000498
+  Encoding one element: 1.514001
+  Saving to file: 0.000495
+  Encoding one element: 1.513831
+  Saving to file: 0.000491
+  Encoding one element: 1.513813
+  Saving to file: 0.000491
+  Encoding one element: 1.515631
+  Saving to file: 0.000505
+  Encoding one element: 1.514630
+  Saving to file: 0.000501
+  Encoding one element: 1.513515
+  Saving to file: 0.000504
+  Encoding one element: 1.515845
+  Saving to file: 0.000493
+  Encoding one element: 1.514838
+  Saving to file: 0.000492
+  Encoding one element: 1.513656
+  Saving to file: 0.000491
+  Encoding one element: 1.516295
+  Saving to file: 0.000488
+  Encoding one element: 1.519879
+  Saving to file: 0.000505
+  Encoding one element: 1.515224
+  Saving to file: 0.000505
+  Encoding one element: 1.162604
+  Saving to file: 0.000507
+  Encoding one element: 1.521931
+  Saving to file: 0.000486
+  Encoding one element: 1.163444
+  Saving to file: 0.000494
+  Encoding one element: 1.515361
+  Saving to file: 0.000492
+  Encoding one element: 1.516990
+  Saving to file: 0.000475
+  Encoding one element: 1.521086
+  Saving to file: 0.000503
+  Encoding one element: 1.515211
+  Saving to file: 0.000485
+  Encoding one element: 1.514927
+  Saving to file: 0.000481
+  Encoding one element: 1.167819
+  Saving to file: 0.000493
+  Encoding one element: 1.515393
+  Saving to file: 0.000468
+  Encoding one element: 1.163053
+  Saving to file: 0.000491
+Took: 189.825781
+Constructing bookend vectors...
+  Computing bookend vectors: 0.025692
+  Encoding one element: 1.517041
+  Saving to file: 0.000496
+  Encoding 3 elements: 1.183150
+  Saving to file: 0.001969
+  Encoding 3 elements: 1.178998
+  Saving to file: 0.001972
+Took: 3.910930
+Obfuscating layer...
+  Encoding 18 elements: 1.854440
+  Saving to file: 0.007915
+Took: 1.866832
+Obfuscating layer...
+  Encoding 18 elements: 1.794951
+  Saving to file: 0.008022
+Took: 1.807104
+Obfuscating layer...
+  Encoding 18 elements: 2.225017
+  Saving to file: 0.007778
+Took: 2.236599
+Obfuscating layer...
+  Encoding 18 elements: 2.236709
+  Saving to file: 0.008183
+Took: 2.248747
+Obfuscating layer...
+  Encoding 18 elements: 2.077913
+  Saving to file: 0.008276
+Took: 2.090265
+Obfuscating layer...
+  Encoding 18 elements: 2.064744
+  Saving to file: 0.007012
+Took: 2.075855
+Obfuscating layer...
+  Encoding 18 elements: 2.005973
+  Saving to file: 0.008099
+Took: 2.017966
+Obfuscating layer...
+  Encoding 18 elements: 2.205042
+  Saving to file: 0.008069
+Took: 2.216904
+Obfuscating layer...
+  Encoding 18 elements: 2.244795
+  Saving to file: 0.007781
+Took: 2.256486
+Obfuscating layer...
+  Encoding 18 elements: 2.225575
+  Saving to file: 0.007912
+Took: 2.237426
+Obfuscating layer...
+  Encoding 18 elements: 2.133752
+  Saving to file: 0.008092
+Took: 2.145698
+Obfuscating layer...
+  Encoding 18 elements: 2.170013
+  Saving to file: 0.008015
+Took: 2.181952
+Obfuscating layer...
+  Encoding 18 elements: 2.236547
+  Saving to file: 0.007853
+Took: 2.248264
+Obfuscating layer...
+  Encoding 18 elements: 2.237080
+  Saving to file: 0.008198
+Took: 2.249131
+Obfuscating layer...
+  Encoding 18 elements: 2.083275
+  Saving to file: 0.008242
+Took: 2.095345
+Obfuscating layer...
+  Encoding 18 elements: 1.992682
+  Saving to file: 0.008263
+Took: 2.004787
+Obfuscating layer...
+  Encoding 18 elements: 2.079551
+  Saving to file: 0.007788
+Took: 2.091584
+Obfuscating layer...
+  Encoding 18 elements: 2.094625
+  Saving to file: 0.008205
+Took: 2.106883
+Obfuscating layer...
+  Encoding 18 elements: 2.236188
+  Saving to file: 0.008141
+Took: 2.248119
+Obfuscating layer...
+  Encoding 18 elements: 2.233919
+  Saving to file: 0.008583
+Took: 2.246362
+Obfuscating layer...
+  Encoding 18 elements: 1.923738
+  Saving to file: 0.007206
+Took: 1.934835
+Obfuscating layer...
+  Encoding 18 elements: 2.004569
+  Saving to file: 0.007938
+Took: 2.016553
+Obfuscating layer...
+  Encoding 18 elements: 2.017935
+  Saving to file: 0.008087
+Took: 2.029959
+Obfuscating layer...
+  Encoding 18 elements: 2.237479
+  Saving to file: 0.008068
+Took: 2.249240
+Obfuscating layer...
+  Encoding 18 elements: 2.248752
+  Saving to file: 0.010698
+Took: 2.263346
+Obfuscating layer...
+  Encoding 18 elements: 2.232783
+  Saving to file: 0.007291
+Took: 2.244079
+Obfuscating layer...
+  Encoding 18 elements: 2.138062
+  Saving to file: 0.008239
+Took: 2.150178
+Obfuscating layer...
+  Encoding 18 elements: 2.233790
+  Saving to file: 0.009490
+Took: 2.247283
+Obfuscating layer...
+  Encoding 18 elements: 2.201342
+  Saving to file: 0.008098
+Took: 2.213447
+Obfuscating layer...
+  Encoding 18 elements: 2.222015
+  Saving to file: 0.008060
+Took: 2.234109
+Obfuscating layer...
+  Encoding 18 elements: 2.222743
+  Saving to file: 0.008120
+Took: 2.235381
+Obfuscating layer...
+  Encoding 18 elements: 2.192746
+  Saving to file: 0.008471
+Took: 2.204997
+Obfuscating layer...
+  Encoding 18 elements: 2.235076
+  Saving to file: 0.008102
+Took: 2.247033
+Obfuscating layer...
+  Encoding 18 elements: 2.206469
+  Saving to file: 0.009058
+Took: 2.219485
+Obfuscating layer...
+  Encoding 18 elements: 2.023725
+  Saving to file: 0.008908
+Took: 2.036550
+Obfuscating layer...
+  Encoding 18 elements: 1.966864
+  Saving to file: 0.008350
+Took: 1.979082
+Obfuscating layer...
+  Encoding 18 elements: 2.217096
+  Saving to file: 0.008228
+Took: 2.229227
+Obfuscating layer...
+  Encoding 18 elements: 2.246715
+  Saving to file: 0.007976
+Took: 2.258632
+Obfuscating layer...
+  Encoding 18 elements: 2.223361
+  Saving to file: 0.008797
+Took: 2.235933
+Obfuscating layer...
+  Encoding 18 elements: 2.241052
+  Saving to file: 0.009326
+Took: 2.254211
+Obfuscating layer...
+  Encoding 18 elements: 1.943151
+  Saving to file: 0.009759
+Took: 1.956792
+Obfuscating layer...
+  Encoding 18 elements: 2.226021
+  Saving to file: 0.008167
+Took: 2.238080
+Obfuscating layer...
+  Encoding 18 elements: 2.024320
+  Saving to file: 0.007099
+Took: 2.035338
+Obfuscating layer...
+  Encoding 18 elements: 2.089674
+  Saving to file: 0.007205
+Took: 2.100671
+Obfuscating layer...
+  Encoding 18 elements: 2.237359
+  Saving to file: 0.008129
+Took: 2.249533
+Obfuscating layer...
+  Encoding 18 elements: 2.250598
+  Saving to file: 0.008086
+Took: 2.262644
+Obfuscating layer...
+  Encoding 18 elements: 2.061887
+  Saving to file: 0.007366
+Took: 2.073043
+Obfuscating layer...
+  Encoding 18 elements: 2.111885
+  Saving to file: 0.007834
+Took: 2.123663
+Obfuscating layer...
+  Encoding 18 elements: 2.225333
+  Saving to file: 0.008067
+Took: 2.237646
+Obfuscating layer...
+  Encoding 18 elements: 2.233161
+  Saving to file: 0.008548
+Took: 2.246177
+Obfuscating layer...
+  Encoding 18 elements: 2.241790
+  Saving to file: 0.008188
+Took: 2.255721
+Obfuscating layer...
+  Encoding 18 elements: 2.202958
+  Saving to file: 0.008154
+Took: 2.215054
+Obfuscating layer...
+  Encoding 18 elements: 2.229739
+  Saving to file: 0.008112
+Took: 2.241886
+Obfuscating layer...
+  Encoding 18 elements: 2.233456
+  Saving to file: 0.007998
+Took: 2.245450
+Obfuscating layer...
+  Encoding 18 elements: 2.228728
+  Saving to file: 0.008065
+Took: 2.240865
+Obfuscating layer...
+  Encoding 18 elements: 2.223451
+  Saving to file: 0.008126
+Took: 2.235594
+Obfuscating layer...
+  Encoding 18 elements: 2.226417
+  Saving to file: 0.007808
+Took: 2.238176
+Obfuscating layer...
+  Encoding 18 elements: 2.224616
+  Saving to file: 0.008281
+Took: 2.236800
+Obfuscating layer...
+  Encoding 18 elements: 2.095947
+  Saving to file: 0.008990
+Took: 2.108998
+Obfuscating layer...
+  Encoding 18 elements: 1.977641
+  Saving to file: 0.008856
+Took: 1.990399
+Obfuscating layer...
+  Encoding 18 elements: 2.059983
+  Saving to file: 0.007965
+Took: 2.071815
+Obfuscating layer...
+  Encoding 18 elements: 2.246718
+  Saving to file: 0.007930
+Took: 2.258595
+Obfuscating layer...
+  Encoding 18 elements: 1.951879
+  Saving to file: 0.008816
+Took: 1.964697
+Obfuscating layer...
+  Encoding 18 elements: 2.012709
+  Saving to file: 0.008942
+Took: 2.025648
+Obfuscation took: 441.106955
+Max memory usage: 2649720
+Obfuscation took: 441.113855 seconds

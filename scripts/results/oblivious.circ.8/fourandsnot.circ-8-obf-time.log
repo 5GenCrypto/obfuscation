@@ -1,0 +1,54 @@
+Generating MLM parameters...
+  Security Parameter: 8
+  Kappa: 7
+  Alpha: 8
+  Beta: 8
+  Eta: 166
+  Nu: 27
+  Rho: 8
+  Rho_f: 126
+  N: 498
+  Number of Zs: 7
+  Size: 7
+  Seed: 15738784557128720700
+  Generating p_i's and g_i's: 0.011242
+  Converting g_i's to python objects: 0.000015
+  Generating CRT coefficients: 0.013848
+  Generating z_i's: 0.015964
+  Generating pzt: 0.025369
+  Saving to file: 0.000463
+Took: 0.069150
+Constructing 8 BPs...
+Took: 0.017327
+Randomizing BPs...
+Took: 0.046779
+Constructing bookend vectors...
+  Computing bookend vectors: 0.008149
+  Encoding 7 elements: 0.006565
+  Saving to file: 0.000226
+  Encoding 7 elements: 0.005932
+  Saving to file: 0.000218
+Took: 0.021248
+Obfuscating layer...
+  Encoding 98 elements: 0.039362
+  Saving to file: 0.001803
+Took: 0.043452
+Obfuscating layer...
+  Encoding 98 elements: 0.044054
+  Saving to file: 0.001766
+Took: 0.048427
+Obfuscating layer...
+  Encoding 98 elements: 0.038949
+  Saving to file: 0.001779
+Took: 0.042458
+Obfuscating layer...
+  Encoding 98 elements: 0.038584
+  Saving to file: 0.001785
+Took: 0.041961
+Obfuscating layer...
+  Encoding 98 elements: 0.038316
+  Saving to file: 0.001736
+Took: 0.041659
+Obfuscation took: 0.373132
+Max memory usage: 168636
+Obfuscation took: 0.376805 seconds
