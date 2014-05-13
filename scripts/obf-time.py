@@ -19,6 +19,10 @@ def main(argv):
 
     xs, idtimes, andtimes, xortimes = xs[1:], idtimes[1:], andtimes[1:], xortimes[1:]
 
+    idtimes = [x / 60 for x in idtimes]
+    andtimes = [x / 60 for x in andtimes]
+    xortimes = [x / 60 for x in xortimes]
+
     ind = np.arange(len(xs))
     width = 0.2
 
@@ -30,9 +34,9 @@ def main(argv):
     p3 = pylab.bar(ind + 3 * width, xortimes, width, color='white')
     pylab.legend((p1[0], p2[0], p3[0]), ('ID', 'AND', 'XOR'), loc='upper left')
     pylab.xlabel(r'Security Parameter')
-    pylab.ylabel(r'Time (seconds)')
+    pylab.ylabel(r'Time (minutes)')
     pylab.xticks(np.arange(len(xs)) + 0.5, xs)
-    pylab.ylim(1, 10 ** 3.2)
+    # pylab.ylim(1, 10 ** 3.2)
 
     pylab.savefig('/home/amaloz/umd-svn/iO-implementation/writeup/figs/single-gate-obf-time.eps')
     pylab.show()

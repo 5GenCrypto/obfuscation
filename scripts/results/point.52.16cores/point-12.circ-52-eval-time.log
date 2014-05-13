@@ -1,0 +1,40 @@
+Evaluating 011011011111...
+  Multiplying matrices: 0.362919
+    Multiplying took: 68.666372
+    Swapping took: 0.034005
+  Multiplying matrices: 69.075503
+    Multiplying took: 136.935130
+    Swapping took: 0.000060
+  Multiplying matrices: 137.294567
+    Multiplying took: 164.095427
+    Swapping took: 0.000064
+  Multiplying matrices: 164.358053
+    Multiplying took: 237.910678
+    Swapping took: 0.000064
+  Multiplying matrices: 238.167798
+    Multiplying took: 282.427759
+    Swapping took: 0.000068
+  Multiplying matrices: 282.685541
+    Multiplying took: 299.170631
+    Swapping took: 0.000065
+  Multiplying matrices: 299.434316
+    Multiplying took: 337.745652
+    Swapping took: 0.000064
+  Multiplying matrices: 338.005984
+    Multiplying took: 482.136378
+    Swapping took: 0.000067
+  Multiplying matrices: 482.396654
+    Multiplying took: 534.994284
+    Swapping took: 0.000072
+  Multiplying matrices: 535.253523
+    Multiplying took: 588.992666
+    Swapping took: 0.000076
+  Multiplying matrices: 589.252155
+    Multiplying took: 635.479956
+    Swapping took: 0.000071
+  Multiplying matrices: 635.740567
+  Multiplying by vectors took: 51.039665
+  Zero test: 59.823550
+Took: 3831.914544
+Max memory usage: 12071024
+Output = 1

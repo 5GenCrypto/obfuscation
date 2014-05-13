@@ -56,7 +56,7 @@ def extract_obf_time(path):
                 obf_count += extract(a)
                 obf_num += 1
             elif line.startswith('Obfuscation took'):
-                lst.append(round(obf_count / obf_num, 1))
+                # lst.append(round(obf_count / obf_num, 1))
                 lst.append(round(obf_count, 1))
                 lst.append(round(extract(line), 1))
             elif line.startswith('Max memory'):
@@ -73,26 +73,26 @@ def extract_eval_time(path):
     return time
 
 def compare_obf_time(point):
-    a = extract_obf_time(os.path.join('results', 'point.48',
-                                      'point-%d.circ-48-obf-time.log' % point))
-    b = extract_obf_time(os.path.join('results', 'point.48.16cores',
-                                      'point-%d.circ-48-obf-time.log' % point))
+    a = extract_obf_time(os.path.join('results', 'point.52',
+                                      'point-%d.circ-52-obf-time.log' % point))
+    b = extract_obf_time(os.path.join('results', 'point.52.16cores',
+                                      'point-%d.circ-52-obf-time.log' % point))
     p = [round((1 - i / j) * 100, 1) for i, j in zip(a, b)]
     print('Obf time: %d: %s' % (point, p))
 
 def compare_obf_size(point):
-    a = extract_obf_size(os.path.join('results', 'point.48',
-                                      'point-%d.circ-48-obf-size.log' % point))
-    b = extract_obf_size(os.path.join('results', 'point.48.16cores',
-                                      'point-%d.circ-48-obf-size.log' % point))
+    a = extract_obf_size(os.path.join('results', 'point.52',
+                                      'point-%d.circ-52-obf-size.log' % point))
+    b = extract_obf_size(os.path.join('results', 'point.52.16cores',
+                                      'point-%d.circ-52-obf-size.log' % point))
     p = round((1 - a / b) * 100, 1)
     print('Obf size: %d: %s' % (point, p))
 
 def compare_eval_time(point):
-    a = extract_eval_time(os.path.join('results', 'point.48',
-                                       'point-%d.circ-48-eval-time.log' % point))
-    b = extract_eval_time(os.path.join('results', 'point.48.16cores',
-                                       'point-%d.circ-48-eval-time.log' % point))
+    a = extract_eval_time(os.path.join('results', 'point.52',
+                                       'point-%d.circ-52-eval-time.log' % point))
+    b = extract_eval_time(os.path.join('results', 'point.52.16cores',
+                                       'point-%d.circ-52-eval-time.log' % point))
     p = round((1 - a / b) * 100, 1)
     print('Eval time: %d: %s' % (point, p))
 
