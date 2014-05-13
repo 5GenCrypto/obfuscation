@@ -1,0 +1,66 @@
+Generating MLM parameters...
+  Security Parameter: 52
+  Kappa: 10
+  Alpha: 52
+  Beta: 52
+  Eta: 1276
+  Nu: 115
+  Rho: 52
+  Rho_f: 1060
+  N: 7273
+  Number of Zs: 10
+  Size: 10
+  Seed: 15307582333116449003
+  Generating p_i's and g_i's: 67.295697
+  Converting g_i's to python objects: 0.001294
+  Generating CRT coefficients: 12.576470
+  Generating z_i's: 9.037073
+  Generating pzt: 23.755376
+  Saving to file: 0.002415
+Took: 112.673079
+Constructing 52 BPs...
+Took: 0.294791
+Randomizing BPs...
+Took: 2.348163
+Constructing bookend vectors...
+  Computing bookend vectors: 0.156484
+  Encoding 10 elements: 6.419876
+  Saving to file: 0.008538
+  Encoding 10 elements: 6.968051
+  Saving to file: 0.009486
+Took: 13.568910
+Obfuscating layer...
+  Encoding 200 elements: 109.692030
+  Saving to file: 0.169162
+Took: 109.899770
+Obfuscating layer...
+  Encoding 200 elements: 120.379178
+  Saving to file: 0.173253
+Took: 120.596358
+Obfuscating layer...
+  Encoding 200 elements: 122.219086
+  Saving to file: 0.167893
+Took: 122.434475
+Obfuscating layer...
+  Encoding 200 elements: 115.550668
+  Saving to file: 0.167143
+Took: 115.762582
+Obfuscating layer...
+  Encoding 200 elements: 115.486123
+  Saving to file: 0.176349
+Took: 115.708648
+Obfuscating layer...
+  Encoding 200 elements: 118.236762
+  Saving to file: 0.181492
+Took: 118.466078
+Obfuscating layer...
+  Encoding 200 elements: 116.094214
+  Saving to file: 0.178322
+Took: 116.320235
+Obfuscating layer...
+  Encoding 200 elements: 143.506579
+  Saving to file: 0.181665
+Took: 143.740629
+Obfuscation took: 1091.816738
+Max memory usage: 9612576
+Obfuscation took: 1091.846956 seconds

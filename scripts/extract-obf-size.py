@@ -12,7 +12,7 @@ def main(argv):
     path = argv[1]
 
     _, size = utils.obfsize(path)
-    print('Size (MB): %f' % round(size / 1024 / 1024, 1))
+    print('Size (GB): %f' % round(size / 2 ** 20, 5))
                 
 
 if __name__ == '__main__':
