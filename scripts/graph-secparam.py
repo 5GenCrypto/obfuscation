@@ -52,7 +52,8 @@ def main(argv):
     ax1.legend((p1[0], p2[0], p3[0]), ('ID', 'AND', 'XOR'), loc='upper left')
     ax1.set_xlabel(r'Security Parameter')
     ax1.set_ylabel(r'Time (minutes)')
-    ax1.set_xticks(np.arange(len(xs)) + 0.5, xs)
+    ax1.set_xticks(ind + 0.5)
+    ax1.set_xticklabels(xs)
 
     ax1 = axes.flat[1]
 

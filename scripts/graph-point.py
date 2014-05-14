@@ -96,9 +96,9 @@ def obfsize(ax1):
     ax2.get_yaxis().set_visible(False)
     expline = ax2.plot(ind + 0.6, expected, 'k--')
 
-    ax1.legend((expline[0],),
-               ('$O(n^2 s^5 \lambda^2)$',),
-               loc='upper left')
+    # ax1.legend((expline[0],),
+    #            ('$O(n^2 s^5 \lambda^2)$',),
+    #            loc='upper left')
 
 def evaltime(ax1):
     xs = (8, 12, 16)
@@ -130,9 +130,9 @@ def evaltime(ax1):
     ax2.get_yaxis().set_visible(False)
     expline = ax2.plot(ind + 0.6, expected, 'k--')
 
-    ax1.legend((expline[0],),
-               ('$O(n^2 s^{5.37} \lambda^2)$',),
-               loc='upper left')
+    # ax1.legend((expline[0],),
+    #            ('$O(n^2 s^{5.37} \lambda^2)$',),
+    #            loc='upper left')
 
 
     # plt.savefig('/home/amaloz/umd-svn/iO-implementation/writeup/figs/point-eval-time.eps')
