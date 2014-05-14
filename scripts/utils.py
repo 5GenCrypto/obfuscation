@@ -20,6 +20,24 @@ def init():
     }
     pylab.rcParams.update(params)
 
+def init_wide():
+    fig_width_pt = 550.0
+    inches_per_pt = 1.0 / 72.27
+    golden_mean = (pylab.sqrt(5) - 1.0) / 5.0
+    fig_width = fig_width_pt * inches_per_pt
+    fig_height = fig_width * golden_mean
+    fig_size = [fig_width, fig_height]
+    params = {'backend': 'ps',
+              'axes.labelsize': 8,
+              'text.fontsize': 8,
+              'legend.fontsize': 8,
+              'xtick.labelsize': 8,
+              'ytick.labelsize': 8,
+              'text.usetex': True,
+              'figure.figsize': fig_size
+    }
+    pylab.rcParams.update(params)
+    
 def extract(line):
     return float(line.rstrip().rsplit(' ', 1)[1])
 
