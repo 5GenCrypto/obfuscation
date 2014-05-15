@@ -25,39 +25,17 @@ def obftime(ax1):
     ind = np.arange(len(all[0]))
     width = 0.4
 
-    colors = [(0, i / len(all), 0, 1) for i in xrange(len(all))]
-
     encodingtime = map(add, all[6], all[7])
-    # other = map(sub, all[8], encodingtime)
-    # other = map(sub, other, all[4])
 
-    # ax1 = plt.axes([0.125,0.2,0.95-0.125,0.95-0.2])
     total = ax1.bar(ind + width, all[8], width, color='white')
     mlm = ax1.bar(ind + width, all[4], width, color='black')
     enc = ax1.bar(ind + width, encodingtime, width, color='gray', bottom=all[4])
-    # pigi = ax1.bar(ind + width, all[0], width, color=colors[0])
-    # psum = all[0]
-    # crt = ax1.bar(ind + width, all[1], width, color=colors[1], bottom=psum)
-    # psum = map(add, all[1], psum)
-    # zi = ax1.bar(ind + width, all[2], width, color=colors[2], bottom=psum)
-    # psum = map(add, all[2], psum)
-    # pzt = ax1.bar(ind + width, all[3], width, color=colors[3], bottom=psum)
-    # psum = all[4]
-    # bprand = ax1.bar(ind + width, all[5], width, color=colors[5], bottom=psum)
-    # psum = map(add, all[5], psum)
-    # bookends = ax1.bar(ind + width, all[6], width, color=colors[6], bottom=psum)
-    # psum = map(add, all[6], psum)
-    # layers = ax1.bar(ind + width, all[7], width, color=colors[7], bottom=psum)
 
     ax1.set_ylabel(r'Obfuscation time (hr)')
     ax1.set_xlabel(r'Input size of point function')
     ax1.set_xticks(ind + 0.6)
     ax1.set_ylim(0, 10)
     ax1.set_xticklabels(xs)
-
-    # ax2 = ax1.twinx()
-    # ax2.get_yaxis().set_visible(False)
-    # expline = ax2.plot(ind + 0.6, expected, 'k--')
 
     ax1.legend((mlm[0], enc[0]),
                ('Param gen', 'Encoding'),
@@ -82,21 +60,11 @@ def obfsize(ax1):
     ind = np.arange(len(all))
     width = 0.4
 
-    # ns = [8, 10, 12, 14, 16]
-    # ss = [x - 1 for x in ns]
-    # expected = [(n ** 2) * (s ** 5) * (52 ** 2) for n, s in zip(ns, ss)]
-    # expected = [x / expected[0] for x in expected]
-    # print(expected)
-
     total = ax1.bar(ind + width, all, width, color='gray')
     ax1.set_ylabel(r'Obfuscation size (GB)')
     ax1.set_xlabel(r'Input size of point function')
     ax1.set_xticks(ind + 0.6)
     ax1.set_xticklabels(xs)
-
-    # ax2 = ax1.twinx()
-    # ax2.get_yaxis().set_visible(False)
-    # expline = ax2.plot(ind + 0.6, expected, 'k--')
 
 def evaltime(ax1):
     xs = (8, 12, 16)
@@ -117,27 +85,11 @@ def evaltime(ax1):
     ind = np.arange(len(all))
     width = 0.4
 
-    # expected = [(l ** 2) * (s ** 5.37) * (52**2)
-    #             for l, s in zip(xs, map(sub, xs, [1, 1, 1]))]
-
     total = ax1.bar(ind + width, all, width, color='gray')
     ax1.set_ylabel(r'Evaluation time (hr)')
     ax1.set_xlabel(r'Input size of point function')
     ax1.set_xticks(ind + 0.6)
     ax1.set_xticklabels(xs)
-
-    # ax2 = ax1.twinx()
-    # ax2.get_yaxis().set_visible(False)
-    # expline = ax2.plot(ind + 0.6, expected, 'k--')
-
-    # ax1.legend((expline[0],),
-    #            ('$O(n^2 s^{5.37} \lambda^2)$',),
-    #            loc='upper left')
-
-
-    # plt.savefig('/home/amaloz/umd-svn/iO-implementation/writeup/figs/point-eval-time.eps')
-    # plt.show()
-
 
 def main(argv):
     utils.init_wide()
@@ -148,7 +100,6 @@ def main(argv):
     evaltime(axes.flat[2])
 
     plt.subplots_adjust(wspace=0.4, bottom=0.2)
-    plt.savefig('/home/amaloz/umd-svn/iO-implementation/writeup/figs/point-obf.eps')
     plt.show()
 
 if __name__ == '__main__':

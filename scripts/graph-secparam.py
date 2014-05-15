@@ -95,22 +95,7 @@ def main(argv):
                loc='upper left')
 
     plt.subplots_adjust(wspace=0.4, bottom=0.2)
-    plt.savefig('/home/amaloz/umd-svn/iO-implementation/writeup/figs/secparam.eps')
     plt.show()
-
-    # pylab.figure(1)
-    # pylab.clf()
-    # pylab.axes([0.125,0.2,0.95-0.125,0.95-0.2])
-    # p1 = pylab.bar(ind + width, idtimes, width, color='black')
-    # p2 = pylab.bar(ind + 2 * width, andtimes, width, color='gray')
-    # p3 = pylab.bar(ind + 3 * width, xortimes, width, color='white')
-    # pylab.legend((p1[0], p2[0], p3[0]), ('ID', 'AND', 'XOR'), loc='upper left')
-    # pylab.xlabel(r'Security Parameter')
-    # pylab.ylabel(r'Time (minutes)')
-    # pylab.xticks(np.arange(len(xs)) + 0.5, xs)
-
-    # pylab.savefig('/home/amaloz/umd-svn/iO-implementation/writeup/figs/single-gate-obf-time.eps')
-    # pylab.show()
 
 if __name__ == '__main__':
     try:
