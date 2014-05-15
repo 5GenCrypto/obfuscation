@@ -25,9 +25,6 @@ def obftime(ax1):
     ind = np.arange(len(all[0]))
     width = 0.4
 
-    expected = [(l ** 2) * (s ** 5) * (52 ** 2)
-                for l, s in zip(xs, map(sub, xs, [1, 1, 1]))]
-
     colors = [(0, i / len(all), 0, 1) for i in xrange(len(all))]
 
     encodingtime = map(add, all[6], all[7])
@@ -80,11 +77,16 @@ def obfsize(ax1):
     all = [bar8, bar12, bar16]
     all = [x / 2 ** 30 for x in all]
 
+    print('obf size: %s' % all)
+
     ind = np.arange(len(all))
     width = 0.4
 
-    expected = [(l ** 2) * (s ** 5) * (52**2)
-                for l, s in zip(xs, map(sub, xs, [1, 1, 1]))]
+    # ns = [8, 10, 12, 14, 16]
+    # ss = [x - 1 for x in ns]
+    # expected = [(n ** 2) * (s ** 5) * (52 ** 2) for n, s in zip(ns, ss)]
+    # expected = [x / expected[0] for x in expected]
+    # print(expected)
 
     total = ax1.bar(ind + width, all, width, color='gray')
     ax1.set_ylabel(r'Obfuscation size (GB)')
@@ -92,13 +94,9 @@ def obfsize(ax1):
     ax1.set_xticks(ind + 0.6)
     ax1.set_xticklabels(xs)
 
-    ax2 = ax1.twinx()
-    ax2.get_yaxis().set_visible(False)
-    expline = ax2.plot(ind + 0.6, expected, 'k--')
-
-    # ax1.legend((expline[0],),
-    #            ('$O(n^2 s^5 \lambda^2)$',),
-    #            loc='upper left')
+    # ax2 = ax1.twinx()
+    # ax2.get_yaxis().set_visible(False)
+    # expline = ax2.plot(ind + 0.6, expected, 'k--')
 
 def evaltime(ax1):
     xs = (8, 12, 16)
@@ -114,11 +112,13 @@ def evaltime(ax1):
     all = [bar8, bar12, bar16]
     all = [x / 60 / 60 for x in all]
 
+    print('eval time: %s' % all)
+
     ind = np.arange(len(all))
     width = 0.4
 
-    expected = [(l ** 2) * (s ** 5.37) * (52**2)
-                for l, s in zip(xs, map(sub, xs, [1, 1, 1]))]
+    # expected = [(l ** 2) * (s ** 5.37) * (52**2)
+    #             for l, s in zip(xs, map(sub, xs, [1, 1, 1]))]
 
     total = ax1.bar(ind + width, all, width, color='gray')
     ax1.set_ylabel(r'Evaluation time (hr)')
@@ -126,9 +126,9 @@ def evaltime(ax1):
     ax1.set_xticks(ind + 0.6)
     ax1.set_xticklabels(xs)
 
-    ax2 = ax1.twinx()
-    ax2.get_yaxis().set_visible(False)
-    expline = ax2.plot(ind + 0.6, expected, 'k--')
+    # ax2 = ax1.twinx()
+    # ax2.get_yaxis().set_visible(False)
+    # expline = ax2.plot(ind + 0.6, expected, 'k--')
 
     # ax1.legend((expline[0],),
     #            ('$O(n^2 s^{5.37} \lambda^2)$',),
