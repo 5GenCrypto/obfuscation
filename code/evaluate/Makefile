@@ -3,7 +3,7 @@
 all: evaluate
 
 evaluate: evaluate.c
-	g++ -Wall -lgmp -fopenmp -lgomp $< -o evaluate
+	gcc -Wall -lgmp -fopenmp -lgomp $< -o evaluate
 
 clean:
 	rm evaluate

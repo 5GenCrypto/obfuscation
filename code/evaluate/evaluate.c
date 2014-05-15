@@ -95,8 +95,7 @@ mat_mult(mpz_t *a, mpz_t *b, const long width)
 }
 
 static void
-mat_mult_by_vects(mpz_t out, const mpz_t *s, const mpz_t *m, const mpz_t *t,
-                  const int width)
+mat_mult_by_vects(mpz_t out, mpz_t *s, mpz_t *m, mpz_t *t, const int width)
 {
     int col, row;
     mpz_set_ui(out, 0);
