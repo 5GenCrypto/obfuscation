@@ -4,7 +4,7 @@ Implementation of Indistinguishability Obfuscation
 This code presents an implementation of indistinguishability obfuscation, as
 appearing in the work:
 
-"Implementing Provably Secure Program Obfuscation." Unpublished. 2014.
+"Implementing Cryptographic Program Obfuscation." Unpublished. 2014.
 
 The code contains two implementations, one based on Barrington's theorem and the
 other based on an approach by Sauerhoff et al. (STACS, 1999).  We follow the
