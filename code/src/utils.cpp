@@ -176,15 +176,15 @@ mat_mult_by_vects(mpz_t out, const mpz_t *s, const mpz_t *m, const mpz_t *t,
 }
 
 int
-is_zero(mpz_t c, mpz_t pzt, mpz_t x0, long nu)
+is_zero(mpz_t c, mpz_t pzt, mpz_t q, long nu)
 {
     mpz_t tmp;
     int ret;
 
     mpz_init(tmp);
     mpz_mul(tmp, c, pzt);
-    mpz_mod_near(tmp, tmp, x0);
-    ret = (mpz_sizeinbase(tmp, 2) < (mpz_sizeinbase(x0, 2) - nu)) ? 1 : 0;
+    mpz_mod_near(tmp, tmp, q);
+    ret = (mpz_sizeinbase(tmp, 2) < (mpz_sizeinbase(q, 2) - nu)) ? 1 : 0;
     mpz_clear(tmp);
 
     return ret;

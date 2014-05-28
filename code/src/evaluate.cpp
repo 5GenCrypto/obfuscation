@@ -12,7 +12,7 @@ main(int argc, char *argv[])
     int fnamelen, i, layer, iszero;
     char *dir, *fname, *input;
     mpz_t *comp, *s, *t;
-    mpz_t tmp, pzt, nu, x0;
+    mpz_t tmp, pzt, nu, q;
     long width;
 
     if (argc != 3) {
@@ -30,7 +30,7 @@ main(int argc, char *argv[])
     if (fname == NULL)
         return EXIT_FAILURE;
 
-    mpz_inits(tmp, pzt, nu, x0, NULL);
+    mpz_inits(tmp, pzt, nu, q, NULL);
 
     (void) snprintf(fname, fnamelen, "%s/size", dir);
     (void) load_mpz_scalar(fname, tmp);
@@ -106,12 +106,12 @@ main(int argc, char *argv[])
     mat_mult_by_vects(tmp, s, comp, t, width);
     (void) snprintf(fname, fnamelen, "%s/pzt", dir);
     (void) load_mpz_scalar(fname, pzt);
-    (void) snprintf(fname, fnamelen, "%s/x0", dir);
-    (void) load_mpz_scalar(fname, x0);
+    (void) snprintf(fname, fnamelen, "%s/q", dir);
+    (void) load_mpz_scalar(fname, q);
     (void) snprintf(fname, fnamelen, "%s/nu", dir);
     (void) load_mpz_scalar(fname, nu);
 
-    iszero = is_zero(tmp, pzt, x0, mpz_get_ui(nu));
+    iszero = is_zero(tmp, pzt, q, mpz_get_ui(nu));
 
     printf("Output: %d\n", iszero ? 0 : 1);
 

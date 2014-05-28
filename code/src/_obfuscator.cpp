@@ -12,7 +12,9 @@
 // XXX: The use of /dev/urandom is not secure; however, the supercomputer we run
 // on doesn't appear to have enough entropy, and blocks for long periods of
 // time.  Thus, we use /dev/urandom instead.
-#define RANDFILE "/dev/urandom"
+#ifndef RANDFILE
+#  define RANDFILE "/dev/urandom"
+#endif
 
 struct state {
     gmp_randstate_t rng;
@@ -21,7 +23,7 @@ struct state {
     long n;
     long nzs;
     long rho;
-    mpz_t x0;
+    mpz_t q;
     mpz_t pzt;
     mpz_t *gs;
     mpz_t *crt_coeffs;
@@ -55,7 +57,7 @@ state_destructor(PyObject *self)
             free(s->zinvs);
         }
         gmp_randclear(s->rng);
-        mpz_clears(s->x0, s->pzt, NULL);
+        mpz_clears(s->q, s->pzt, NULL);
     }
 }
 
@@ -140,9 +142,9 @@ write_setup_params(struct state *s, long nu)
     mpz_set_ui(tmp, nu);
     (void) snprintf(fname, len, "%s/nu", s->dir);
     (void) save_mpz_scalar(fname, tmp);
-    // save x0
-    (void) snprintf(fname, len, "%s/x0", s->dir);
-    (void) save_mpz_scalar(fname, s->x0);
+    // save q
+    (void) snprintf(fname, len, "%s/q", s->dir);
+    (void) save_mpz_scalar(fname, s->q);
     // save pzt
     (void) snprintf(fname, len, "%s/pzt", s->dir);
     (void) save_mpz_scalar(fname, s->pzt);
@@ -253,27 +255,24 @@ encode(struct state *s, mpz_t out, const PyObject *in, const long row,
         mpz_add(out, out, tmp);
 
     }
-    mpz_mod(out, out, s->x0);
+    mpz_mod(out, out, s->q);
     if (idx1 >= 0) {
         mpz_mul(out, out, s->zinvs[idx1]);
-        mpz_mod(out, out, s->x0);
+        mpz_mod(out, out, s->q);
     }
     if (idx2 >= 0) {
         mpz_mul(out, out, s->zinvs[idx2]);
-        mpz_mod(out, out, s->x0);
+        mpz_mod(out, out, s->q);
     }
 
     mpz_clears(r, tmp, NULL);
 }
 
-
-
-
-
-
-
-
-
+//
+//
+// Python functions
+//
+//
 
 static PyObject *
 obf_verbose(PyObject *self, PyObject *args)
@@ -369,7 +368,7 @@ obf_setup(PyObject *self, PyObject *args)
             (void) close(file);
     }
 
-    mpz_init_set_ui(s->x0, 1);
+    mpz_init_set_ui(s->q, 1);
     mpz_init_set_ui(s->pzt, 0);
     for (int i = 0; i < s->n; ++i) {
         mpz_init_set_ui(ps[i], 1);
@@ -379,7 +378,7 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_inits(zs[i], s->zinvs[i], NULL);
     }
 
-    /* Generate p_i's and g_i's, as well as x_0 = \prod p_i */
+    /* Generate p_i's and g_i's, as well as q = \prod p_i */
     start = current_time();
 #pragma omp parallel for
     for (int i = 0; i < s->n; ++i) {
@@ -396,7 +395,7 @@ obf_setup(PyObject *self, PyObject *args)
             // This step is very expensive, and unfortunately it blocks the
             // parallelism of generating the primes.
             //
-            mpz_mul(s->x0, s->x0, ps[i]);
+            mpz_mul(s->q, s->q, ps[i]);
         }
         mpz_clear(p_unif);
     }
@@ -429,7 +428,7 @@ obf_setup(PyObject *self, PyObject *args)
     for (int i = 0; i < s->n; ++i) {
         mpz_t q;
         mpz_init(q);
-        mpz_tdiv_q(q, s->x0, ps[i]);
+        mpz_tdiv_q(q, s->q, ps[i]);
         mpz_invert(s->crt_coeffs[i], q, ps[i]);
         mpz_mul(s->crt_coeffs[i], s->crt_coeffs[i], q);
         mpz_clear(q);
@@ -445,8 +444,8 @@ obf_setup(PyObject *self, PyObject *args)
 #pragma omp parallel for
     for (int i = 0; i < s->nzs; ++i) {
         do {
-            mpz_urandomm(zs[i], s->rng, s->x0);
-        } while (mpz_invert(s->zinvs[i], zs[i], s->x0) == 0);
+            mpz_urandomm(zs[i], s->rng, s->q);
+        } while (mpz_invert(s->zinvs[i], zs[i], s->q) == 0);
     }
     end = current_time();
     if (g_verbose)
@@ -457,30 +456,30 @@ obf_setup(PyObject *self, PyObject *args)
     {
         mpz_t zk;
         mpz_init_set_ui(zk, 1);
-        // compute z^k mod x0
+        // compute z^k mod q
         for (int i = 0; i < s->nzs; ++i) {
             mpz_mul(zk, zk, zs[i]);
-            mpz_mod(zk, zk, s->x0);
+            mpz_mod(zk, zk, s->q);
         }
 #pragma omp parallel for
         for (int i = 0; i < s->n; ++i) {
-            mpz_t tmp, x0pi, rnd;
-            mpz_inits(tmp, x0pi, rnd, NULL);
-            // compute (((g_i)^{-1} mod p_i) * z^k mod p_i) * r_i * (x_0 / p_i)
+            mpz_t tmp, qpi, rnd;
+            mpz_inits(tmp, qpi, rnd, NULL);
+            // compute (((g_i)^{-1} mod p_i) * z^k mod p_i) * r_i * (q / p_i)
             mpz_invert(tmp, s->gs[i], ps[i]);
             mpz_mul(tmp, tmp, zk);
             mpz_mod(tmp, tmp, ps[i]);
             mpz_genrandom(rnd, &s->rng, beta);
             mpz_mul(tmp, tmp, rnd);
-            mpz_div(x0pi, s->x0, ps[i]);
-            mpz_mul(tmp, tmp, x0pi);
+            mpz_div(qpi, s->q, ps[i]);
+            mpz_mul(tmp, tmp, qpi);
 #pragma omp critical
             {
                 mpz_add(s->pzt, s->pzt, tmp);
             }
-            mpz_clears(tmp, x0pi, rnd, NULL);
+            mpz_clears(tmp, qpi, rnd, NULL);
         }
-        mpz_mod(s->pzt, s->pzt, s->x0);
+        mpz_mod(s->pzt, s->pzt, s->q);
         mpz_clear(zk);
     }
     end = current_time();
@@ -804,11 +803,11 @@ obf_evaluate(PyObject *self, PyObject *args)
 
     if (!err) {
         double start, end;
-        mpz_t pzt, x0, nu;
+        mpz_t pzt, q, nu;
 
         start = current_time();
 
-        mpz_inits(pzt, x0, nu, NULL);
+        mpz_inits(pzt, q, nu, NULL);
         (void) snprintf(fname, fnamelen, "%s/s_enc", dir);
         (void) load_mpz_vector(fname, s, size);
         (void) snprintf(fname, fnamelen, "%s/t_enc", dir);
@@ -816,16 +815,16 @@ obf_evaluate(PyObject *self, PyObject *args)
         mat_mult_by_vects(tmp, s, comp, t, size);
         (void) snprintf(fname, fnamelen, "%s/pzt", dir);
         (void) load_mpz_scalar(fname, pzt);
-        (void) snprintf(fname, fnamelen, "%s/x0", dir);
-        (void) load_mpz_scalar(fname, x0);
+        (void) snprintf(fname, fnamelen, "%s/q", dir);
+        (void) load_mpz_scalar(fname, q);
         (void) snprintf(fname, fnamelen, "%s/nu", dir);
         (void) load_mpz_scalar(fname, nu);
         if (!islayered) {
             mpz_sub(tmp, tmp, p);
         }
-        iszero = is_zero(tmp, pzt, x0, mpz_get_ui(nu));
+        iszero = is_zero(tmp, pzt, q, mpz_get_ui(nu));
 
-        mpz_clears(pzt, x0, nu, NULL);
+        mpz_clears(pzt, q, nu, NULL);
 
         end = current_time();
         if (g_verbose)
@@ -858,43 +857,6 @@ obf_evaluate(PyObject *self, PyObject *args)
         return Py_BuildValue("i", iszero ? 0 : 1);
 }
 
-// static PyObject *
-// obf_encode_benchmark(PyObject *self, PyObject *args)
-// {
-//     mpz_t r, tmp, out;
-//     double start, end;
-
-//     mpz_inits(r, tmp, out, NULL);
-
-//     start = current_time();
-
-//     for (long i = 0; i < g_n; ++i) {
-//         mpz_genrandom(r, g_rho);
-//         mpz_mul(tmp, r, g_gs[i]);
-//         if (i == 0) {
-//             mpz_genrandom(r, g_rho);
-//             mpz_add(tmp, tmp, r);
-//         }
-//         mpz_mul(tmp, tmp, g_crt_coeffs[i]);
-//         mpz_add(out, out, tmp);
-//     }
-//     mpz_mod(out, out, g_x0);
-//     mpz_mul(out, out, g_zinvs[0]);
-//     mpz_mod(out, out, g_x0);
-//     mpz_mul(out, out, g_zinvs[1]);
-//     mpz_mod(out, out, g_x0);
-
-//     end = current_time();
-
-//     if (g_verbose)
-//         (void) fprintf(stderr, "Encoding a single element takes: %f\n",
-//                        end - start);
-
-//     mpz_clears(r, tmp, out, NULL);
-
-//     Py_RETURN_NONE;
-// }
-
 static PyObject *
 obf_max_mem_usage(PyObject *self, PyObject *args)
 {
@@ -920,7 +882,7 @@ obf_cleanup(PyObject *self, PyObject *args)
         return NULL;
 
     gmp_randclear(s->rng);
-    mpz_clears(s->x0, s->pzt, NULL);
+    mpz_clears(s->q, s->pzt, NULL);
     for (int i = 0; i < s->n; ++i) {
         mpz_clears(s->gs[i], s->crt_coeffs[i], NULL);
     }
