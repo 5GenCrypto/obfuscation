@@ -19,7 +19,8 @@ obfuscator = Extension(
     sources = [
         'src/_obfuscator.cpp',
         'src/mpn_pylong.cpp',
-        'src/mpz_pylong.cpp'
+        'src/mpz_pylong.cpp',
+        'src/utils.cpp',
     ]
 )
 

@@ -26,7 +26,7 @@ class AbstractObfuscator(object):
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        primes = _obf.setup(secparam, kappa, width, nzs, directory)
+        self._state, primes = _obf.setup(secparam, kappa, width, nzs, directory)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         return primes
@@ -69,8 +69,8 @@ class AbstractObfuscator(object):
             self.logger('Obfuscating layer...')
             zeros = [to_long(bp[i].zero.transpose().list()) for bp in bps]
             ones = [to_long(bp[i].one.transpose().list()) for bp in bps]
-            _obf.encode_layers(i, bps[0][i].inp, zeros, ones, bps[0][i].zeroset,
-                               bps[0][i].oneset)
+            _obf.encode_layers(self._state, i, bps[0][i].inp, zeros, ones,
+                               bps[0][i].zeroset, bps[0][i].oneset)
             end = time.time()
             self.logger('Took: %f' % (end - start))
 
@@ -121,11 +121,11 @@ class AbstractObfuscator(object):
             _obf.max_mem_usage()
         return result
 
-    def encode_benchmark(self):
-        _obf.encode_benchmark()
+    # def encode_benchmark(self):
+    #     _obf.encode_benchmark()
 
     def cleanup(self):
-        _obf.cleanup()
+        _obf.cleanup(self._state)
 
 class Obfuscator(AbstractObfuscator):
     def __init__(self, **kwargs):
@@ -141,9 +141,9 @@ class Obfuscator(AbstractObfuscator):
                 a0, a1 = alphas[i][layer_idx]
                 a0s.append([long(a0)])
                 a1s.append([long(a1)])
-            _obf.encode_scalars(a0s, bps[0][layer_idx].zeroset,
+            _obf.encode_scalars(self._state, a0s, bps[0][layer_idx].zeroset,
                                 '%d.a0_enc' % layer_idx)
-            _obf.encode_scalars(a1s, bps[0][layer_idx].oneset,
+            _obf.encode_scalars(self._state, a1s, bps[0][layer_idx].oneset,
                                 '%d.a1_enc' % layer_idx)
         end = time.time()
         self.logger('Took: %f' % (end - start))
@@ -161,9 +161,9 @@ class Obfuscator(AbstractObfuscator):
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
         ss, ts, ps = compute_vectors()
-        _obf.encode_scalars(ps, [sidx, tidx], 'p_enc')
-        _obf.encode_vectors(ss, [sidx], 's_enc')
-        _obf.encode_vectors(ts, [tidx], 't_enc')
+        _obf.encode_scalars(self._state, ps, [sidx, tidx], 'p_enc')
+        _obf.encode_vectors(self._state, ss, [sidx], 's_enc')
+        _obf.encode_vectors(self._state, ts, [tidx], 't_enc')
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
@@ -183,7 +183,7 @@ class LayeredObfuscator(AbstractObfuscator):
         start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
         ss, ts = compute_vectors()
-        _obf.encode_vectors(ss, [sidx], 's_enc')
-        _obf.encode_vectors(ts, [tidx], 't_enc')
+        _obf.encode_vectors(self._state, ss, [sidx], 's_enc')
+        _obf.encode_vectors(self._state, ts, [tidx], 't_enc')
         end = time.time()
         self.logger('Took: %f' % (end - start))
