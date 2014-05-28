@@ -2,18 +2,18 @@
 
 from __future__ import print_function
 
-from layered_branching_program import LayeredBranchingProgram
-from branchingprogram import BranchingProgram
+from bp_sww import SWWBranchingProgram
+from bp_barrington import BarringtonBranchingProgram
 from test import test_circuit
 
 import argparse, os, sys, time
 
 def bp(args):
     testdir = 'circuits'
-    if args.old:
-        bpclass = BranchingProgram
+    if args.barrington:
+        bpclass = BarringtonBranchingProgram
     else:
-        bpclass = LayeredBranchingProgram
+        bpclass = SWWBranchingProgram
     if args.test_circuit:
         test_circuit(args.test_circuit, bpclass, None, False, args)
     if args.test_all:
@@ -30,13 +30,13 @@ def bp(args):
             print('Output = %d' % r)
 
 def obf(args):
-    from obfuscator import Obfuscator, LayeredObfuscator
-    if args.old:
-        bpclass = BranchingProgram
-        obfclass = Obfuscator
+    from obfuscator import BarringtonObfuscator, SWWObfuscator
+    if args.barrington:
+        bpclass = BarringtonBranchingProgram
+        obfclass = BarringtonObfuscator
     else:
-        bpclass = LayeredBranchingProgram
-        obfclass = LayeredObfuscator
+        bpclass = SWWBranchingProgram
+        obfclass = SWWObfuscator
     if args.test_circuit:
         test_circuit(args.test_circuit, bpclass, obfclass, True, args)
     else:
@@ -87,8 +87,8 @@ def main():
 
     parser_bp.add_argument('--obliviate', action='store_true',
                            help='obliviate the branching program')
-    parser_bp.add_argument('--old', action='store_true',
-                           help='use standard branching programs instead of the relaxed variant')
+    parser_bp.add_argument('--barrington', action='store_true',
+                           help="use Barrington's approach")
     parser_bp.add_argument('-v', '--verbose', action='store_true',
                            help='be verbose')
     parser_bp.set_defaults(func=bp)
@@ -99,23 +99,24 @@ def main():
         help='commands for obfuscating a circuit/branching program')
     parser_obf.add_argument('--eval', metavar='INPUT', type=str, action='store',
                             help='evaluate obfuscation on INPUT')
-    parser_obf.add_argument('--load-obf', metavar='DIR', type=str, action='store',
+    parser_obf.add_argument('--load-obf', metavar='DIR', type=str,
+                            action='store',
                             help='load obfuscation from DIR')
-    parser_obf.add_argument('--load-circuit', metavar='FILE', type=str, action='store',
+    parser_obf.add_argument('--load-circuit', metavar='FILE', type=str,
+                            action='store',
                             help='load circuit from FILE and obfuscate')
-    parser_obf.add_argument('--test-circuit', metavar='FILE', type=str, action='store',
+    parser_obf.add_argument('--test-circuit', metavar='FILE', type=str,
+                            action='store',
                             help='test circuit from FILE')
     parser_obf.add_argument('--save', metavar='DIR', type=str, action='store',
                             help='save obfuscation to DIR')
-    parser_obf.add_argument('--secparam', metavar='N', type=int,
-                             action='store', default=24, help='security parameter')
+    parser_obf.add_argument('--secparam', metavar='N', type=int, action='store',
+                            default=24, help='security parameter')
 
     parser_obf.add_argument('--obliviate', action='store_true',
                             help='obliviate the branching program')
-    parser_obf.add_argument('--old', action='store_true',
-                            help='use standard branching programs instead of the relaxed variant')
-    # parser_obf.add_argument('--slow-prime-gen', action='store_true',
-    #                          help='do not use the CLT13 optimization for generating primes fast')
+    parser_obf.add_argument('--barrington', action='store_true',
+                            help="use Barrington's approach")
     parser_obf.add_argument('-v', '--verbose', action='store_true', 
                             help='be verbose')
     parser_obf.set_defaults(func=obf)

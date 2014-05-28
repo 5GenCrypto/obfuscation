@@ -368,6 +368,7 @@ obf_setup(PyObject *self, PyObject *args)
             (void) close(file);
     }
 
+    /* initialize gmp variables */
     mpz_init_set_ui(s->q, 1);
     mpz_init_set_ui(s->pzt, 0);
     for (int i = 0; i < s->n; ++i) {
@@ -451,7 +452,7 @@ obf_setup(PyObject *self, PyObject *args)
     if (g_verbose)
         (void) fprintf(stderr, "  Generating z_i's: %f\n", end - start);
 
-
+    /* Compute pzt */
     start = current_time();
     {
         mpz_t zk;
@@ -912,8 +913,6 @@ ObfMethods[] = {
      "Print out the maximum memory usage."},
     {"cleanup", obf_cleanup, METH_VARARGS,
      "Clean up objects created during setup."},
-    // {"encode_benchmark", obf_encode_benchmark, METH_VARARGS,
-    //  "Output how long it takes to encode a single element."},
     {"evaluate", obf_evaluate, METH_VARARGS,
      "evaluate the obfuscation."},
     {NULL, NULL, 0, NULL}

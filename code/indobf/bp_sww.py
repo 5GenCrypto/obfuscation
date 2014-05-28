@@ -39,9 +39,9 @@ def contract(g, a, b, name):
     g = nx.relabel_nodes(g, {new: name})
     return g
 
-class LayeredBranchingProgram(AbstractBranchingProgram):
+class SWWBranchingProgram(AbstractBranchingProgram):
     def __init__(self, fname, prime, verbose=False, obliviate=False):
-        super(LayeredBranchingProgram, self).__init__(verbose=verbose)
+        super(SWWBranchingProgram, self).__init__(verbose=verbose)
         self.graph = None
         self.size = None
         self.zero = None

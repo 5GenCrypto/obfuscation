@@ -2,8 +2,8 @@ from __future__ import print_function
 
 import _obfuscator as _obf
 import utils
-from layered_branching_program import LayeredBranchingProgram
-from branchingprogram import BranchingProgram
+from bp_sww import SWWBranchingProgram
+from bp_barrington import BarringtonBranchingProgram
 
 from sage.all import copy, VectorSpace, Zmod, ZZ
 from numpy import log2
@@ -44,10 +44,10 @@ class AbstractObfuscator(object):
         self.logger('Took: %f' % (end - start))
         return bps
 
-    def _randomize(self, secparam, bps, primes, islayered):
+    def _randomize(self, secparam, bps, primes, is_sww):
         self.logger('Randomizing BPs...')
         start = time.time()
-        if islayered:
+        if is_sww:
             alphas = None
             for bp, prime in zip(bps, primes):
                 bp.randomize(prime)
@@ -82,8 +82,8 @@ class AbstractObfuscator(object):
                 p = os.path.join(directory, file)
                 os.unlink(p)
 
-        islayered = True if type(self) == LayeredObfuscator else False
-        bpclass = LayeredBranchingProgram if islayered else BranchingProgram
+        is_sww = True if type(self) == SWWObfuscator else False
+        bpclass = SWWBranchingProgram if is_sww else BarringtonBranchingProgram
         # create a dummy branching program to determine parameters
         bp = bpclass(circuit, 3, verbose=self._verbose, obliviate=obliviate)
 
@@ -93,13 +93,13 @@ class AbstractObfuscator(object):
         # bookend vectors into account
         nzs = bp.set_straddling_sets() + 2
         # width is the column/row-length of the matrices
-        width = bp.size if islayered else len(bp.group)
+        width = bp.size if is_sww else len(bp.group)
 
         start = time.time()
         primes = self._gen_mlm_params(secparam, kappa, width, nzs, directory)
         bps = self._construct_bps(circuit, primes, obliviate, bpclass)
-        alphas = self._randomize(secparam, bps, primes, islayered)
-        if not islayered:
+        alphas = self._randomize(secparam, bps, primes, is_sww)
+        if not is_sww:
             self._construct_multiplicative_constants(bps, alphas)
         self._construct_bookend_vectors(bps, primes, nzs)
         self._obfuscate(bps)
@@ -111,25 +111,22 @@ class AbstractObfuscator(object):
     def evaluate(self, directory, inp):
         self.logger('Evaluating %s...' % inp)
         start = time.time()
-        islayered = True if type(self) == LayeredObfuscator else False
+        is_sww = True if type(self) == SWWObfuscator else False
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        result = _obf.evaluate(directory, inp, len(inputs), islayered)
+        result = _obf.evaluate(directory, inp, len(inputs), is_sww)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         if self._verbose:
             _obf.max_mem_usage()
         return result
 
-    # def encode_benchmark(self):
-    #     _obf.encode_benchmark()
-
     def cleanup(self):
         _obf.cleanup(self._state)
 
-class Obfuscator(AbstractObfuscator):
+class BarringtonObfuscator(AbstractObfuscator):
     def __init__(self, **kwargs):
-        super(Obfuscator, self).__init__(**kwargs)
+        super(BarringtonObfuscator, self).__init__(**kwargs)
 
     def _construct_multiplicative_constants(self, bps, alphas):
         self.logger('Constructing multiplicative constants...')
@@ -167,9 +164,9 @@ class Obfuscator(AbstractObfuscator):
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
-class LayeredObfuscator(AbstractObfuscator):
+class SWWObfuscator(AbstractObfuscator):
     def __init__(self, **kwargs):
-        super(LayeredObfuscator, self).__init__(**kwargs)
+        super(SWWObfuscator, self).__init__(**kwargs)
 
     def _construct_bookend_vectors(self, bps, primes, nzs):
         def compute_vectors():
