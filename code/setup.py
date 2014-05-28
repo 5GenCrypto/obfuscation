@@ -3,6 +3,7 @@
 from setuptools import setup, Extension, find_packages
 
 __name__ = 'ind_obfuscation'
+__author__ = 'Alex J. Malozemoff'
 __version__ = '0.9'
 
 obfuscator = Extension(
@@ -25,12 +26,13 @@ obfuscator = Extension(
 )
 
 setup(name = __name__,
+      author = __author__,
       version = __version__,
       description = 'Indistinguishability obfuscation implementation',
       package_data = {'circuits': ['*.circ']},
       packages = ['indobf', 'circuits'],
       ext_modules = [obfuscator],
-      test_suite = 'unittests',
+      test_suite = 't',
       classifiers = [
           'Topic :: Security :: Cryptography',
           'Environment :: Console',
