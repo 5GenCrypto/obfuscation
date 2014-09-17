@@ -2,24 +2,32 @@
 
 from setuptools import setup, Extension, find_packages
 
+ATTACK = 1
+
 __name__ = 'ind_obfuscation'
 __author__ = 'Alex J. Malozemoff'
 __version__ = '0.9'
 
+libraries = [
+    'gmp',
+    'gomp',
+]
+compile_args = [
+    '-fopenmp',
+    '-O3',
+    '-Wall',
+]
+
+if ATTACK:
+    libraries.append('fplll')
+    compile_args.append('-DATTACK')
+
+
 obfuscator = Extension(
     'indobf._obfuscator',
-    libraries = [
-        'gmp',
-        'gomp',
-        'fplll',
-    ],
-    extra_compile_args = [
-        '-fopenmp',
-        '-O3',
-        '-Wall',
-        '-DATTACK',
-    ],
-    sources = [
+    libraries=libraries,
+    extra_compile_args=compile_args,
+    sources=[
         'src/_obfuscator.cpp',
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
@@ -27,15 +35,15 @@ obfuscator = Extension(
     ]
 )
 
-setup(name = __name__,
-      author = __author__,
-      version = __version__,
-      description = 'Indistinguishability obfuscation implementation',
-      package_data = {'circuits': ['*.circ']},
-      packages = ['indobf', 'circuits'],
-      ext_modules = [obfuscator],
-      test_suite = 't',
-      classifiers = [
+setup(name=__name__,
+      author=__author__,
+      version=__version__,
+      description='Indistinguishability obfuscation implementation',
+      package_data={'circuits': ['*.circ']},
+      packages=['indobf', 'circuits'],
+      ext_modules=[obfuscator],
+      test_suite='t',
+      classifiers=[
           'Topic :: Security :: Cryptography',
           'Environment :: Console',
           'Development Status :: 3 - Alpha',
@@ -44,5 +52,4 @@ setup(name = __name__,
           'License :: OSI Approved :: Free For Educational Use',
           'Programming Language :: C',
           'Programming Language :: Sage',
-      ],
-)
+      ])
