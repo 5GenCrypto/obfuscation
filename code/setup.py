@@ -11,11 +11,13 @@ obfuscator = Extension(
     libraries = [
         'gmp',
         'gomp',
+        'fplll',
     ],
     extra_compile_args = [
         '-fopenmp',
         '-O3',
         '-Wall',
+        '-DATTACK',
     ],
     sources = [
         'src/_obfuscator.cpp',

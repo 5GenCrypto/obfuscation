@@ -13,6 +13,13 @@ import copy, os, time
 def to_long(lst):
     return [long(i) for i in lst]
 
+def pad(array, length, bplength):
+    if len(array) < length:
+        zeros = [to_long([0] * bplength)]
+        return array + (zeros * (length - len(array)))
+    else:
+        return array
+
 class AbstractObfuscator(object):
 
     def __init__(self, verbose=False):
@@ -31,10 +38,20 @@ class AbstractObfuscator(object):
         self.logger('Took: %f' % (end - start))
         return primes
 
+    def _construct_one_bp(self, circuit, primes, obliviate, bpclass):
+        self.logger('Constructing 1 BP (*insecure*)...')
+        start = time.time()
+        bp = bpclass(circuit, primes[0], verbose=self._verbose,
+                     obliviate=obliviate)
+        bp.set_straddling_sets()
+        end = time.time()
+        self.logger('Took: %f' % (end - start))
+        return [bp]
+
     def _construct_bps(self, circuit, primes, obliviate, bpclass):
         self.logger('Constructing %d BPs...' % len(primes))
         start = time.time()
-        bps  = []
+        bps = []
         for prime in primes:
             bp = bpclass(circuit, prime, verbose=self._verbose,
                          obliviate=obliviate)
@@ -63,12 +80,15 @@ class AbstractObfuscator(object):
         self.logger('Took: %f' % (end - start))
         return alphas
 
-    def _obfuscate(self, bps):
+    def _obfuscate(self, bps, length):
         for i in xrange(len(bps[0])):
-            start = time.time()
             self.logger('Obfuscating layer...')
-            zeros = [to_long(bp[i].zero.transpose().list()) for bp in bps]
-            ones = [to_long(bp[i].one.transpose().list()) for bp in bps]
+            start = time.time()
+            bplength = len(bps[0][0].zero.transpose().list())
+            zeros = pad([to_long(bp[i].zero.transpose().list()) for bp in bps],
+                        length, bplength)
+            ones = pad([to_long(bp[i].one.transpose().list()) for bp in bps],
+                       length, bplength)
             _obf.encode_layers(self._state, i, bps[0][i].inp, zeros, ones,
                                bps[0][i].zeroset, bps[0][i].oneset)
             end = time.time()
@@ -97,12 +117,13 @@ class AbstractObfuscator(object):
 
         start = time.time()
         primes = self._gen_mlm_params(secparam, kappa, width, nzs, directory)
-        bps = self._construct_bps(circuit, primes, obliviate, bpclass)
+        bps = self._construct_one_bp(circuit, primes, obliviate, bpclass)
+        # bps = self._construct_bps(circuit, primes, obliviate, bpclass)
         alphas = self._randomize(secparam, bps, primes, is_sww)
         if not is_sww:
             self._construct_multiplicative_constants(bps, alphas)
         self._construct_bookend_vectors(bps, primes, nzs)
-        self._obfuscate(bps)
+        self._obfuscate(bps, len(primes))
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))
         if self._verbose:
@@ -121,8 +142,25 @@ class AbstractObfuscator(object):
             _obf.max_mem_usage()
         return result
 
+    def attack(self, directory, secparam):
+        self.logger('Attacking...')
+        start = time.time()
+        is_sww = True if type(self) == SWWObfuscator else False
+        files = os.listdir(directory)
+        inputs = sorted(filter(lambda s: 'input' in s, files))
+        bplength = len(inputs)
+        kappa = bplength + 2 # add two due to bookend vectors
+        nzs = kappa # FIXME:
+        inp = '1' * bplength
+        result = _obf.attack(directory, inp, len(inputs), is_sww, secparam,
+                             kappa, nzs)
+        end = time.time()
+        self.logger('Took: %f' % (end - start))
+        return result
+
     def cleanup(self):
         _obf.cleanup(self._state)
+
 
 class BarringtonObfuscator(AbstractObfuscator):
     def __init__(self, **kwargs):
@@ -164,6 +202,7 @@ class BarringtonObfuscator(AbstractObfuscator):
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
+
 class SWWObfuscator(AbstractObfuscator):
     def __init__(self, **kwargs):
         super(SWWObfuscator, self).__init__(**kwargs)
@@ -171,8 +210,10 @@ class SWWObfuscator(AbstractObfuscator):
     def _construct_bookend_vectors(self, bps, primes, nzs):
         def compute_vectors():
             start = time.time()
-            ss = [to_long(bp.s * bp.m0i) for bp in bps]
-            ts = [to_long(bp.m0 * bp.t) for bp in bps]
+            length = len(primes)
+            bplength = len(bps[0].s)
+            ss = pad([to_long(bp.s * bp.m0i) for bp in bps], length, bplength)
+            ts = pad([to_long(bp.m0 * bp.t) for bp in bps], length, bplength)
             end = time.time()
             self.logger('  Computing bookend vectors: %f' % (end - start))
             return ss, ts
