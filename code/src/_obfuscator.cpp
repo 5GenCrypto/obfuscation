@@ -1271,32 +1271,26 @@ obf_attack(PyObject *self, PyObject *args)
     }
 
     {
-        Z_NR<mpz_t> tmp;
         ZZ_mat<mpz_t> M(2, 2);
 
-        start = current_time();
+        /* Apply LLL to lattice basis {(Omega, omega), (0, q)} */
         if (g_verbose)
             (void) fprintf(stderr, "  Applying LLL...\n");
-
-        tmp.set(Omega);
-        M(0,0) = tmp;
-        tmp.set(omega);
-        M(0,1) = tmp;
+        start = current_time();
+        M(0,0).set(Omega);
+        M(0,1).set(omega);
         M(1,0) = 0L;
-        tmp.set(q);
-        M(1,1) = tmp;
-
+        M(1,1).set(q);
         // std::cerr << "Before: " << M << std::endl;
         fplll::lllReduction(M, 0.99, 0.51, LM_WRAPPER);
         // std::cerr << "After: " << M << std::endl;
-        end = current_time();
-
+        /* Divide out Omega from output to get g_1 */
         mpz_div(g_1, M(0,0).getData(), Omega);
-
-        gmp_fprintf(stderr, "    g_1 = %Zd\n", g_1);
-
-        if (g_verbose)
+        end = current_time();
+        if (g_verbose) {
             (void) fprintf(stderr, "  Took: %f\n", end - start);
+            (void)gmp_fprintf(stderr, "    g_1 = %Zd\n", g_1);
+        }
     }
 
     for (int i = 0; i < st->n; ++i) {

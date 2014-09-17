@@ -117,6 +117,7 @@ class AbstractObfuscator(object):
 
         start = time.time()
         primes = self._gen_mlm_params(secparam, kappa, width, nzs, directory)
+        # XXX: woah! insecure!  used for testing attack
         bps = self._construct_one_bp(circuit, primes, obliviate, bpclass)
         # bps = self._construct_bps(circuit, primes, obliviate, bpclass)
         alphas = self._randomize(secparam, bps, primes, is_sww)
@@ -150,7 +151,7 @@ class AbstractObfuscator(object):
         inputs = sorted(filter(lambda s: 'input' in s, files))
         bplength = len(inputs)
         kappa = bplength + 2 # add two due to bookend vectors
-        nzs = kappa # FIXME:
+        nzs = kappa # FIXME: shouldn't be hardcoded!
         inp = '1' * bplength
         result = _obf.attack(directory, inp, len(inputs), is_sww, secparam,
                              kappa, nzs)
