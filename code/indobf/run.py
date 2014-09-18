@@ -57,7 +57,7 @@ def obf(args):
             print("One of --load-obf, --load-circuit, or --test-circuit must be used")
             sys.exit(1)
 
-        if args.attack is not None:
+        if args.attack:
             assert directory
             obf = obfclass(verbose=args.verbose)
             r = obf.attack(directory, args.secparam, args.nslots, args.attack)
@@ -102,8 +102,9 @@ def main():
         'obf',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help='commands for obfuscating a circuit/branching program')
-    parser_obf.add_argument('--attack', metavar='N', type=int, action='store',
-                            help='attack obfuscation, using N as the number of Zs')
+    parser_obf.add_argument('--attack', metavar='INPUT', type=str, action='store',
+                            help='attack obfuscation, where INPUT is an input ' +
+                            'that causes the obfuscation to output 1')
     parser_obf.add_argument('--eval', metavar='INPUT', type=str, action='store',
                             help='evaluate obfuscation on INPUT')
     parser_obf.add_argument('--load-obf', metavar='DIR', type=str,

@@ -929,8 +929,8 @@ obf_attack(PyObject *self, PyObject *args)
     if (st == NULL)
         goto error;
 
-    if (!PyArg_ParseTuple(args, "sslillli", &st->dir, &input, &bplen,
-                          &islayered, &st->secparam, &kappa, &st->nzs, &nslots))
+    if (!PyArg_ParseTuple(args, "sslilli", &st->dir, &input, &bplen,
+                          &islayered, &st->secparam, &kappa, &nslots))
         return NULL;
 
     mpz_inits(b, out, omega, Omega, q, NULL);
@@ -1119,7 +1119,6 @@ obf_attack(PyObject *self, PyObject *args)
         fprintf(stderr, "  Rho: %ld\n", st->rho);
         fprintf(stderr, "  Rho_f: %ld\n", rho_f);
         fprintf(stderr, "  N: %ld\n", st->n);
-        fprintf(stderr, "  Number of Zs: %ld\n", st->nzs);
         fprintf(stderr, "  Size: %ld\n", st->size);
     }
 
