@@ -1,5 +1,6 @@
 #include "utils.h"
 
+#include <omp.h>
 #include <stdlib.h>
 #include <sys/time.h>
 

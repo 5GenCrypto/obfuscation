@@ -49,7 +49,7 @@ def obf(args):
             directory = args.save if args.save \
                         else '%s.obf.%d' % (args.load_circuit, args.secparam)
             obf.obfuscate(args.load_circuit, args.secparam, directory,
-                          obliviate=args.obliviate)
+                          obliviate=args.obliviate, nslots=args.nslots)
             end = time.time()
             print("Obfuscation took: %f seconds" % (end - start))
             obf.cleanup()
@@ -57,10 +57,10 @@ def obf(args):
             print("One of --load-obf, --load-circuit, or --test-circuit must be used")
             sys.exit(1)
 
-        if args.attack:
+        if args.attack is not None:
             assert directory
             obf = obfclass(verbose=args.verbose)
-            r = obf.attack(directory, args.secparam)
+            r = obf.attack(directory, args.secparam, args.nslots, args.attack)
             print('g_1 = %d' % r)
         if args.eval:
             assert directory
@@ -102,8 +102,8 @@ def main():
         'obf',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help='commands for obfuscating a circuit/branching program')
-    parser_obf.add_argument('--attack', action='store_true',
-                            help='try attacking obfusctation')
+    parser_obf.add_argument('--attack', metavar='N', type=int, action='store',
+                            help='attack obfuscation, using N as the number of Zs')
     parser_obf.add_argument('--eval', metavar='INPUT', type=str, action='store',
                             help='evaluate obfuscation on INPUT')
     parser_obf.add_argument('--load-obf', metavar='DIR', type=str,
@@ -124,6 +124,8 @@ def main():
                             help='obliviate the branching program')
     parser_obf.add_argument('--barrington', action='store_true',
                             help="use Barrington's approach")
+    parser_obf.add_argument('--nslots', metavar='N', type=int, action='store',
+                            default=None, help='number of slots to fill (default = security parameter)')
     parser_obf.add_argument('-v', '--verbose', action='store_true', 
                             help='be verbose')
     parser_obf.set_defaults(func=obf)

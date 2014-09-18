@@ -38,21 +38,11 @@ class AbstractObfuscator(object):
         self.logger('Took: %f' % (end - start))
         return primes
 
-    def _construct_one_bp(self, circuit, primes, obliviate, bpclass):
-        self.logger('Constructing 1 BP (*insecure*)...')
-        start = time.time()
-        bp = bpclass(circuit, primes[0], verbose=self._verbose,
-                     obliviate=obliviate)
-        bp.set_straddling_sets()
-        end = time.time()
-        self.logger('Took: %f' % (end - start))
-        return [bp]
-
-    def _construct_bps(self, circuit, primes, obliviate, bpclass):
-        self.logger('Constructing %d BPs...' % len(primes))
+    def _construct_bps(self, n, circuit, primes, obliviate, bpclass):
+        self.logger('Constructing %d BP (*insecure*)...' % n)
         start = time.time()
         bps = []
-        for prime in primes:
+        for _, prime in zip(xrange(n), primes):
             bp = bpclass(circuit, prime, verbose=self._verbose,
                          obliviate=obliviate)
             bp.set_straddling_sets()
@@ -94,13 +84,17 @@ class AbstractObfuscator(object):
             end = time.time()
             self.logger('Took: %f' % (end - start))
 
-    def obfuscate(self, circuit, secparam, directory, obliviate=False):
+    def obfuscate(self, circuit, secparam, directory, obliviate=False,
+                  nslots=None):
         # remove old files in obfuscation directory
         if os.path.isdir(directory):
             files = os.listdir(directory)
             for file in os.listdir(directory):
                 p = os.path.join(directory, file)
                 os.unlink(p)
+
+        if nslots is None:
+            nslots = secparam
 
         is_sww = True if type(self) == SWWObfuscator else False
         bpclass = SWWBranchingProgram if is_sww else BarringtonBranchingProgram
@@ -117,9 +111,7 @@ class AbstractObfuscator(object):
 
         start = time.time()
         primes = self._gen_mlm_params(secparam, kappa, width, nzs, directory)
-        # XXX: woah! insecure!  used for testing attack
-        bps = self._construct_one_bp(circuit, primes, obliviate, bpclass)
-        # bps = self._construct_bps(circuit, primes, obliviate, bpclass)
+        bps = self._construct_bps(nslots, circuit, primes, obliviate, bpclass)
         alphas = self._randomize(secparam, bps, primes, is_sww)
         if not is_sww:
             self._construct_multiplicative_constants(bps, alphas)
@@ -143,7 +135,7 @@ class AbstractObfuscator(object):
             _obf.max_mem_usage()
         return result
 
-    def attack(self, directory, secparam):
+    def attack(self, directory, secparam, nslots, nzs):
         self.logger('Attacking...')
         start = time.time()
         is_sww = True if type(self) == SWWObfuscator else False
@@ -151,10 +143,9 @@ class AbstractObfuscator(object):
         inputs = sorted(filter(lambda s: 'input' in s, files))
         bplength = len(inputs)
         kappa = bplength + 2 # add two due to bookend vectors
-        nzs = kappa # FIXME: shouldn't be hardcoded!
         inp = '1' * bplength
         result = _obf.attack(directory, inp, len(inputs), is_sww, secparam,
-                             kappa, nzs)
+                             kappa, nzs, nslots)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         return result
