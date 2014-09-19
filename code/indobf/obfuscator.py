@@ -135,7 +135,7 @@ class AbstractObfuscator(object):
             _obf.max_mem_usage()
         return result
 
-    def attack(self, directory, secparam, nslots, inp):
+    def attack(self, directory, secparam, nslots):
         self.logger('Attacking...')
         start = time.time()
         is_sww = True if type(self) == SWWObfuscator else False
@@ -143,9 +143,7 @@ class AbstractObfuscator(object):
         inputs = sorted(filter(lambda s: 'input' in s, files))
         bplength = len(inputs)
         kappa = bplength + 2 # add two due to bookend vectors
-        if len(inp) != bplength:
-            raise Exception('Invalid input length')
-        result = _obf.attack(directory, inp, len(inputs), is_sww, secparam,
+        result = _obf.attack(directory, len(inputs), is_sww, secparam,
                              kappa, nslots)
         end = time.time()
         self.logger('Took: %f' % (end - start))

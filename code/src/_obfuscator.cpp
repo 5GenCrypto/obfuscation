@@ -1,30 +1,17 @@
 #include <Python.h>
 
 #include <assert.h>
-#include <fcntl.h>
+
 #include <gmp.h>
 #include <omp.h>
-#include <sys/resource.h>
+
 
 #ifdef ATTACK
-#define G_1 179
-#define G_2 191
-// #define G_1 43579
-// #define G_2 61909
-// #define G_1 9594713
-// #define G_2 12830651
 #include <fplll.h>
 #endif
 
 #include "mpz_pylong.h"
 #include "utils.h"
-
-// XXX: The use of /dev/urandom is not secure; however, the supercomputer we run
-// on doesn't appear to have enough entropy, and blocks for long periods of
-// time.  Thus, we use /dev/urandom instead.
-#ifndef RANDFILE
-#  define RANDFILE "/dev/urandom"
-#endif
 
 struct state {
     gmp_randstate_t rng;
@@ -354,29 +341,7 @@ obf_setup(PyObject *self, PyObject *args)
     if (!py_gs)
         goto error;
 
-    /* Seed random number generator */
-    {
-        int file;
-        if ((file = open(RANDFILE, O_RDONLY)) == -1) {
-            (void) fprintf(stderr, "Error opening %s\n", RANDFILE);
-            goto error;
-        } else {
-            unsigned long seed;
-            if (read(file, &seed, sizeof seed) == -1) {
-                (void) fprintf(stderr, "Error reading from %s\n", RANDFILE);
-                (void) close(file);
-                goto error;
-            } else {
-                if (g_verbose)
-                    (void) fprintf(stderr, "  Seed: %lu\n", seed);
-
-                gmp_randinit_default(s->rng);
-                gmp_randseed_ui(s->rng, seed);
-            }
-        }
-        if (file != -1)
-            (void) close(file);
-    }
+    seed_rng(&s->rng);
 
     /* initialize gmp variables */
     mpz_init_set_ui(s->q, 1);
@@ -915,42 +880,42 @@ obf_cleanup(PyObject *self, PyObject *args)
 static PyObject *
 obf_attack(PyObject *self, PyObject *args)
 {
-    long alpha, beta, eta, nu, kappa, rho_f;
     mpz_t b, out, omega, Omega, q;
-    mpz_t *hs, *ms, *ps, *rs;
     double start, end;
     struct state *st;
-    char *input = NULL;
-    long bplen;
+    long kappa, bplen;
     int islayered, nslots;
     PyObject *py_out;
 
     st = (struct state *) pymalloc(sizeof(struct state));
-    if (st == NULL)
-        goto error;
 
-    if (!PyArg_ParseTuple(args, "sslilli", &st->dir, &input, &bplen,
+    if (!PyArg_ParseTuple(args, "slilli", &st->dir, &bplen,
                           &islayered, &st->secparam, &kappa, &nslots))
         return NULL;
+
+    if (!islayered) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "Attack not implemented for Barrington's approach");
+        return NULL;
+    }
 
     mpz_inits(b, out, omega, Omega, q, NULL);
 
     /* Compute omega = pzt * u for some encoded element u */
+
     if (g_verbose)
         (void) fprintf(stderr, "Computing omega...\n");
+    start = current_time();
     {
-        char *fname = NULL;
+        char *fname;
         int fnamelen;
-        mpz_t *comp, *s, *t;
-        mpz_t p, tmp;
-        int err = 0;
+        mpz_t *comp;
+        mpz_t tmp, pzt, nu;
 
         fnamelen = strlen(st->dir) + 20; // XXX: should include bplen somewhere
         fname = (char *) pymalloc(sizeof(char) * fnamelen);
-        if (fname == NULL)
-            return NULL;
 
-        mpz_inits(tmp, p, NULL);
+        mpz_inits(tmp, pzt, nu, NULL);
 
         // Get the size of the matrices
         (void) snprintf(fname, fnamelen, "%s/size", st->dir);
@@ -958,260 +923,153 @@ obf_attack(PyObject *self, PyObject *args)
         st->size = mpz_get_ui(tmp);
 
         comp = (mpz_t *) pymalloc(sizeof(mpz_t) * st->size * st->size);
-        s = (mpz_t *) pymalloc(sizeof(mpz_t) * st->size);
-        t = (mpz_t *) pymalloc(sizeof(mpz_t) * st->size);
-        if (!comp || !s || !t) {
-            err = 1;
-            goto cleanup;
-        }
-
-        for (int i = 0; i < st->size; ++i) {
-            mpz_inits(s[i], t[i], NULL);
-        }
         for (int i = 0; i < st->size * st->size; ++i) {
             mpz_init(comp[i]);
         }
 
-        if (!islayered) {
-            (void) snprintf(fname, fnamelen, "%s/p_enc", st->dir);
-            (void) load_mpz_scalar(fname, p);
-        }
-
         for (int layer = 0; layer < bplen; ++layer) {
-            unsigned int input_idx;
-            double start, end;
-
-            start = current_time();
-
-            // find out the input bit for the given layer
-            (void) snprintf(fname, fnamelen, "%s/%d.input", st->dir, layer);
-            (void) load_mpz_scalar(fname, tmp);
-            input_idx = mpz_get_ui(tmp);
-            if (input_idx < 0 || input_idx >= strlen(input)) {
-                PyErr_SetString(PyExc_RuntimeError, "invalid input");
-                err = 1;
-                break;
-            }
-            if (input[input_idx] != '0' && input[input_idx] != '1') {
-                PyErr_SetString(PyExc_RuntimeError, "input must be 0 or 1");
-                err = 1;
-                break;
-            }
-            // load in appropriate matrix for the given input value
-            if (input[input_idx] == '0') {
-                (void) snprintf(fname, fnamelen, "%s/%d.zero", st->dir, layer);
-            } else {
-                (void) snprintf(fname, fnamelen, "%s/%d.one", st->dir, layer);
-            }
-
+            (void) snprintf(fname, fnamelen, "%s/%d.zero", st->dir, layer);
+            (void) load_mpz_vector(fname, comp, st->size * st->size);
             if (layer == 0) {
-                (void) load_mpz_vector(fname, comp, st->size * st->size);
+                mpz_set(tmp, comp[0]);
             } else {
-                mpz_t *tmparray;
-
-                tmparray = (mpz_t *) malloc(sizeof(mpz_t) * st->size * st->size);
-                for (int i = 0; i < st->size * st->size; ++i) {
-                    mpz_init(tmparray[i]);
-                }
-                (void) load_mpz_vector(fname, tmparray, st->size * st->size);
-                mat_mult(comp, tmparray, st->size);
-                for (int i = 0; i < st->size * st->size; ++i) {
-                    mpz_clear(tmparray[i]);
-                }
-                free(tmparray);
+                mpz_mul(tmp, tmp, comp[0]);
             }
-            if (!islayered) {
-                if (input[input_idx] == '0') {
-                    (void) snprintf(fname, fnamelen, "%s/%d.a0_enc", st->dir, layer);
-                } else {
-                    (void) snprintf(fname, fnamelen, "%s/%d.a1_enc", st->dir, layer);
-                }
-                (void) load_mpz_scalar(fname, tmp);
-                mpz_mul(p, p, tmp);
-            }
-
-            end = current_time();
-
-            if (g_verbose)
-                (void) fprintf(stderr, "  Multiplying matrices: %f\n",
-                               end - start);
         }
 
-        if (!err) {
-            double start, end;
-            mpz_t pzt, nu;
+        (void) snprintf(fname, fnamelen, "%s/s_enc", st->dir);
+        (void) load_mpz_vector(fname, comp, st->size);
+        mpz_mul(tmp, tmp, comp[0]);
+        (void) snprintf(fname, fnamelen, "%s/t_enc", st->dir);
+        (void) load_mpz_vector(fname, comp, st->size);
+        mpz_mul(tmp, tmp, comp[st->size - 1]);
 
-            mpz_inits(pzt, q, nu, NULL);
+        (void) snprintf(fname, fnamelen, "%s/pzt", st->dir);
+        (void) load_mpz_scalar(fname, pzt);
+        (void) snprintf(fname, fnamelen, "%s/q", st->dir);
+        (void) load_mpz_scalar(fname, q);
+        // (void) snprintf(fname, fnamelen, "%s/nu", st->dir);
+        // (void) load_mpz_scalar(fname, nu);
 
-            start = current_time();
-            (void) snprintf(fname, fnamelen, "%s/s_enc", st->dir);
-            (void) load_mpz_vector(fname, s, st->size);
-            (void) snprintf(fname, fnamelen, "%s/t_enc", st->dir);
-            (void) load_mpz_vector(fname, t, st->size);
-            mat_mult_by_vects(tmp, s, comp, t, st->size);
-            (void) snprintf(fname, fnamelen, "%s/pzt", st->dir);
-            (void) load_mpz_scalar(fname, pzt);
-            (void) snprintf(fname, fnamelen, "%s/q", st->dir);
-            (void) load_mpz_scalar(fname, q);
-            (void) snprintf(fname, fnamelen, "%s/nu", st->dir);
-            (void) load_mpz_scalar(fname, nu);
-            if (!islayered) {
-                mpz_sub(tmp, tmp, p);
-            }
-            // Check if iszero = 1.  If so, attack won't work.
-            {
-                int iszero = is_zero(tmp, pzt, q, mpz_get_ui(nu));
-                if (iszero == 1) {
-                    (void) fprintf(stderr, "iszero = 1. Attack won't work.\n");
-                    return NULL;
-                }
-            }
-            // Compute omega
-            mpz_mul(tmp, tmp, pzt);
-            mpz_mod_near(omega, tmp, q);
-            end = current_time();
-            if (g_verbose)
-                (void) fprintf(stderr, "Took: %f\n", end - start);
+        // {
+        //     int iszero = is_zero(tmp, pzt, q, mpz_get_ui(nu));
+        //     fprintf(stderr, "iszero = %d\n", iszero);
+        // }
 
-            mpz_clears(pzt, nu, NULL);
-        }
+        // Compute omega
+        mpz_mul(tmp, tmp, pzt);
+        mpz_mod_near(omega, tmp, q);
 
-        for (int i = 0; i < st->size; ++i) {
-            mpz_clears(s[i], t[i], NULL);
-        }
+        mpz_clears(tmp, pzt, nu, NULL);
+
         for (int i = 0; i < st->size * st->size; ++i) {
             mpz_clear(comp[i]);
         }
-
-    cleanup:
-        mpz_clears(tmp, p, NULL);
-
         if (comp)
             free(comp);
-        if (s)
-            free(s);
-        if (t)
-            free(t);
-
         if (fname)
             free(fname);
     }
+    end = current_time();
+    if (g_verbose)
+        (void) fprintf(stderr, "  Took: %f\n", end - start);
 
     /* We now have omega and q.  We now need to sample everything fresh to
        compute Omega. */
 
-    /* Calculate CLT parameters */
-    alpha = st->secparam;
-    beta = st->secparam;
-    st->rho = st->secparam;
-    rho_f = kappa * (st->rho + alpha + 2);
-    eta = rho_f + alpha + 2 * beta + st->secparam + 8;
-    nu = eta - beta - rho_f - st->secparam + 3;
-    st->n = (int) (eta * log2((float) st->secparam));
-
-    if (g_verbose) {
-        fprintf(stderr, "  Security Parameter: %ld\n", st->secparam);
-        fprintf(stderr, "  Kappa: %ld\n", kappa);
-        fprintf(stderr, "  Alpha: %ld\n", alpha);
-        fprintf(stderr, "  Beta: %ld\n", beta);
-        fprintf(stderr, "  Eta: %ld\n", eta);
-        fprintf(stderr, "  Nu: %ld\n", nu);
-        fprintf(stderr, "  Rho: %ld\n", st->rho);
-        fprintf(stderr, "  Rho_f: %ld\n", rho_f);
-        fprintf(stderr, "  N: %ld\n", st->n);
-        fprintf(stderr, "  Size: %ld\n", st->size);
-    }
-
-    hs = (mpz_t *) pymalloc(sizeof(mpz_t) * st->n);
-    ms = (mpz_t *) pymalloc(sizeof(mpz_t) * nslots);
-    ps = (mpz_t *) pymalloc(sizeof(mpz_t) * st->n);
-    rs = (mpz_t *) pymalloc(sizeof(mpz_t) * st->n);
-    st->gs = (mpz_t *) pymalloc(sizeof(mpz_t) * st->n);
-
-    /* Seed random number generator */
     {
-        int file;
-        if ((file = open(RANDFILE, O_RDONLY)) == -1) {
-            (void) fprintf(stderr, "Error opening %s\n", RANDFILE);
-            goto error;
-        } else {
-            unsigned long seed;
-            if (read(file, &seed, sizeof seed) == -1) {
-                (void) fprintf(stderr, "Error reading from %s\n", RANDFILE);
-                (void) close(file);
-                goto error;
-            } else {
-                if (g_verbose)
-                    (void) fprintf(stderr, "  Seed: %lu\n", seed);
+        long alpha, beta, eta, nu, rho_f;
+        mpz_t *hs, *ms, *ps, *rs;
 
-                gmp_randinit_default(st->rng);
-                gmp_randseed_ui(st->rng, seed);
-            }
+        /* Calculate CLT parameters */
+        alpha = st->secparam;
+        beta = st->secparam;
+        st->rho = st->secparam;
+        rho_f = kappa * (st->rho + alpha + 2);
+        eta = rho_f + alpha + 2 * beta + st->secparam + 8;
+        nu = eta - beta - rho_f - st->secparam + 3;
+        st->n = (int) (eta * log2((float) st->secparam));
+        if (g_verbose) {
+            (void) fprintf(stderr, "Parameters:\n");
+            (void) fprintf(stderr, "  Security Parameter: %ld\n", st->secparam);
+            (void) fprintf(stderr, "  Kappa: %ld\n", kappa);
+            (void) fprintf(stderr, "  Alpha: %ld\n", alpha);
+            (void) fprintf(stderr, "  Beta: %ld\n", beta);
+            (void) fprintf(stderr, "  Eta: %ld\n", eta);
+            (void) fprintf(stderr, "  Nu: %ld\n", nu);
+            (void) fprintf(stderr, "  Rho: %ld\n", st->rho);
+            (void) fprintf(stderr, "  Rho_f: %ld\n", rho_f);
+            (void) fprintf(stderr, "  N: %ld\n", st->n);
+            (void) fprintf(stderr, "  Size: %ld\n", st->size);
         }
-        if (file != -1)
-            (void) close(file);
-    }
 
-    /* initialize gmp variables */
-    mpz_init_set_ui(st->pzt, 0);
-    for (int i = 0; i < nslots; ++i) {
-        mpz_inits(ms[i], NULL);
-    }
-    for (int i = 0; i < st->n; ++i) {
-        mpz_inits(hs[i], ps[i], rs[i], st->gs[i], NULL);
-    }
+        hs = (mpz_t *) pymalloc(sizeof(mpz_t) * st->n);
+        ms = (mpz_t *) pymalloc(sizeof(mpz_t) * nslots);
+        ps = (mpz_t *) pymalloc(sizeof(mpz_t) * st->n);
+        rs = (mpz_t *) pymalloc(sizeof(mpz_t) * st->n);
+        st->gs = (mpz_t *) pymalloc(sizeof(mpz_t) * st->n);
 
-    /* Generate p_i's and g_i's */
-    start = current_time();
+        seed_rng(&st->rng);
+
+        /* initialize gmp variables */
+        mpz_init_set_ui(st->pzt, 0);
+        for (int i = 0; i < nslots; ++i) {
+            mpz_inits(ms[i], NULL);
+        }
+        for (int i = 0; i < st->n; ++i) {
+            mpz_inits(hs[i], ps[i], rs[i], st->gs[i], NULL);
+        }
+
+        /* Generate p_i's and g_i's */
+        start = current_time();
 #pragma omp parallel for
-    for (int i = 0; i < st->n; ++i) {
-        mpz_t p_unif;
-        mpz_init(p_unif);
-        mpz_urandomb(p_unif, st->rng, eta);
-        mpz_nextprime(ps[i], p_unif);
-        mpz_urandomb(p_unif, st->rng, alpha);
-        mpz_nextprime(st->gs[i], p_unif);
-        mpz_clear(p_unif);
-    }
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Generating p_i's and g_i's: %f\n",
-                       end - start);
+        for (int i = 0; i < st->n; ++i) {
+            mpz_t p_unif;
+            mpz_init(p_unif);
+            mpz_urandomb(p_unif, st->rng, eta);
+            mpz_nextprime(ps[i], p_unif);
+            mpz_urandomb(p_unif, st->rng, alpha);
+            mpz_nextprime(st->gs[i], p_unif);
+            mpz_clear(p_unif);
+        }
+        end = current_time();
+        if (g_verbose)
+            (void) fprintf(stderr, "Generating p_i's and g_i's: %f\n",
+                           end - start);
 
-    /* Compute h_i's */
-    start = current_time();
+        /* Compute h_i's */
+        start = current_time();
 #pragma omp parallel for
-    for (int i = 0; i < st->n; ++i) {
-        mpz_genrandom(hs[i], &st->rng, beta);
-    }
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Generating h_i's: %f\n", end - start);
+        for (int i = 0; i < st->n; ++i) {
+            mpz_genrandom(hs[i], &st->rng, beta);
+        }
+        end = current_time();
+        if (g_verbose)
+            (void) fprintf(stderr, "Generating h_i's: %f\n", end - start);
 
-    /* Compute r_i's */
-    start = current_time();
+        /* Compute r_i's */
+        start = current_time();
 #pragma omp parallel for
-    for (int i = 0; i < st->n; ++i) {
-        mpz_genrandom(rs[i], &st->rng, rho_f);
-    }
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Generating r_i's: %f\n", end - start);
+        for (int i = 0; i < st->n; ++i) {
+            mpz_genrandom(rs[i], &st->rng, rho_f);
+        }
+        end = current_time();
+        if (g_verbose)
+            (void) fprintf(stderr, "Generating r_i's: %f\n", end - start);
 
-    /* Sample m_i's */
-    start = current_time();
+        /* Sample m_i's */
+        start = current_time();
 #pragma omp parallel for
-    for (int i = 0; i < nslots; ++i) {
-        mpz_urandomb(ms[i], st->rng, alpha);
-        mpz_mod(ms[i], ms[i], st->gs[i]);
-    }
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Generating m_i's: %f\n", end - start);
+        for (int i = 0; i < nslots; ++i) {
+            mpz_urandomb(ms[i], st->rng, alpha);
+            mpz_mod(ms[i], ms[i], st->gs[i]);
+        }
+        end = current_time();
+        if (g_verbose)
+            (void) fprintf(stderr, "Generating m_i's: %f\n", end - start);
 
-    /* Compute b = \Omega \cdot g_1 */
-    start = current_time();
-    {
+        /* Compute b = \Omega \cdot g_1 */
+        start = current_time();
         mpz_set_ui(b, 0L);
 #pragma omp parallel for
         for (int i = 0; i < nslots; ++i) {
@@ -1248,10 +1106,21 @@ obf_attack(PyObject *self, PyObject *args)
             mpz_clears(tmp, qpi, NULL);
         }
         mpz_mod(b, b, q);
+        end = current_time();
+        if (g_verbose)
+            (void) fprintf(stderr, "  Computing b: %f\n", end - start);
+
+        for (int i = 0; i < nslots; ++i) {
+            mpz_clears(ms[i], NULL);
+        }
+        for (int i = 0; i < st->n; ++i) {
+            mpz_clears(hs[i], ps[i], rs[i], NULL);
+        }
+        free(hs);
+        free(ms);
+        free(ps);
+        free(rs);
     }
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Computing b: %f\n", end - start);
 
     /* Compute Omega = b / g_1 */
     mpz_set(Omega, b);
@@ -1260,30 +1129,35 @@ obf_attack(PyObject *self, PyObject *args)
     }
 
     {
-        mpz_t tmp;
-        mpz_init(tmp);
-        mpz_set_ui(tmp, 4L);
-        mpz_mul_ui(tmp, tmp, G_1);
-        mpz_mul_ui(tmp, tmp, G_1);
-        mpz_mul_ui(tmp, tmp, G_2);
-        mpz_mul_ui(tmp, tmp, G_2);
-        mpz_div(tmp, q, tmp);
-        int r = mpz_cmp(Omega, tmp);
-        fprintf(stderr, "Omega = %u | q / 4g_1^2g_2^2 = %u\n",
-                mpz_sizeinbase(Omega, 2), mpz_sizeinbase(tmp, 2));
-        fprintf(stderr, "Compare = %d\n", r);
-        mpz_clear(tmp);
-    }
-
-    {
+        int r;
         mpz_t tmp;
         ZZ_mat<mpz_t> M(2, 2);
 
-        mpz_init(tmp);
+        // mpz_init(tmp);
+        // mpz_set_ui(tmp, 4L);
+        // mpz_mul_ui(tmp, tmp, G_1);
+        // mpz_mul_ui(tmp, tmp, G_1);
+        // mpz_mul_ui(tmp, tmp, G_2);
+        // mpz_mul_ui(tmp, tmp, G_2);
+        // mpz_div(tmp, q, tmp);
+        // r = mpz_cmp(Omega, tmp);
+        // mpz_clear(tmp);
+        // fprintf(stderr, "Omega = %u | q / 4g_1^2g_2^2 = %u\n",
+        //         mpz_sizeinbase(Omega, 2), mpz_sizeinbase(tmp, 2));
+        // switch (r) {
+        // case -1:
+        //     (void) fprintf(stderr, "Omega < q / (4 g_1^2 g_2^2)\n");
+        //     break;
+        // case 1:
+        //     fprintf(stderr, "Omega > q / (4 g_1^2 g_2^2)\n");
+        //     break;
+        // default:
+        //     break;
+        // }
 
         /* Apply LLL to lattice basis {(Omega, omega), (0, q)} */
         if (g_verbose)
-            (void) fprintf(stderr, "  Applying LLL...\n");
+            (void) fprintf(stderr, "Applying LLL...\n");
         start = current_time();
         M(0,0).set(Omega);
         M(0,1).set(omega);
@@ -1298,33 +1172,16 @@ obf_attack(PyObject *self, PyObject *args)
             (void) fprintf(stderr, "  Took: %f\n", end - start);
     }
 
-    for (int i = 0; i < st->n; ++i) {
-        mpz_clears(hs[i], ps[i], rs[i], NULL);
-    }
-    free(hs);
-    free(ps);
-    free(rs);
-
     py_out = mpz_to_py(out);
 
     mpz_clears(b, out, omega, Omega, NULL);
 
-    return py_out;
-
- error:
-    if (hs)
-        free(hs);
-    if (ps)
-        free(ps);
-    if (rs)
-        free(rs);
     if (st) {
         if (st->gs)
             free(st->gs);
-        if (st->crt_coeffs)
-            free(st->crt_coeffs);
     }
-    return NULL;
+
+    return py_out;
 }
 #endif
 
