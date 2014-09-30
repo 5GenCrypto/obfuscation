@@ -39,7 +39,7 @@ class AbstractObfuscator(object):
         return primes
 
     def _construct_bps(self, n, circuit, primes, obliviate, bpclass):
-        self.logger('Constructing %d BP (*insecure*)...' % n)
+        self.logger('Constructing %d BP...' % n)
         start = time.time()
         bps = []
         for _, prime in zip(xrange(n), primes):
