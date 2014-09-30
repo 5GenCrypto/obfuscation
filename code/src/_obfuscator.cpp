@@ -1,10 +1,7 @@
 #include <Python.h>
 
-#include <assert.h>
-
 #include <gmp.h>
 #include <omp.h>
-
 
 #ifdef ATTACK
 #include <fplll.h>
@@ -380,9 +377,10 @@ obf_setup(PyObject *self, PyObject *args)
         (void) fprintf(stderr, "  Generating p_i's and g_i's: %f\n",
                        end - start);
 
-    gmp_fprintf(stderr, "g_1 = %Zd\n", s->gs[0]);
-    gmp_fprintf(stderr, "g_2 = %Zd\n", s->gs[1]);
-    // gmp_fprintf(stderr, "q = %Zd\n", s->q);
+#ifdef ATTACK
+    (void) gmp_fprintf(stderr, "g_1 = %Zd\n", s->gs[0]);
+    (void) gmp_fprintf(stderr, "g_2 = %Zd\n", s->gs[1]);
+#endif
 
     /* Convert g_i values to python objects */
     start = current_time();
@@ -1069,6 +1067,7 @@ obf_attack(PyObject *self, PyObject *args)
             (void) fprintf(stderr, "Generating m_i's: %f\n", end - start);
 
         /* Compute b = \Omega \cdot g_1 */
+
         start = current_time();
         mpz_set_ui(b, 0L);
 #pragma omp parallel for
@@ -1088,7 +1087,6 @@ obf_attack(PyObject *self, PyObject *args)
             }
             mpz_clears(tmp, qpi, NULL);
         }
-
 #pragma omp parallel for
         for (int i = 0; i < st->n; ++i) {
             mpz_t tmp, qpi;
