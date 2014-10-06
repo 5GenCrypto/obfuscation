@@ -5,7 +5,8 @@ This code presents an implementation of indistinguishability obfuscation, as
 appearing in the work:
 
 "Implementing Cryptographic Program Obfuscation." Daniel Apon, Yan Huang,
-Jonathan Katz, Alex J. Malozemoff. Unpublished. 2014.
+Jonathan Katz, Alex J. Malozemoff. Cryptology ePrint Archive 2014/779.
+https://eprint.iacr.org/2014/779.
 
 We follow the general outlines of existing indistinguishability obfuscation
 literature (e.g., Ananth et al, ePrint 2014; Barak et al, EUROCRYPT 2014;
