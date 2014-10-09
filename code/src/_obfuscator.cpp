@@ -2,6 +2,7 @@
 
 #include <gmp.h>
 #include <omp.h>
+#include <sys/resource.h>
 
 #ifdef ATTACK
 #include <fplll.h>
@@ -379,7 +380,6 @@ obf_setup(PyObject *self, PyObject *args)
 
 #ifdef ATTACK
     (void) gmp_fprintf(stderr, "g_1 = %Zd\n", s->gs[0]);
-    (void) gmp_fprintf(stderr, "g_2 = %Zd\n", s->gs[1]);
 #endif
 
     /* Convert g_i values to python objects */
