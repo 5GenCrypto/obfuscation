@@ -1,23 +1,43 @@
 from __future__ import print_function
 
 import networkx as nx
-
 from sage.all import copy, GF, MatrixSpace, VectorSpace, ZZ
-
 from branchingprogram import AbstractBranchingProgram, ParseException, Layer
 import utils
 
 class _Graph(object):
     def __init__(self, inp, graph, nlayers, num):
+        # function mapping layers to input bits
         self.inp = inp
+        # actual graph; each node is a tuple (name, num), where 'name' is the
+        # (unique) name of the node, and 'num' is a number
         self.graph = graph
+        # total number of layers in the graph
         self.nlayers = nlayers
         self.num = num
     def __len__(self):
         return len(self.graph)
+    def __str__(self):
+        return repr(self.graph.adj)
 
 def relabel(g, num):
+    '''
+    Relabels all the nodes in graph 'g' from (name, num') to (name, num).
+    '''
     new = [(s, num) for (s, _) in g.nodes()]
+    return nx.relabel_nodes(g, dict(zip(g.nodes(), new)))
+
+def relabel_internal(g, num):
+    '''
+    Relabels only those nodes in graph 'g' which are "internal", which is marked
+    by whether they have a '-' in their name.
+    '''
+    new = []
+    for s, _ in g.nodes():
+        if '-' in s:
+            new.append(('%s-%d' % (s, num), num))
+        else:
+            new.append((s, num))
     return nx.relabel_nodes(g, dict(zip(g.nodes(), new)))
 
 def relabel_layers(g, min):
@@ -26,6 +46,10 @@ def relabel_layers(g, min):
         g.node[k]['layer'] = v + min
 
 def contract(g, a, b, name):
+    '''
+    Contracts the edge between nodes 'a' and 'b' in graph 'g', replacing them
+    with a new node 'name', and returns the new graph.
+    '''
     new = 'tmp'
     g.add_node(new)
     for node in g.predecessors(a):
@@ -42,8 +66,7 @@ def contract(g, a, b, name):
 class SWWBranchingProgram(AbstractBranchingProgram):
     def __init__(self, fname, prime, verbose=False, obliviate=False):
         super(SWWBranchingProgram, self).__init__(verbose=verbose)
-        self.graph = None
-        self.size = None
+        self.bp = None
         self.zero = None
         self.nlayers = 0
         self.graph = self._load_formula(fname)
@@ -62,13 +85,13 @@ class SWWBranchingProgram(AbstractBranchingProgram):
         def _new_gate(num):
             #
             # New gates are constructed as follows:
-            #         1
+            #          1
             #       ------- accept
             #      /
             # src -
-            #      \
+            #      \   0
             #       ------- reject
-            #          0
+            #
             # with the source set to Layer 0.
             #
             g = nx.digraph.DiGraph()
@@ -84,6 +107,12 @@ class SWWBranchingProgram(AbstractBranchingProgram):
                     raise Exception("newgate eval failed on %s!" % inp)
             return _Graph(eval, g, 1, num)
         def _and_gate(num, bp1, idx1, bp2, idx2):
+            #
+            # AND gates are constructed as follows:
+            #
+            # Given BP_1 and BP_2, we merge the acc node of BP_1 with the src
+            # node of BP_2 and the rej node of BP_1 with the rej node of BP_2.
+            #
             t1 = bp1.nlayers
             t2 = bp2.nlayers
             relabel_layers(bp2.graph, t1)
@@ -107,19 +136,36 @@ class SWWBranchingProgram(AbstractBranchingProgram):
             bp.num = num
             return bp
         def _or_gate(num, bp1, idx1, bp2, idx2):
+            #
+            # OR(a, b) = NOT AND(NOT a, NOT b)
+            #
             in1not = _not_gate(idx1, bp1, idx1)
             in2not = _not_gate(idx2, bp2, idx2)
             r = _and_gate(num, in1not, idx1, in2not, idx2)
             return _not_gate(num, r, num)
         def _not_gate(num, bp, idx):
+            #
+            # NOT gates are constructed as follows:
+            #
+            # Given BP, swap the acc and rej nodes.
+            #
             g = nx.relabel_nodes(bp.graph, {('acc', idx): ('rej', idx),
                                             ('rej', idx): ('acc', idx)})
             g = relabel(g, num)
             return _Graph(bp.inp, g, bp.nlayers, num)
         def _xor_gate(num, bp1, idx1, bp2, idx2):
+            #
+            # XOR gates are constructed as follows:
+            #
+            # Given BP_1 and BP_2 (where BP_2 is the "smaller" of the two BPs),
+            # produce NOT BP_2, merge the acc node of BP_1 with the src node of
+            # NOT BP_2, and merge the rej node of BP_1 with the src node of
+            # BP_2.
+            #
             assert num > idx1 and num > idx2
             if len(bp1.graph) < len(bp2.graph):
                 bp1, bp2 = bp2, bp1
+            # choose a temporary idx outside the range of possible indices
             tmpidx = len(bp1.graph) + len(bp2.graph)
             t1 = bp1.nlayers
             t2 = bp2.nlayers
@@ -127,11 +173,12 @@ class SWWBranchingProgram(AbstractBranchingProgram):
             oldlayer = bp2.graph.node[('src', idx2)]['layer']
             # construct (G_2, not(G_2))
             bp2not = _not_gate(tmpidx, bp2, idx2)
+            # Need to relabel the internal wires as bp2not so we don't end up
+            # with duplicate node names when we merge the graphs
+            bp2not.graph = relabel_internal(bp2not.graph, tmpidx)
             g = nx.union(bp2.graph, bp2not.graph)
-            g.add_edge(('acc', idx2), ('acc', idx1), label=0)
-            g.add_edge(('rej', idx1), ('rej', idx2), label=0)
-            g = contract(g, ('acc', idx2), ('acc', idx1), ('acc', num))
-            g = contract(g, ('rej', idx1), ('rej', idx2), ('rej', num))
+            g = contract(g, ('acc', tmpidx), ('acc', idx2), ('acc', num))
+            g = contract(g, ('rej', tmpidx), ('rej', idx2), ('rej', num))
             # construct XOR(G_1, G_2)
             g = nx.union(bp1.graph, g)
             accnode = ('acc-%d' % num, num)
@@ -147,7 +194,7 @@ class SWWBranchingProgram(AbstractBranchingProgram):
                 elif inp <= t1 + t2 - 1:
                     return bp2.inp(inp - t1)
                 else:
-                    raise Exception("andgate eval failed on %s!" % inp)
+                    raise Exception("xorgate eval failed on %s!" % inp)
             return _Graph(eval, g, t1 + t2, num)
 
         gates = {
@@ -184,10 +231,9 @@ class SWWBranchingProgram(AbstractBranchingProgram):
                             output = True
                     _, gate, rest = rest.split(None, 2)
                     inputs = [int(i) for i in rest.split()]
-                    for input in inputs:
-                        if input in wires:
-                            raise ParseException(
-                                'Line %d: only Boolean formulas supported' % lineno)
+                    if wires.intersection(inputs):
+                        raise ParseException(
+                            'Line %d: only Boolean formulas supported' % lineno)
                     wires.update(inputs)
                     try:
                         bp.append(gates[gate.upper()](num, *inputs))
@@ -274,12 +320,15 @@ class SWWBranchingProgram(AbstractBranchingProgram):
         self.m0, self.m0i = m0, m0i
         self.randomized = True
 
-    def _eval_layered_bp(self, inp):
+    def _eval_layered_bp(self, x):
+        '''
+        Evaluates the layered BP on input bitstring 'x'.
+        '''
         assert self.graph
         g = self.graph.graph.copy()
         nodes = nx.get_node_attributes(g, 'layer')
-        for layer in xrange( self.nlayers):
-            choice = 0 if inp[self.graph.inp(layer)] == '0' else 1
+        for layer in xrange(self.nlayers):
+            choice = 0 if x[self.graph.inp(layer)] == '0' else 1
             for node in nodes:
                 if g.node[node]['layer'] == layer:
                     for neighbor in g.neighbors(node):
@@ -291,21 +340,24 @@ class SWWBranchingProgram(AbstractBranchingProgram):
         except nx.NetworkXNoPath:
             return 0
                     
-    def _eval_relaxed_matrix_bp(self, inp):
+    def _eval_relaxed_matrix_bp(self, x):
+        '''
+        Evaluates the relaxed matrix BP on input bitstring 'x'.
+        '''
         assert self.bp
         m = self.bp[0]
-        comp = m.zero if inp[m.inp] == '0' else m.one
-        for i, m in enumerate(self.bp[1:]):
-            comp *= m.zero if inp[m.inp] == '0' else m.one
+        comp = m.zero if x[m.inp] == '0' else m.one
+        for m in self.bp[1:]:
+            comp *= m.zero if x[m.inp] == '0' else m.one
         if self.randomized:
             r = self.s * self.m0i * comp * self.m0 * self.t
             return 1 if r == 1 else 0
         else:
             return 1 if comp[0, comp.nrows() - 1] == 1 else 0
 
-    def evaluate(self, inp):
+    def evaluate(self, x):
         assert self.bp or self.graph
         if self.bp is None:
-            return self._eval_layered_bp(inp)
+            return self._eval_layered_bp(x)
         else:
-            return self._eval_relaxed_matrix_bp(inp)
+            return self._eval_relaxed_matrix_bp(x)
