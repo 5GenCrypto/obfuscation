@@ -379,7 +379,7 @@ obf_setup(PyObject *self, PyObject *args)
                        end - start);
 
 #ifdef ATTACK
-    (void) gmp_fprintf(stderr, "g_1 = %Zd\n", s->gs[0]);
+    (void) gmp_fprintf(stderr, "g_1 in use: %Zd\n", s->gs[0]);
 #endif
 
     /* Convert g_i values to python objects */
@@ -1127,31 +1127,7 @@ obf_attack(PyObject *self, PyObject *args)
     }
 
     {
-        int r;
-        mpz_t tmp;
         ZZ_mat<mpz_t> M(2, 2);
-
-        // mpz_init(tmp);
-        // mpz_set_ui(tmp, 4L);
-        // mpz_mul_ui(tmp, tmp, G_1);
-        // mpz_mul_ui(tmp, tmp, G_1);
-        // mpz_mul_ui(tmp, tmp, G_2);
-        // mpz_mul_ui(tmp, tmp, G_2);
-        // mpz_div(tmp, q, tmp);
-        // r = mpz_cmp(Omega, tmp);
-        // mpz_clear(tmp);
-        // fprintf(stderr, "Omega = %u | q / 4g_1^2g_2^2 = %u\n",
-        //         mpz_sizeinbase(Omega, 2), mpz_sizeinbase(tmp, 2));
-        // switch (r) {
-        // case -1:
-        //     (void) fprintf(stderr, "Omega < q / (4 g_1^2 g_2^2)\n");
-        //     break;
-        // case 1:
-        //     fprintf(stderr, "Omega > q / (4 g_1^2 g_2^2)\n");
-        //     break;
-        // default:
-        //     break;
-        // }
 
         /* Apply LLL to lattice basis {(Omega, omega), (0, q)} */
         if (g_verbose)

@@ -31,6 +31,8 @@ def bp(args):
 
 def obf(args):
     from obfuscator import BarringtonObfuscator, SWWObfuscator
+    if args.nslots is None:
+        args.nslots = args.secparam
     if args.barrington:
         bpclass = BarringtonBranchingProgram
         obfclass = BarringtonObfuscator
@@ -38,6 +40,9 @@ def obf(args):
         bpclass = SWWBranchingProgram
         obfclass = SWWObfuscator
     if args.test_circuit:
+        if args.attack:
+            print("\x1b[31mError:\x1b[0m --attack flag cannot be run with --test-circuit flag")
+            sys.exit(1)
         test_circuit(args.test_circuit, bpclass, obfclass, True, args)
     else:
         directory = None
@@ -54,14 +59,18 @@ def obf(args):
             print("Obfuscation took: %f seconds" % (end - start))
             obf.cleanup()
         else:
-            print("One of --load-obf, --load-circuit, or --test-circuit must be used")
+            print("\x1b[31mError:\x1b[0m One of --load-obf, --load-circuit, or --test-circuit must be used")
             sys.exit(1)
 
         if args.attack:
             assert directory
             obf = obfclass(verbose=args.verbose)
-            r = obf.attack(directory, args.secparam, args.nslots)
-            print('g_1 = %d' % r)
+            try:
+                r = obf.attack(directory, args.secparam, args.nslots)
+            except AttributeError:
+                print("\x1b[31mError:\x1b[0m --attack flag unavailable.  Make sure you compile with ATTACK = 1 in setup.py")
+                sys.exit(1)
+            print('g_1 extracted from attack: %d' % r)
         if args.eval:
             assert directory
             obf = obfclass(verbose=args.verbose)
