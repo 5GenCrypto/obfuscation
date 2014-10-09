@@ -78,8 +78,6 @@ class SWWBranchingProgram(AbstractBranchingProgram):
             self.obliviate()
 
     def _load_formula(self, fname):
-        # XXX: wow, this code is a total hack!  good luck trying to understand
-        # it...
         bp = []
         self.nlayers = 0
         def _new_gate(num):
