@@ -2,7 +2,7 @@
 
 from setuptools import setup, Extension, find_packages
 
-ATTACK = 1
+ATTACK = 0
 
 __name__ = 'ind_obfuscation'
 __author__ = 'Alex J. Malozemoff'

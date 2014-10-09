@@ -18,9 +18,9 @@ The implementation is in a mix of Python and C, using Sage
 (http://openmp.org).  The current code is still in prototype form, although it
 is close to fully operational.
 
-Instructions for building the code are in the code/ directory, and scripts for
-running experiments and processing the results are in the scripts/ directory.
-Full traces of all the experiments found in the above paper can be found in the
-scripts/results/ directory.
+Instructions for building and running the code are in code/README.md, and
+scripts for running experiments and processing the results are in the scripts/
+directory.  Full traces of all the experiments found in the above paper can be
+found in the scripts/results/ directory.
 
 For any questions/comments, please e-mail amaloz at cs dot umd dot edu.
