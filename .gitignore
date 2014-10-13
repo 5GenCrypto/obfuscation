@@ -23,5 +23,5 @@
 # Other
 build/
 ind_obfuscation.egg-info/
-*obf*
+*circ.obf*
 evaluate

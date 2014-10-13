@@ -30,6 +30,7 @@ def bp(args):
             print('Output = %d' % r)
 
 def zimmerman(args):
+    import zimmerman as z
     print("\x1b[31mError:\x1b[0m Zimmerman approach not implemented yet")
 
 def obf(args):
