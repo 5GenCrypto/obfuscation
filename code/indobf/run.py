@@ -29,8 +29,15 @@ def bp(args):
             r = bp.evaluate(args.eval)
             print('Output = %d' % r)
 
+def zimmerman(args):
+    print("\x1b[31mError:\x1b[0m Zimmerman approach not implemented yet")
+
 def obf(args):
     from obfuscator import BarringtonObfuscator, SWWObfuscator
+    if args.zimmerman:
+        zimmerman(args)
+        return
+
     if args.nslots is None:
         args.nslots = args.secparam
     if args.barrington:
@@ -134,9 +141,11 @@ def main():
     parser_obf.add_argument('--barrington', action='store_true',
                             help="use Barrington's approach")
     parser_obf.add_argument('--nslots', metavar='N', type=int, action='store',
-                            default=None, help='number of slots to fill (default = security parameter)')
+                            default=None, help='number of slots to fill (None sets number to secparam)')
     parser_obf.add_argument('-v', '--verbose', action='store_true', 
                             help='be verbose')
+    parser_obf.add_argument('-z', '--zimmerman', action='store_true',
+                            help='use the Zimmerman construction')
     parser_obf.set_defaults(func=obf)
 
     args = parser.parse_args()
