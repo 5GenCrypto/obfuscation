@@ -69,11 +69,6 @@ class AbstractBranchingProgram(object):
                     newbp.append(m)
                 else:
                     newbp.append(Layer(i, self.zero, self.zero))
-        # ms_needed = (4 ** self.depth) * self.ninputs
-        # for _ in xrange((ms_needed - len(newbp)) // self.ninputs):
-        #     for i in xrange(self.ninputs):
-        #         newbp.append(Layer(i, self.zero, self.zero))
-        # assert len(newbp) == ms_needed
         self.bp = newbp
 
     def randomize(self, prime):
