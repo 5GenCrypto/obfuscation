@@ -2,8 +2,8 @@ from __future__ import print_function
 
 import itertools
 
+from circuit import parse
 from sage.all import MatrixSpace, VectorSpace, ZZ
-
 from branchingprogram import AbstractBranchingProgram, ParseException, Layer
 import groups
 
@@ -71,36 +71,11 @@ class BarringtonBranchingProgram(AbstractBranchingProgram):
             'NOT': lambda in1: self._not_gate(bp[in1]),
             'XOR': lambda in1, in2: self._xor_gate(bp[in1], bp[in2]),
         }
-        output = False
-        with open(fname) as f:
-            for line in f:
-                if line.startswith('#'):
-                    continue
-                elif line.startswith(':'):
-                    self._parse_param(line)
-                    continue
-                num, rest = line.split(None, 1)
-                if rest.startswith('input'):
-                    bp.append([Layer(int(num), self.zero, self.one)])
-                elif rest.startswith('gate') or rest.startswith('output'):
-                    if rest.startswith('output'):
-                        if output:
-                            raise ParseException("only support single output gate")
-                        else:
-                            output = True
-                    _, gate, rest = rest.split(None, 2)
-                    inputs = [int(i) for i in rest.split()]
-                    try:
-                        bp.append(gates[gate.upper()](*inputs))
-                    except KeyError:
-                        raise ParseException("unsupported gate '%s'" % gate)
-                    except TypeError:
-                        raise ParseException("incorrect number of arguments given")
-                else:
-                    raise ParseException("unknown type")
-        if not output:
-            raise ParseException("no output gate found")
-        self.bp = bp[-1]
+        def _new_gate(bp, num):
+            bp.append([Layer(int(num), self.zero, self.one)])
+        def _gate(bp, num, lineno, gate, inputs):
+            bp.append(gates[gate.upper()](*inputs))
+        self.bp, _, self.ninputs, self.depth = parse(fname, bp, _new_gate, _gate)
 
     def randomize(self, prime, alphas=None):
         assert not self.randomized

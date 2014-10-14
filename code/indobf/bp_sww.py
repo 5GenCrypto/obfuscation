@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import networkx as nx
+from circuit import parse
 from sage.all import copy, GF, MatrixSpace, VectorSpace, ZZ
 from branchingprogram import AbstractBranchingProgram, ParseException, Layer
 import utils
@@ -202,50 +203,18 @@ class SWWBranchingProgram(AbstractBranchingProgram):
             'NOT': lambda num, in1: _not_gate(num, bp[in1], in1),
             'XOR': lambda num, in1, in2: _xor_gate(num, bp[in1], in1, bp[in2], in2),
         }
-        output = False
         wires = set()
-        with open(fname) as f:
-            for lineno, line in enumerate(f, 1):
-                if line.startswith('#'):
-                    continue
-                elif line.startswith(':'):
-                    self._parse_param(line)
-                    continue
-                num, rest = line.split(None, 1)
-                try:
-                    num = int(num)
-                except ValueError:
-                    raise ParseException(
-                        'Line %d: gate index not a number' % lineno)
-                if rest.startswith('input'):
-                    bp.append(_new_gate(num))
-                    self.nlayers += 1
-                elif rest.startswith('gate') or rest.startswith('output'):
-                    if rest.startswith('output'):
-                        if output:
-                            raise ParseException(
-                                'Line %d: only one output gate supported' % lineno)
-                        else:
-                            output = True
-                    _, gate, rest = rest.split(None, 2)
-                    inputs = [int(i) for i in rest.split()]
-                    if wires.intersection(inputs):
-                        raise ParseException(
-                            'Line %d: only Boolean formulas supported' % lineno)
-                    wires.update(inputs)
-                    try:
-                        bp.append(gates[gate.upper()](num, *inputs))
-                    except KeyError:
-                        raise ParseException(
-                            'Line %d: unsupported gate %s' % (lineno, gate))
-                    except TypeError:
-                        raise ParseException(
-                            'Line %d: incorrect number of arguments given' % lineno)
-                else:
-                    raise ParseException('Line %d: unknown gate type' % lineno)
-        if not output:
-            raise ParseException('no output gate found')
-        return bp[-1]
+        def _inp_gate(bp, num):
+            bp.append(_new_gate(num))
+        def _gate(bp, num, lineno, gate, inputs):
+            if wires.intersection(inputs):
+                raise ParseException(
+                    'Line %d: only Boolean formulas supported' % lineno)
+            wires.update(inputs)
+            bp.append(gates[gate.upper()](num, *inputs))
+        bp, self.nlayers, self.ninputs, self.depth = parse(fname, bp, _inp_gate,
+                                                           _gate)
+        return bp
 
     def _obliviate_graph(self, graph):
         assert self.ninputs
