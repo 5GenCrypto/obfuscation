@@ -45,7 +45,7 @@ def parse(fname, bp, f_inp_gate, f_gate):
                 _, gate, rest = rest.split(None, 2)
                 inputs = [int(i) for i in rest.split()]
                 try:
-                    f_gate(bp, num, lineno, gate, inputs)
+                    f_gate(bp, num, lineno, gate.upper(), inputs)
                 except KeyError:
                     raise ParseException(
                         'Line %d: unsupported gate %s' % (lineno, gate))

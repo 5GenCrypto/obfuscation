@@ -5,24 +5,27 @@ from __future__ import print_function
 from bp_sww import SWWBranchingProgram
 from bp_barrington import BarringtonBranchingProgram
 from test import test_circuit
+import zobfuscator as zobf
 
 import argparse, os, sys, time
 
 def bp(args):
     testdir = 'circuits'
-    if args.barrington:
-        bpclass = BarringtonBranchingProgram
+    if args.zimmerman:
+        cls = zobf.Circuit
+    elif args.barrington:
+        cls = BarringtonBranchingProgram
     else:
-        bpclass = SWWBranchingProgram
+        cls = SWWBranchingProgram
     if args.test_circuit:
-        test_circuit(args.test_circuit, bpclass, None, False, args)
+        test_circuit(args.test_circuit, cls, None, False, args)
     if args.test_all:
         for circuit in os.listdir('circuits'):
             path = os.path.join(testdir, circuit)
             if os.path.isfile(path) and path.endswith('.circ'):
-                test_circuit(path, bpclass, None, False, args)
+                test_circuit(path, cls, None, False, args)
     if args.load_circuit:
-        bp = bpclass(args.load_circuit, verbose=args.verbose)
+        bp = cls(args.load_circuit, verbose=args.verbose)
         if args.obliviate:
             bp.obliviate()
         if args.eval:
@@ -30,7 +33,6 @@ def bp(args):
             print('Output = %d' % r)
 
 def zimmerman(args):
-    import zimmerman as z
     print("\x1b[31mError:\x1b[0m Zimmerman approach not implemented yet")
 
 def obf(args):
@@ -113,6 +115,8 @@ def main():
                            help="use Barrington's approach")
     parser_bp.add_argument('-v', '--verbose', action='store_true',
                            help='be verbose')
+    parser_bp.add_argument('-z', '--zimmerman', action='store_true',
+                           help='use the Zimmerman construction')
     parser_bp.set_defaults(func=bp)
 
     parser_obf = subparsers.add_parser(

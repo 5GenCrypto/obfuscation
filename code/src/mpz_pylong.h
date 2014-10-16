@@ -1,7 +1,7 @@
 #ifndef MPZ_PYLONG_H
 #define MPZ_PYLONG_H
 
-#include <Python.h>
+#include <python2.7/Python.h>
 #include <gmp.h>
 
 /* mpz -> pylong conversion */

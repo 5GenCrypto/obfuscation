@@ -29,9 +29,9 @@ obfuscator = Extension(
     extra_compile_args=compile_args,
     sources=[
         'src/_obfuscator.cpp',
+        'src/_zobfuscator.cpp',
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
-        'src/pyutils.cpp',
         'src/utils.cpp',
     ]
 )

@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
 import random, sys
+from math import log
 
 def error():
     print('Usage: point.py <bitlength>')
@@ -20,6 +21,8 @@ def main(argv):
         error()
 
     with open('point-%d.circ' % bitlength, 'w') as f:
+        f.write(': nins %d\n' % bitlength)
+        f.write(': depth %d\n' % (int(log(bitlength, 2) + 2)))
         secret = random_bitstring(bitlength)
         f.write('# TEST %s 1\n' % secret)
         for _ in xrange(5):

@@ -211,7 +211,7 @@ class SWWBranchingProgram(AbstractBranchingProgram):
                 raise ParseException(
                     'Line %d: only Boolean formulas supported' % lineno)
             wires.update(inputs)
-            bp.append(gates[gate.upper()](num, *inputs))
+            bp.append(gates[gate](num, *inputs))
         bp, self.nlayers, self.ninputs, self.depth = parse(fname, bp, _inp_gate,
                                                            _gate)
         return bp
