@@ -58,11 +58,10 @@ void
 mpz_mod_near(mpz_t out, const mpz_t a, const mpz_t b);
 
 void
-mat_mult(mpz_t *a, const mpz_t *b, int size);
+mult_vect_by_mat(mpz_t *v, const mpz_t *m, mpz_t q, int size);
 
 void
-mat_mult_by_vects(mpz_t out, const mpz_t *s, const mpz_t *m, const mpz_t *t,
-				  int size);
+mult_vect_by_vect(mpz_t out, const mpz_t *m, const mpz_t *v, mpz_t q, int size);
 
 int
 is_zero(mpz_t c, mpz_t pzt, mpz_t x0, long nu);

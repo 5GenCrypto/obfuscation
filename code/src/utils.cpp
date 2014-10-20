@@ -204,73 +204,60 @@ mpz_mod_near(mpz_t out, const mpz_t a, const mpz_t b)
 }
 
 void
-mat_mult(mpz_t *a, const mpz_t *b, int size)
+mult_vect_by_mat(mpz_t *v, const mpz_t *m, mpz_t q, int size)
 {
-    mpz_t *tmparray;
-    double start, end;
+	mpz_t *tmparray;
+	double start, end;
 
-    start = current_time();
-    tmparray = (mpz_t *) malloc(sizeof(mpz_t) * size * size);
-    for (int i = 0; i < size * size; ++i) {
+	start = current_time();
+	tmparray = (mpz_t *) malloc(sizeof(mpz_t) * size);
+	for (int i = 0; i < size; ++i) {
         mpz_init(tmparray[i]);
     }
 #pragma omp parallel for
-    for (int ctr = 0; ctr < size * size; ++ctr) {
-        mpz_t tmp, sum;
-        mpz_inits(tmp, sum, NULL);
-        for (int i = 0; i < size; ++i) {
-            mpz_mul(tmp,
-                    a[i * size + ctr % size],
-                    b[i + size * (ctr / size)]);
-            mpz_add(sum, sum, tmp);
-        }
-        mpz_set(tmparray[ctr], sum);
-        mpz_clears(tmp, sum, NULL);
-    }
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "    Multiplying took: %f\n", end - start);
-
-    start = current_time();
-    for (int i = 0; i < size * size; ++i) {
-        mpz_swap(a[i], tmparray[i]);
+	for (int i = 0; i < size; ++i) {
+		mpz_t tmp, sum;
+		mpz_inits(tmp, sum, NULL);
+		for (int j = 0; j < size; ++j) {
+			mpz_mul(tmp, v[j], m[i * size + j]);
+			mpz_add(sum, sum, tmp);
+		}
+		mpz_mod_near(sum, sum, q);
+		mpz_set(tmparray[i], sum);
+		mpz_clears(tmp, sum, NULL);
+	}
+	for (int i = 0; i < size; ++i) {
+        mpz_swap(v[i], tmparray[i]);
         mpz_clear(tmparray[i]);
     }
     free(tmparray);
     end = current_time();
     if (g_verbose)
-        (void) fprintf(stderr, "    Swapping took: %f\n", end - start);
+        (void) fprintf(stderr, "    Multiplying took: %f\n", end - start);
 }
 
 void
-mat_mult_by_vects(mpz_t out, const mpz_t *s, const mpz_t *m, const mpz_t *t,
-                  int size)
+mult_vect_by_vect(mpz_t out, const mpz_t *v, const mpz_t *u, mpz_t q, int size)
 {
-    double start, end;
+	double start, end;
 
-    mpz_set_ui(out, 0);
-
-    start = current_time();
+	start = current_time();
+	mpz_set_ui(out, 0);
 #pragma omp parallel for
-    for (int col = 0; col < size; ++col) {
-        mpz_t tmp;
-        mpz_t sum;
-        mpz_inits(tmp, sum, NULL);
-        for (int row = 0; row < size; ++row) {
-            int elem = col * size + row;
-            mpz_mul(tmp, s[row], m[elem]);
-            mpz_add(sum, sum, tmp);
-        }
-        mpz_mul(tmp, sum, t[col]);
+	for (int i = 0; i < size; ++i) {
+		mpz_t tmp;
+		mpz_init(tmp);
+		mpz_mul(tmp, v[i], u[i]);
+		mpz_mod_near(tmp, tmp, q);
 #pragma omp critical
-        {
-            mpz_add(out, out, tmp);
-        }
-        mpz_clears(tmp, sum, NULL);
-    }
-    end = current_time();
+		{
+			mpz_add(out, out, tmp);
+		}
+		mpz_clears(tmp, NULL);
+	}
+	end = current_time();
     if (g_verbose)
-        (void) fprintf(stderr, "  Multiplying by vectors took: %f\n",
+        (void) fprintf(stderr, "  Multiplying took: %f\n",
                        end - start);
 }
 

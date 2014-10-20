@@ -294,10 +294,11 @@ obf_evaluate(PyObject *self, PyObject *args)
     int fnamelen;
     int iszero = -1;
     mpz_t *comp, *s, *t;
-    mpz_t p, tmp;
+    mpz_t p, tmp, q;
     long bplen, size;
     int err = 0;
     int islayered;
+	double start, end;
 
     if (!PyArg_ParseTuple(args, "ssli", &dir, &input, &bplen, &islayered))
         return NULL;
@@ -308,12 +309,16 @@ obf_evaluate(PyObject *self, PyObject *args)
     if (fname == NULL)
         return NULL;
 
-    mpz_inits(tmp, p, NULL);
+    mpz_inits(p, tmp, q, NULL);
 
     // Get the size of the matrices
     (void) snprintf(fname, fnamelen, "%s/size", dir);
     (void) load_mpz_scalar(fname, tmp);
     size = mpz_get_ui(tmp);
+	// Load q
+	(void) snprintf(fname, fnamelen, "%s/q", dir);
+	(void) load_mpz_scalar(fname, q);
+
 
     comp = (mpz_t *) pymalloc(sizeof(mpz_t) * size * size);
     s = (mpz_t *) pymalloc(sizeof(mpz_t) * size);
@@ -337,7 +342,6 @@ obf_evaluate(PyObject *self, PyObject *args)
 
     for (int layer = 0; layer < bplen; ++layer) {
         unsigned int input_idx;
-        double start, end;
 
         start = current_time();
 
@@ -364,19 +368,12 @@ obf_evaluate(PyObject *self, PyObject *args)
 
         if (layer == 0) {
             (void) load_mpz_vector(fname, comp, size * size);
+			(void) snprintf(fname, fnamelen, "%s/s_enc", dir);
+			(void) load_mpz_vector(fname, s, size);
+			mult_vect_by_mat(s, comp, q, size);
         } else {
-            mpz_t *tmparray;
-
-            tmparray = (mpz_t *) malloc(sizeof(mpz_t) * size * size);
-            for (int i = 0; i < size * size; ++i) {
-                mpz_init(tmparray[i]);
-            }
-            (void) load_mpz_vector(fname, tmparray, size * size);
-            mat_mult(comp, tmparray, size);
-            for (int i = 0; i < size * size; ++i) {
-                mpz_clear(tmparray[i]);
-            }
-            free(tmparray);
+			(void) load_mpz_vector(fname, comp, size * size);
+			mult_vect_by_mat(s, comp, q, size);
         }
         if (!islayered) {
             if (input[input_idx] == '0') {
@@ -387,7 +384,6 @@ obf_evaluate(PyObject *self, PyObject *args)
             (void) load_mpz_scalar(fname, tmp);
             mpz_mul(p, p, tmp);
         }
-
         end = current_time();
 
         if (g_verbose)
@@ -396,30 +392,25 @@ obf_evaluate(PyObject *self, PyObject *args)
     }
 
     if (!err) {
-        double start, end;
-        mpz_t pzt, q, nu;
-
         start = current_time();
 
-        mpz_inits(pzt, q, nu, NULL);
-        (void) snprintf(fname, fnamelen, "%s/s_enc", dir);
-        (void) load_mpz_vector(fname, s, size);
         (void) snprintf(fname, fnamelen, "%s/t_enc", dir);
         (void) load_mpz_vector(fname, t, size);
-        mat_mult_by_vects(tmp, s, comp, t, size);
-        (void) snprintf(fname, fnamelen, "%s/pzt", dir);
-        (void) load_mpz_scalar(fname, pzt);
-        (void) snprintf(fname, fnamelen, "%s/q", dir);
-        (void) load_mpz_scalar(fname, q);
-        (void) snprintf(fname, fnamelen, "%s/nu", dir);
-        (void) load_mpz_scalar(fname, nu);
-        if (!islayered) {
-            mpz_sub(tmp, tmp, p);
-        }
-        iszero = is_zero(tmp, pzt, q, mpz_get_ui(nu));
+		mult_vect_by_vect(tmp, s, t, q, size);
 
-        mpz_clears(pzt, q, nu, NULL);
-
+		{
+			mpz_t pzt, nu;
+			mpz_inits(pzt, nu, NULL);
+			(void) snprintf(fname, fnamelen, "%s/pzt", dir);
+			(void) load_mpz_scalar(fname, pzt);
+			(void) snprintf(fname, fnamelen, "%s/nu", dir);
+			(void) load_mpz_scalar(fname, nu);
+			if (!islayered) {
+				mpz_sub(tmp, tmp, p);
+			}
+			iszero = is_zero(tmp, pzt, q, mpz_get_ui(nu));
+			mpz_clears(pzt, nu, NULL);
+		}
         end = current_time();
         if (g_verbose)
             (void) fprintf(stderr, "  Zero test: %f\n", end - start);
@@ -433,7 +424,7 @@ obf_evaluate(PyObject *self, PyObject *args)
     }
 
  cleanup:
-    mpz_clears(tmp, p, NULL);
+    mpz_clears(p, tmp, q, NULL);
 
     if (comp)
         free(comp);
