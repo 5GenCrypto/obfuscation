@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "pyutils.h"
 
 static void
 encode(struct state *s, mpz_t out, mpz_t in1, mpz_t in2,

@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "pyutils.h"
 
 #include <omp.h>
 #ifdef ATTACK
@@ -294,13 +295,12 @@ obf_evaluate(PyObject *self, PyObject *args)
     int fnamelen;
     int iszero = -1;
     mpz_t *comp, *s, *t;
-    mpz_t p, tmp, q;
+    mpz_t tmp, q;
     long bplen, size;
     int err = 0;
-    int islayered;
 	double start, end;
 
-    if (!PyArg_ParseTuple(args, "ssli", &dir, &input, &bplen, &islayered))
+    if (!PyArg_ParseTuple(args, "ssl", &dir, &input, &bplen))
         return NULL;
 
     fnamelen = strlen(dir) + 20; // XXX: should include bplen somewhere
@@ -309,7 +309,7 @@ obf_evaluate(PyObject *self, PyObject *args)
     if (fname == NULL)
         return NULL;
 
-    mpz_inits(p, tmp, q, NULL);
+    mpz_inits(tmp, q, NULL);
 
     // Get the size of the matrices
     (void) snprintf(fname, fnamelen, "%s/size", dir);
@@ -333,11 +333,6 @@ obf_evaluate(PyObject *self, PyObject *args)
     }
     for (int i = 0; i < size * size; ++i) {
         mpz_init(comp[i]);
-    }
-
-    if (!islayered) {
-        (void) snprintf(fname, fnamelen, "%s/p_enc", dir);
-        (void) load_mpz_scalar(fname, p);
     }
 
     for (int layer = 0; layer < bplen; ++layer) {
@@ -375,15 +370,6 @@ obf_evaluate(PyObject *self, PyObject *args)
 			(void) load_mpz_vector(fname, comp, size * size);
 			mult_vect_by_mat(s, comp, q, size);
         }
-        if (!islayered) {
-            if (input[input_idx] == '0') {
-                (void) snprintf(fname, fnamelen, "%s/%d.a0_enc", dir, layer);
-            } else {
-                (void) snprintf(fname, fnamelen, "%s/%d.a1_enc", dir, layer);
-            }
-            (void) load_mpz_scalar(fname, tmp);
-            mpz_mul(p, p, tmp);
-        }
         end = current_time();
 
         if (g_verbose)
@@ -405,9 +391,6 @@ obf_evaluate(PyObject *self, PyObject *args)
 			(void) load_mpz_scalar(fname, pzt);
 			(void) snprintf(fname, fnamelen, "%s/nu", dir);
 			(void) load_mpz_scalar(fname, nu);
-			if (!islayered) {
-				mpz_sub(tmp, tmp, p);
-			}
 			iszero = is_zero(tmp, pzt, q, mpz_get_ui(nu));
 			mpz_clears(pzt, nu, NULL);
 		}
@@ -424,7 +407,7 @@ obf_evaluate(PyObject *self, PyObject *args)
     }
 
  cleanup:
-    mpz_clears(p, tmp, q, NULL);
+    mpz_clears(tmp, q, NULL);
 
     if (comp)
         free(comp);
@@ -478,20 +461,14 @@ obf_attack(PyObject *self, PyObject *args)
     double start, end;
     struct state *st;
     long kappa, bplen;
-    int islayered, nslots;
+    int nslots;
     PyObject *py_out;
 
     st = (struct state *) pymalloc(sizeof(struct state));
 
-    if (!PyArg_ParseTuple(args, "slilli", &st->dir, &bplen,
-                          &islayered, &st->secparam, &kappa, &nslots))
+    if (!PyArg_ParseTuple(args, "sllli", &st->dir, &bplen,
+                          &st->secparam, &kappa, &nslots))
         return NULL;
-
-    if (!islayered) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "Attack not implemented for Barrington's approach");
-        return NULL;
-    }
 
     mpz_inits(b, out, omega, Omega, q, NULL);
 

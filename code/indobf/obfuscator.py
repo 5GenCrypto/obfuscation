@@ -126,9 +126,11 @@ class AbstractObfuscator(object):
         self.logger('Evaluating %s...' % inp)
         start = time.time()
         is_sww = True if type(self) == SWWObfuscator else False
+        if not is_sww:
+            raise Exception("Barrington's approach no longer supported")
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        result = _obf.evaluate(directory, inp, len(inputs), is_sww)
+        result = _obf.evaluate(directory, inp, len(inputs))
         end = time.time()
         self.logger('Took: %f' % (end - start))
         if self._verbose:

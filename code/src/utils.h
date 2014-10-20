@@ -1,7 +1,6 @@
 #ifndef __IND_OBFUSCATION__UTILS_H__
 #define __IND_OBFUSCATION__UTILS_H__
 
-#include <python2.7/Python.h>
 #include <gmp.h>
 
 #define SUCCESS 1
@@ -23,18 +22,6 @@ struct state {
     mpz_t *zinvs;
     char *dir;
 };
-
-void
-state_destructor(PyObject *self);
-
-void *
-pymalloc(const size_t size);
-
-PyObject *
-mpz_to_py(const mpz_t in);
-
-void
-py_to_mpz(mpz_t out, PyObject *in);
 
 double
 current_time(void);
@@ -74,14 +61,5 @@ write_scalar(struct state *s, mpz_t val, char *name);
 
 int
 write_setup_params(struct state *s, long nu);
-
-PyObject *
-obf_verbose(PyObject *self, PyObject *args);
-
-PyObject *
-obf_setup(PyObject *self, PyObject *args);
-
-PyObject *
-obf_max_mem_usage(PyObject *self, PyObject *args);
 
 #endif
