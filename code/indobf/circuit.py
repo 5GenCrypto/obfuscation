@@ -1,3 +1,7 @@
+
+class ParseException(Exception):
+    pass
+
 def _parse_param(line):
     try:
         _, param, value = line.split()

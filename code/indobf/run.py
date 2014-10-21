@@ -2,8 +2,7 @@
 
 from __future__ import print_function
 
-from bp_sww import SWWBranchingProgram
-from bp_barrington import BarringtonBranchingProgram
+from bp import BranchingProgram
 from test import test_circuit
 import zobfuscator as zobf
 
@@ -13,10 +12,8 @@ def bp(args):
     testdir = 'circuits'
     if args.zimmerman:
         cls = zobf.Circuit
-    elif args.barrington:
-        cls = BarringtonBranchingProgram
     else:
-        cls = SWWBranchingProgram
+        cls = BranchingProgram
     if args.test_circuit:
         test_circuit(args.test_circuit, cls, None, False, args)
     if args.test_all:
@@ -36,19 +33,17 @@ def zimmerman(args):
     print("\x1b[31mError:\x1b[0m Zimmerman approach not implemented yet")
 
 def obf(args):
-    from obfuscator import BarringtonObfuscator, SWWObfuscator
+    from obfuscator import Obfuscator
     if args.zimmerman:
         zimmerman(args)
         return
 
     if args.nslots is None:
         args.nslots = args.secparam
-    if args.barrington:
-        bpclass = BarringtonBranchingProgram
-        obfclass = BarringtonObfuscator
-    else:
-        bpclass = SWWBranchingProgram
-        obfclass = SWWObfuscator
+
+    bpclass = BranchingProgram
+    obfclass = Obfuscator
+
     if args.test_circuit:
         if args.attack:
             print("\x1b[31mError:\x1b[0m --attack flag cannot be run with --test-circuit flag")
@@ -111,8 +106,6 @@ def main():
 
     parser_bp.add_argument('--obliviate', action='store_true',
                            help='obliviate the branching program')
-    parser_bp.add_argument('--barrington', action='store_true',
-                           help="use Barrington's approach")
     parser_bp.add_argument('-v', '--verbose', action='store_true',
                            help='be verbose')
     parser_bp.add_argument('-z', '--zimmerman', action='store_true',
@@ -143,8 +136,6 @@ def main():
 
     parser_obf.add_argument('--obliviate', action='store_true',
                             help='obliviate the branching program')
-    parser_obf.add_argument('--barrington', action='store_true',
-                            help="use Barrington's approach")
     parser_obf.add_argument('--nslots', metavar='N', type=int, action='store',
                             default=None, help='number of slots to fill (None sets number to secparam)')
     parser_obf.add_argument('-v', '--verbose', action='store_true', 

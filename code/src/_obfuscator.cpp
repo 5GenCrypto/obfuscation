@@ -319,7 +319,6 @@ obf_evaluate(PyObject *self, PyObject *args)
 	(void) snprintf(fname, fnamelen, "%s/q", dir);
 	(void) load_mpz_scalar(fname, q);
 
-
     comp = (mpz_t *) pymalloc(sizeof(mpz_t) * size * size);
     s = (mpz_t *) pymalloc(sizeof(mpz_t) * size);
     t = (mpz_t *) pymalloc(sizeof(mpz_t) * size);

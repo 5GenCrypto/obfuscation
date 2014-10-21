@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from branchingprogram import ParseException
+from circuit import ParseException
 import zobfuscator as zobf
 
 from sage.all import random_prime

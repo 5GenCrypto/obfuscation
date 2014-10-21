@@ -32,6 +32,7 @@ obfuscator = Extension(
         'src/_zobfuscator.cpp',
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
+        'src/pyutils.cpp',
         'src/utils.cpp',
     ]
 )
