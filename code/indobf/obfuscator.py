@@ -37,11 +37,11 @@ class Obfuscator(object):
         self.logger('Took: %f' % (end - start))
         return primes
 
-    def _construct_bps(self, n, circuit, primes, obliviate):
+    def _construct_bps(self, nslots, circuit, primes, obliviate):
         self.logger('Constructing %d BP...' % n)
         start = time.time()
         bps = []
-        for _, prime in zip(xrange(n), primes):
+        for _, prime in zip(xrange(nslots), primes):
             bp = BranchingProgram(circuit, prime, verbose=self._verbose,
                                   obliviate=obliviate)
             bp.set_straddling_sets()
