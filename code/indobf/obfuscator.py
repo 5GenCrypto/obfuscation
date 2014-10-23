@@ -38,7 +38,7 @@ class Obfuscator(object):
         return primes
 
     def _construct_bps(self, nslots, circuit, primes, obliviate):
-        self.logger('Constructing %d BP...' % n)
+        self.logger('Constructing %d BP...' % nslots)
         start = time.time()
         bps = []
         for _, prime in zip(xrange(nslots), primes):
