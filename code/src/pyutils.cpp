@@ -2,6 +2,8 @@
 #include "utils.h"
 #include "mpz_pylong.h"
 
+#include <sys/resource.h>
+
 void
 state_destructor(PyObject *self)
 {
