@@ -586,14 +586,14 @@ obf_attack(PyObject *self, PyObject *args)
         for (int i = 0; i < nslots; ++i) {
             mpz_inits(ms[i], NULL);
         }
-        for (int i = 0; i < st->n; ++i) {
+        for (unsigned int i = 0; i < st->n; ++i) {
             mpz_inits(hs[i], ps[i], rs[i], st->gs[i], NULL);
         }
 
         /* Generate p_i's and g_i's */
         start = current_time();
 #pragma omp parallel for
-        for (int i = 0; i < st->n; ++i) {
+        for (unsigned int i = 0; i < st->n; ++i) {
             mpz_t p_unif;
             mpz_init(p_unif);
             mpz_urandomb(p_unif, st->rng, eta);
@@ -610,7 +610,7 @@ obf_attack(PyObject *self, PyObject *args)
         /* Compute h_i's */
         start = current_time();
 #pragma omp parallel for
-        for (int i = 0; i < st->n; ++i) {
+        for (unsigned int i = 0; i < st->n; ++i) {
             mpz_genrandom(hs[i], &st->rng, beta);
         }
         end = current_time();
@@ -620,7 +620,7 @@ obf_attack(PyObject *self, PyObject *args)
         /* Compute r_i's */
         start = current_time();
 #pragma omp parallel for
-        for (int i = 0; i < st->n; ++i) {
+        for (unsigned int i = 0; i < st->n; ++i) {
             mpz_genrandom(rs[i], &st->rng, rho_f);
         }
         end = current_time();
@@ -660,7 +660,7 @@ obf_attack(PyObject *self, PyObject *args)
             mpz_clears(tmp, qpi, NULL);
         }
 #pragma omp parallel for
-        for (int i = 0; i < st->n; ++i) {
+        for (unsigned int i = 0; i < st->n; ++i) {
             mpz_t tmp, qpi;
             mpz_inits(tmp, qpi, NULL);
             mpz_mul(tmp, hs[i], rs[i]);
@@ -683,7 +683,7 @@ obf_attack(PyObject *self, PyObject *args)
         for (int i = 0; i < nslots; ++i) {
             mpz_clears(ms[i], NULL);
         }
-        for (int i = 0; i < st->n; ++i) {
+        for (unsigned int i = 0; i < st->n; ++i) {
             mpz_clears(hs[i], ps[i], rs[i], NULL);
         }
         free(hs);
