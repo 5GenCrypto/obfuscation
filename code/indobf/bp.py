@@ -15,9 +15,9 @@ class Layer(object):
     def __repr__(self):
         return "input: %d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
             self.inp, self.zero, self.one, self.zeroset, self.oneset)
-    def conjugate(self, M, Mi):
-        return Layer(self.inp, Mi * self.zero * M, Mi * self.one * M,
-                     zeroset=self.zeroset, oneset=self.oneset)
+    # def conjugate(self, M, Mi):
+    #     return Layer(self.inp, Mi * self.zero * M, Mi * self.one * M,
+    #                  zeroset=self.zeroset, oneset=self.oneset)
     def group(self, group, prime):
         return Layer(self.inp, group(self.zero), group(self.one),
                      zeroset=self.zeroset, oneset=self.oneset)
@@ -30,7 +30,6 @@ class Layer(object):
     def mult_right(self, M):
         return Layer(self.inp, self.zero * M, self.one * M,
                      zeroset=self.zeroset, oneset=self.oneset)
-
 
 class _Graph(object):
     def __init__(self, inp, graph, nlayers, num):
