@@ -90,12 +90,20 @@ class SZBranchingProgram(object):
             left = matrix([[0, 0, 1], [0, 1, 0]])
             right = matrix([[0, 1], [1, 0]])
             return _two_input_gate(bp0, bp1, left, right)
+        def _id_gate(num, bp0):
+            left = matrix([[0, 0, 1], [1, 0, 0]])
+            right = matrix([[0, 1], [1, 0]])
+            return _two_input_gate(bp0, bp0, left, right)
         def _or_gate(num, bp0, bp1):
             left = matrix([[0, 1, 1], [1, -1, 0]])
             right = matrix([[0, 1], [1, 0]])
             return _two_input_gate(bp0, bp1, left, right)
+        def _not_gate(num, bp0):
+            left = matrix([[0, 0, 1], [-1, 0, 0]])
+            right = matrix([[0, 1], [1, 1]])
+            return _two_input_gate(bp0, bp0, left, right)
         def _xor_gate(num, bp0, bp1):
-            left = matrix([[0, 1, 1], [1, -21, 0]])
+            left = matrix([[0, 1, 1], [1, -2, 0]])
             right = matrix([[0, 1], [1, 0]])
             return _two_input_gate(bp0, bp1, left, right)
         bp = []
@@ -113,7 +121,9 @@ class SZBranchingProgram(object):
                         'Line %d: gate index not a number' % lineno)
                 gates = {
                     'AND': lambda num, in1, in2: _and_gate(num, bp[in1], bp[in2]),
+                    'ID': lambda num, in1: _id_gate(num, bp[in1]),
                     'OR': lambda num, in1, in2: _or_gate(num, bp[in1], bp[in2]),
+                    'NOT': lambda num, in1: _not_gate(num, bp[in1]),
                     'XOR': lambda num, in1, in2: _xor_gate(num, bp[in1], bp[in2]),
                 }
                 if rest.startswith('input'):
@@ -123,14 +133,14 @@ class SZBranchingProgram(object):
                         output = True
                     _, gate, rest = rest.split(None, 2)
                     inputs = [int(i) for i in rest.split()]
-                    # try:
-                    bp.append(gates[gate](num, *inputs))
-                    # except KeyError:
-                    #     raise ParseException(
-                    #         'Line %d: unsupported gate %s' % (lineno, gate))
-                    # except TypeError:
-                    #     raise ParseException(
-                    #         'Line %d: incorrect number of arguments given' % lineno)
+                    try:
+                        bp.append(gates[gate](num, *inputs))
+                    except KeyError:
+                        raise ParseException(
+                            'Line %d: unsupported gate %s' % (lineno, gate))
+                    except TypeError:
+                        raise ParseException(
+                            'Line %d: incorrect number of arguments given' % lineno)
         return bp[-1]
 
     def randomize(self, prime):
