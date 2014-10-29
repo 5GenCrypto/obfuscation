@@ -1,4 +1,4 @@
-Implementation of Indistinguishability Obfuscation
+Implementation of Cryptographic Obfuscation
 ==================================================
 
 To run, you'll need python (use 2.7.X), sage (use 6.1.1 or later), openmp
@@ -41,3 +41,5 @@ then runs the attack specified in Section 3.1.2 of the paper.  It prints out two
 values for g_1: one as generated during the obfuscation, and the other as
 extracted from the attack.  Thus, they should both be equal if the attack
 succeeds.
+
+To use the new Sahai-Zhandry scheme, use the `--sahai-zhandry` flag.
