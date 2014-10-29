@@ -81,7 +81,7 @@ obf_verbose(PyObject *self, PyObject *args)
 PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
-    long alpha, beta, eta, nu, kappa, rho_f;
+    long alpha, beta, eta, nu, kappa, rho_f, size;
     mpz_t *ps, *zs;
     PyObject *py_s, *py_gs;
     double start, end;
@@ -94,7 +94,7 @@ obf_setup(PyObject *self, PyObject *args)
     if (py_s == NULL)
         goto error;
     
-    if (!PyArg_ParseTuple(args, "lllls", &s->secparam, &kappa, &s->size,
+    if (!PyArg_ParseTuple(args, "lllls", &s->secparam, &kappa, &size,
                           &s->nzs, &s->dir))
         goto error;
 
@@ -118,7 +118,7 @@ obf_setup(PyObject *self, PyObject *args)
         fprintf(stderr, "  Rho_f: %ld\n", rho_f);
         fprintf(stderr, "  N: %ld\n", s->n);
         fprintf(stderr, "  Number of Zs: %ld\n", s->nzs);
-        fprintf(stderr, "  Size: %ld\n", s->size);
+        // fprintf(stderr, "  Size: %ld\n", s->size);
     }
 
     ps = (mpz_t *) pymalloc(sizeof(mpz_t) * s->n);
@@ -258,7 +258,7 @@ obf_setup(PyObject *self, PyObject *args)
     if (g_verbose)
         (void) fprintf(stderr, "  Generating pzt: %f\n", end - start);
 
-    (void) write_setup_params(s, nu);
+    (void) write_setup_params(s, nu, size);
 
     for (unsigned long i = 0; i < s->n; ++i) {
         mpz_clear(ps[i]);

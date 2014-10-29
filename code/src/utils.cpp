@@ -143,6 +143,44 @@ mpz_mod_near(mpz_t out, const mpz_t a, const mpz_t b)
 }
 
 void
+mult_mats(mpz_t *result, const mpz_t *left, const mpz_t *right, const mpz_t q,
+		  long m, long n, long p)
+{
+	mpz_t *tmparray;
+	double start, end;
+
+	start = current_time();
+	tmparray = (mpz_t *) malloc(sizeof(mpz_t) * m * p);
+	for (int i = 0; i < m * p; ++i) {
+		mpz_init(tmparray[i]);
+	}
+#pragma omp parallel for
+	for (int i = 0; i < m; ++i) {
+		for (int j = 0; j < p; ++j) {
+			mpz_t tmp, sum;
+			mpz_inits(tmp, sum, NULL);
+			for (int k = 0; k < n; ++k) {
+				mpz_mul(tmp,
+						left[k * m + (i * m + j) % m],
+						right[k + p * ((i * m + j) / m)]);
+				mpz_add(sum, sum, tmp);
+				mpz_mod_near(sum, sum, q);
+			}
+			mpz_set(tmparray[i * n + j], sum);
+			mpz_clears(tmp, sum, NULL);
+		}
+	}
+	for (int i = 0; i < m * p; ++i) {
+		mpz_swap(result[i], tmparray[i]);
+		mpz_clear(tmparray[i]);
+	}
+	free(tmparray);
+	end = current_time();
+	if (g_verbose)
+		(void) fprintf(stderr, " Multiplying took: %f\n", end - start);
+}
+
+void
 mult_vect_by_mat(mpz_t *v, const mpz_t *m, mpz_t q, int size)
 {
 	mpz_t *tmparray;
@@ -247,7 +285,7 @@ write_scalar(struct state *s, mpz_t val, char *name)
 }
 
 int
-write_setup_params(struct state *s, long nu)
+write_setup_params(struct state *s, long nu, long size)
 {
     char *fname;
     int len;
@@ -264,9 +302,11 @@ write_setup_params(struct state *s, long nu)
     mpz_init(tmp);
 
     // save size
-    mpz_set_ui(tmp, s->size);
-    (void) snprintf(fname, len, "%s/size", s->dir);
-    (void) save_mpz_scalar(fname, tmp);
+	if (size > 0) {
+		mpz_set_ui(tmp, size);
+		(void) snprintf(fname, len, "%s/size", s->dir);
+		(void) save_mpz_scalar(fname, tmp);
+	}
     // save nu
     mpz_set_ui(tmp, nu);
     (void) snprintf(fname, len, "%s/nu", s->dir);

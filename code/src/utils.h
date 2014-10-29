@@ -11,7 +11,7 @@ extern int g_verbose;
 struct state {
     gmp_randstate_t rng;
     unsigned long secparam;
-    long size;
+    /* long size; */
     unsigned long n;
     unsigned long nzs;
     unsigned long rho;
@@ -45,6 +45,10 @@ void
 mpz_mod_near(mpz_t out, const mpz_t a, const mpz_t b);
 
 void
+mult_mats(mpz_t *result, const mpz_t *left, const mpz_t *right, const mpz_t q,
+		  long m, long n, long p);
+
+void
 mult_vect_by_mat(mpz_t *v, const mpz_t *m, mpz_t q, int size);
 
 void
@@ -60,6 +64,6 @@ int
 write_scalar(struct state *s, mpz_t val, char *name);
 
 int
-write_setup_params(struct state *s, long nu);
+write_setup_params(struct state *s, long nu, long size);
 
 #endif

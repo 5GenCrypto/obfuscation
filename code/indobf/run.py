@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 from bp import BranchingProgram
+from bp_sz import SZBranchingProgram
 from test import test_circuit
 import zobfuscator as zobf
 
@@ -12,6 +13,8 @@ def bp(args):
     testdir = 'circuits'
     if args.zimmerman:
         cls = zobf.Circuit
+    elif args.sahai_zhandry:
+        cls = SZBranchingProgram
     else:
         cls = BranchingProgram
     if args.test_circuit:
@@ -34,6 +37,7 @@ def zimmerman(args):
 
 def obf(args):
     from obfuscator import Obfuscator
+    from sz_obfuscator import SZObfuscator
     if args.zimmerman:
         zimmerman(args)
         return
@@ -41,8 +45,12 @@ def obf(args):
     if args.nslots is None:
         args.nslots = args.secparam
 
-    bpclass = BranchingProgram
-    obfclass = Obfuscator
+    if args.sahai_zhandry:
+        bpclass = SZBranchingProgram
+        obfclass = SZObfuscator
+    else:
+        bpclass = BranchingProgram
+        obfclass = Obfuscator
 
     if args.test_circuit:
         if args.attack:
@@ -107,6 +115,8 @@ def main():
                            help='obliviate the branching program')
     parser_bp.add_argument('-v', '--verbose', action='store_true',
                            help='be verbose')
+    parser_bp.add_argument('-s', '--sahai-zhandry', action='store_true',
+                           help='use the Sahai/Zhandry construction')
     parser_bp.add_argument('-z', '--zimmerman', action='store_true',
                            help='use the Zimmerman construction')
     parser_bp.set_defaults(func=bp)
@@ -138,6 +148,8 @@ def main():
                             default=None, help='number of slots to fill (None sets number to secparam)')
     parser_obf.add_argument('-v', '--verbose', action='store_true', 
                             help='be verbose')
+    parser_obf.add_argument('-s', '--sahai-zhandry', action='store_true',
+                            help='use the Sahai/Zhandry construction')
     parser_obf.add_argument('-z', '--zimmerman', action='store_true',
                             help='use the Zimmerman construction')
     parser_obf.set_defaults(func=obf)

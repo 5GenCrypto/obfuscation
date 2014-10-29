@@ -38,8 +38,7 @@ def test_circuit(path, cclass, obfclass, obfuscate, args):
                 c = cclass(path, verbose=args.verbose)
             else:
                 prime = random_prime(2 ** args.secparam - 1)
-                c = cclass(path, prime, verbose=args.verbose,
-                           obliviate=args.obliviate)
+                c = cclass(path, verbose=args.verbose, obliviate=args.obliviate)
                 c.randomize(prime)
         except ParseException as e:
             print('\x1b[33mParse Error:\x1b[0m %s' % e)

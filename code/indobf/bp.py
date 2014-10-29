@@ -90,7 +90,7 @@ def contract(g, a, b, name):
     return g
 
 class BranchingProgram(object):
-    def __init__(self, fname, prime, verbose=False, obliviate=False):
+    def __init__(self, fname, verbose=False, obliviate=False):
         self._verbose = verbose
         self.logger = utils.make_logger(self._verbose)
         self.nlayers = 0
