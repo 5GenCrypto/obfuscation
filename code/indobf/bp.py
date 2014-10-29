@@ -291,9 +291,11 @@ class BranchingProgram(object):
         # subtract to determine how many dummy vertices we need to add.
         # If we have only one input, there's nothing to obliviate.
         if self.ninputs > 1:
-            # One XOR gate requires 5 nodes, and every additional XOR gate adds
-            # 2 more nodes
-            expected = 5 + 2 * (self.ninputs - 2)
+            # One XOR gate requires 5 nodes, and every additional *odd* XOR gate
+            # adds 2 more nodes
+            ngates = self.nlayers - 2
+            ngates = ngates + 1 if ngates % 2 == 0 and ngates != 0 else ngates
+            expected = 5 + 2 * ngates
             current = len(graph)
             for i in xrange(expected - current):
                 graph.graph.add_node('dummy-%d' % i)
