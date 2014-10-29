@@ -51,7 +51,7 @@ class SZObfuscator(object):
         self.logger('Randomizing BPs...')
         start = time.time()
         for bp, prime in zip(bps, primes):
-            # bp.randomize(prime)
+            bp.randomize(prime)
             bp.set_straddling_sets()
         end = time.time()
         self.logger('Took: %f' % (end - start))

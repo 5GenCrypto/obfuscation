@@ -43,7 +43,7 @@ class SZBranchingProgram(object):
         self.ninputs = None
         self.depth = None
         self.bp = None
-        self.randomized = False
+        self._randomized = False
         self.zero = None
         self.bp = self._load_formula(fname)
     def __len__(self):
@@ -106,8 +106,9 @@ class SZBranchingProgram(object):
             left = matrix([[0, 1, 1], [1, -2, 0]])
             right = matrix([[0, 1], [1, 0]])
             return _two_input_gate(bp0, bp1, left, right)
-        bp = []
         with open(fname) as f:
+            wires = set()
+            bp = []
             for lineno, line in enumerate(f, 1):
                 if line.startswith('#'):
                     continue
@@ -133,6 +134,10 @@ class SZBranchingProgram(object):
                         output = True
                     _, gate, rest = rest.split(None, 2)
                     inputs = [int(i) for i in rest.split()]
+                    if wires.intersection(inputs):
+                        raise ParseException(
+                            'Line %d: only Boolean formulas supported' % lineno)
+                    wires.update(inputs)
                     try:
                         bp.append(gates[gate](num, *inputs))
                     except KeyError:
@@ -144,8 +149,21 @@ class SZBranchingProgram(object):
         return bp[-1]
 
     def randomize(self, prime):
-        assert not self.randomized
-        
+        assert not self._randomized
+        prev = None
+        for i in xrange(0, len(self.bp)):
+            d_i_minus_one = self.bp[i].zero.nrows()
+            d_i = self.bp[i].zero.ncols()
+            MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), d_i_minus_one, d_i)
+            MSZp_square = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), d_i, d_i)
+            if i != 0:
+                MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), d_i_minus_one, d_i)
+                self.bp[i] = self.bp[i].group(MSZp, prime).mult_left(prev.adjoint())
+            if i != len(self.bp) - 1:
+                cur = MSZp_square.random_element()
+                self.bp[i] = self.bp[i].group(MSZp, prime).mult_right(cur)
+                prev = cur
+        # compute S * B_0
         d_0 = self.bp[0].zero.nrows()
         d_1 = self.bp[0].zero.ncols()
         S = matrix.identity(d_0)
@@ -153,15 +171,7 @@ class SZBranchingProgram(object):
             S[i, i] = random.randint(0, prime - 1)
         MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), d_0, d_1)
         self.bp[0] = self.bp[0].group(MSZp, prime).mult_left(S)
-        prev = None
-        for i in xrange(2, len(self.bp) - 1):
-            d_i = self.bp[i].zero.ncols()
-            MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), d_i, d_i)
-            cur = MSZp.random_element()
-            if prev is not None:
-                self.bp[i] = self.bp[i].group(MSZp, prime).mult_left(prev)
-            self.bp[i] = self.bp[i].group(MSZp, prime).mult_right(cur)
-            prev = cur
+        # compute B_ell * T
         r = self.bp[-1].zero.nrows()
         c = self.bp[-1].zero.ncols()
         T = matrix.identity(c)
@@ -169,7 +179,7 @@ class SZBranchingProgram(object):
             T[i, i] = random.randint(0, prime - 1)
         MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), r, c)
         self.bp[-1] = self.bp[-1].group(MSZp, prime).mult_right(T)
-        self.randomized = True
+        self._randomized = True
 
     def evaluate(self, x):
         assert self.bp
