@@ -57,8 +57,6 @@ class SZObfuscator(object):
         self.logger('Took: %f' % (end - start))
 
     def _obfuscate(self, bps, length):
-        print(bps[0])
-        print(len(bps[0]))
         for i in xrange(len(bps[0])):
             self.logger('Obfuscating layer...')
             start = time.time()

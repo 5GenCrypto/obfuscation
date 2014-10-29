@@ -162,7 +162,7 @@ mult_mats(mpz_t *result, const mpz_t *left, const mpz_t *right, const mpz_t q,
 			for (int k = 0; k < n; ++k) {
 				mpz_mul(tmp,
 						left[k * m + (i * m + j) % m],
-						right[k + p * ((i * m + j) / m)]);
+						right[k + n * ((i * m + j) / m)]);
 				mpz_add(sum, sum, tmp);
 				mpz_mod_near(sum, sum, q);
 			}
