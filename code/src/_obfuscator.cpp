@@ -401,20 +401,25 @@ obf_evaluate(PyObject *self, PyObject *args)
     long bplen, size;
     int err = 0;
     double start, end;
+
     if (!PyArg_ParseTuple(args, "ssl", &dir, &input, &bplen))
         return NULL;
     fnamelen = strlen(dir) + 20; // XXX: should include bplen somewhere
     fname = (char *) pymalloc(sizeof(char) * fnamelen);
     if (fname == NULL)
         return NULL;
+
     mpz_inits(tmp, q, NULL);
+
     // Get the size of the matrices
     (void) snprintf(fname, fnamelen, "%s/size", dir);
     (void) load_mpz_scalar(fname, tmp);
     size = mpz_get_ui(tmp);
+
     // Load q
     (void) snprintf(fname, fnamelen, "%s/q", dir);
     (void) load_mpz_scalar(fname, q);
+
     comp = (mpz_t *) pymalloc(sizeof(mpz_t) * size * size);
     s = (mpz_t *) pymalloc(sizeof(mpz_t) * size);
     t = (mpz_t *) pymalloc(sizeof(mpz_t) * size);
@@ -433,6 +438,7 @@ obf_evaluate(PyObject *self, PyObject *args)
     }
     for (int layer = 0; layer < bplen; ++layer) {
         unsigned int input_idx;
+
         start = current_time();
         // find out the input bit for the given layer
         (void) snprintf(fname, fnamelen, "%s/%d.input", dir, layer);
@@ -448,6 +454,7 @@ obf_evaluate(PyObject *self, PyObject *args)
             err = 1;
             break;
         }
+
         // load in appropriate matrix for the given input value
         if (input[input_idx] == '0') {
             (void) snprintf(fname, fnamelen, "%s/%d.zero", dir, layer);
@@ -465,10 +472,16 @@ obf_evaluate(PyObject *self, PyObject *args)
             (void) fprintf(stderr, " Multiplying matrices: %f\n",
                            end - start);
     }
+
     if (!err) {
+        start = current_time();
         (void) snprintf(fname, fnamelen, "%s/t_enc", dir);
         (void) load_mpz_vector(fname, t, size);
         mult_vect_by_vect(tmp, s, t, q, size);
+        end = current_time();
+        if (g_verbose)
+            (void) fprintf(stderr, " Multiplying vectors: %f\n",
+                           end - start);
 
         start = current_time();
         {
