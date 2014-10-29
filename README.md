@@ -9,9 +9,9 @@ Jonathan Katz, Alex J. Malozemoff. Cryptology ePrint Archive 2014/779.
 https://eprint.iacr.org/2014/779.
 
 We follow the general outlines of existing indistinguishability obfuscation
-literature, mainly the work of Ananth, Gupta, Ishai, and Sahai (CCS 2014:
+literature, mainly the work of Ananth, Gupta, Ishai, and Sahai (CCS 2014.
 https://eprint.iacr.org/2014/222), using a graded encoding scheme based on the
-code of Coron et al. (CRYPTO, 2013).
+code of Coron et al. (CRYPTO, 2013. https://eprint.iacr.org/2013/183).
 
 The implementation is in a mix of Python and C, using Sage
 (http://sagemath.org), GNU GMP (https://gmplib.org) and OpenMP
@@ -19,7 +19,7 @@ The implementation is in a mix of Python and C, using Sage
 branch should work most of the time.
 
 <b>NEW</b>: We now have an (alpha) implementation of the Sahai-Zhandry scheme
-(ePrint Cryptology Archive, 2014/773: https://eprint.iacr.org/2014/773)!
+(Cryptology ePrint Archive, 2014/773. https://eprint.iacr.org/2014/773)!
 
 Instructions for building and running the code are in code/README.md, and
 scripts for running experiments and processing the results are in the scripts/
