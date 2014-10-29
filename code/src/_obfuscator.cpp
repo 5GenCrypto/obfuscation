@@ -48,7 +48,7 @@ write_vector(struct state *s, mpz_t *vector, long size, char *name)
 
 static int
 write_layer(struct state *s, int inp, long idx, mpz_t *zero, mpz_t *one,
-			long nrows, long ncols)
+            long nrows, long ncols)
 {
     mpz_t tmp;
     char *fname;
@@ -68,10 +68,10 @@ write_layer(struct state *s, int inp, long idx, mpz_t *zero, mpz_t *one,
     (void) save_mpz_vector(fname, zero, nrows * ncols);
     (void) snprintf(fname, fnamelen, "%s/%ld.one", s->dir, idx);
     (void) save_mpz_vector(fname, one, nrows * ncols);
-	mpz_set_ui(tmp, nrows);
+    mpz_set_ui(tmp, nrows);
     (void) snprintf(fname, fnamelen, "%s/%ld.nrows", s->dir, idx);
     (void) save_mpz_scalar(fname, tmp);
-	mpz_set_ui(tmp, ncols);
+    mpz_set_ui(tmp, ncols);
     (void) snprintf(fname, fnamelen, "%s/%ld.ncols", s->dir, idx);
     (void) save_mpz_scalar(fname, tmp);
     free(fname);
@@ -191,7 +191,7 @@ obf_encode_layers(PyObject *self, PyObject *args)
     struct state *s;
 
     if (!PyArg_ParseTuple(args, "OllllOOOO", &py_state, &idx, &nrows, &ncols,
-						  &inp, &py_zero_ms, &py_one_ms, &py_zero_set, &py_one_set))
+                          &inp, &py_zero_ms, &py_one_ms, &py_zero_set, &py_one_set))
         return NULL;
 
     s = (struct state *) PyCapsule_GetPointer(py_state, NULL);
@@ -265,10 +265,10 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
     int iszero = -1;
 
     mpz_t tmp, q;
-	mpz_t *result = NULL;
+    mpz_t *result = NULL;
     long bplen, nrows, ncols = -1, nrows_prev = -1;
     int err = 0;
-	double start, end;
+    double start, end;
 
     if (!PyArg_ParseTuple(args, "ssl", &dir, &input, &bplen))
         return NULL;
@@ -281,23 +281,23 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
 
     mpz_inits(tmp, q, NULL);
 
-	// Load q
-	(void) snprintf(fname, fnamelen, "%s/q", dir);
-	(void) load_mpz_scalar(fname, q);
+    // Load q
+    (void) snprintf(fname, fnamelen, "%s/q", dir);
+    (void) load_mpz_scalar(fname, q);
 
     for (int layer = 0; layer < bplen; ++layer) {
         unsigned int input_idx;
-		mpz_t *left, *right;
+        mpz_t *left, *right;
 
         start = current_time();
 
-		// determine the size of the matrix
-		(void) snprintf(fname, fnamelen, "%s/%d.nrows", dir, layer);
-		(void) load_mpz_scalar(fname, tmp);
-		nrows = mpz_get_ui(tmp);
-		(void) snprintf(fname, fnamelen, "%s/%d.ncols", dir, layer);
-		(void) load_mpz_scalar(fname, tmp);
-		ncols = mpz_get_ui(tmp);
+        // determine the size of the matrix
+        (void) snprintf(fname, fnamelen, "%s/%d.nrows", dir, layer);
+        (void) load_mpz_scalar(fname, tmp);
+        nrows = mpz_get_ui(tmp);
+        (void) snprintf(fname, fnamelen, "%s/%d.ncols", dir, layer);
+        (void) load_mpz_scalar(fname, tmp);
+        ncols = mpz_get_ui(tmp);
 
         // find out the input bit for the given layer
         (void) snprintf(fname, fnamelen, "%s/%d.input", dir, layer);
@@ -321,33 +321,33 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
         }
 
         if (layer == 0) {
-			result = (mpz_t *) malloc(sizeof(mpz_t) * nrows * ncols);
-			for (int i = 0; i < nrows * ncols; ++i) {
-				mpz_init(result[i]);
-			}
+            result = (mpz_t *) malloc(sizeof(mpz_t) * nrows * ncols);
+            for (int i = 0; i < nrows * ncols; ++i) {
+                mpz_init(result[i]);
+            }
             (void) load_mpz_vector(fname, result, nrows * ncols);
-			mpz_set(tmp, result[0]);
-			nrows_prev = nrows;
+            mpz_set(tmp, result[0]);
+            nrows_prev = nrows;
         } else {
-			left = result;
-			right = (mpz_t *) malloc(sizeof(mpz_t) * nrows * ncols);
-			for (int i = 0; i < nrows * ncols; ++i) {
-				mpz_init(right[i]);
-			}
-			(void) load_mpz_vector(fname, right, nrows * ncols);
-			result = (mpz_t *) malloc(sizeof(mpz_t) * nrows_prev * ncols);
-			for (int i = 0; i < nrows_prev * ncols; ++i) {
-				mpz_init(result[i]);
-			}
-			mult_mats(result, left, right, q, nrows_prev, nrows, ncols);
-			for (int i = 0; i < nrows_prev * nrows; ++i) {
-				mpz_clear(left[i]);
-			}
-			for (int i = 0; i < nrows * ncols; ++i) {
-				mpz_clear(right[i]);
-			}
-			free(left);
-			free(right);
+            left = result;
+            right = (mpz_t *) malloc(sizeof(mpz_t) * nrows * ncols);
+            for (int i = 0; i < nrows * ncols; ++i) {
+                mpz_init(right[i]);
+            }
+            (void) load_mpz_vector(fname, right, nrows * ncols);
+            result = (mpz_t *) malloc(sizeof(mpz_t) * nrows_prev * ncols);
+            for (int i = 0; i < nrows_prev * ncols; ++i) {
+                mpz_init(result[i]);
+            }
+            mult_mats(result, left, right, q, nrows_prev, nrows, ncols);
+            for (int i = 0; i < nrows_prev * nrows; ++i) {
+                mpz_clear(left[i]);
+            }
+            for (int i = 0; i < nrows * ncols; ++i) {
+                mpz_clear(right[i]);
+            }
+            free(left);
+            free(right);
         }
         end = current_time();
 
@@ -357,25 +357,25 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
     }
 
     if (!err) {
-		mpz_t pzt, nu;
+        mpz_t pzt, nu;
 
         start = current_time();
-		mpz_inits(pzt, nu, NULL);
-		(void) snprintf(fname, fnamelen, "%s/pzt", dir);
-		(void) load_mpz_scalar(fname, pzt);
-		(void) snprintf(fname, fnamelen, "%s/nu", dir);
-		(void) load_mpz_scalar(fname, nu);
-		iszero = is_zero(result[1], pzt, q, mpz_get_ui(nu));
-		mpz_clears(pzt, nu, NULL);
-		end = current_time();
+        mpz_inits(pzt, nu, NULL);
+        (void) snprintf(fname, fnamelen, "%s/pzt", dir);
+        (void) load_mpz_scalar(fname, pzt);
+        (void) snprintf(fname, fnamelen, "%s/nu", dir);
+        (void) load_mpz_scalar(fname, nu);
+        iszero = is_zero(result[1], pzt, q, mpz_get_ui(nu));
+        mpz_clears(pzt, nu, NULL);
+        end = current_time();
         if (g_verbose)
             (void) fprintf(stderr, "  Zero test: %f\n", end - start);
     }
 
-	for (int i = 0; i < nrows_prev * ncols; ++i) {
-		mpz_clear(result[i]);
-	}
-	free(result);
+    for (int i = 0; i < nrows_prev * ncols; ++i) {
+        mpz_clear(result[i]);
+    }
+    free(result);
 
     mpz_clears(tmp, q, NULL);
 
@@ -391,120 +391,120 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
 static PyObject *
 obf_evaluate(PyObject *self, PyObject *args)
 {
-	char *dir = NULL;
-	char *input = NULL;
-	char *fname = NULL;
-	int fnamelen;
-	int iszero = -1;
-	mpz_t *comp, *s, *t;
-	mpz_t tmp, q;
-	long bplen, size;
-	int err = 0;
-	double start, end;
-	if (!PyArg_ParseTuple(args, "ssl", &dir, &input, &bplen))
-		return NULL;
-	fnamelen = strlen(dir) + 20; // XXX: should include bplen somewhere
-	fname = (char *) pymalloc(sizeof(char) * fnamelen);
-	if (fname == NULL)
-		return NULL;
-	mpz_inits(tmp, q, NULL);
-	// Get the size of the matrices
-	(void) snprintf(fname, fnamelen, "%s/size", dir);
-	(void) load_mpz_scalar(fname, tmp);
-	size = mpz_get_ui(tmp);
-	// Load q
-	(void) snprintf(fname, fnamelen, "%s/q", dir);
-	(void) load_mpz_scalar(fname, q);
-	comp = (mpz_t *) pymalloc(sizeof(mpz_t) * size * size);
-	s = (mpz_t *) pymalloc(sizeof(mpz_t) * size);
-	t = (mpz_t *) pymalloc(sizeof(mpz_t) * size);
-	if (!comp || !s || !t) {
-		err = 1;
-		goto cleanup;
+    char *dir = NULL;
+    char *input = NULL;
+    char *fname = NULL;
+    int fnamelen;
+    int iszero = -1;
+    mpz_t *comp, *s, *t;
+    mpz_t tmp, q;
+    long bplen, size;
+    int err = 0;
+    double start, end;
+    if (!PyArg_ParseTuple(args, "ssl", &dir, &input, &bplen))
+        return NULL;
+    fnamelen = strlen(dir) + 20; // XXX: should include bplen somewhere
+    fname = (char *) pymalloc(sizeof(char) * fnamelen);
+    if (fname == NULL)
+        return NULL;
+    mpz_inits(tmp, q, NULL);
+    // Get the size of the matrices
+    (void) snprintf(fname, fnamelen, "%s/size", dir);
+    (void) load_mpz_scalar(fname, tmp);
+    size = mpz_get_ui(tmp);
+    // Load q
+    (void) snprintf(fname, fnamelen, "%s/q", dir);
+    (void) load_mpz_scalar(fname, q);
+    comp = (mpz_t *) pymalloc(sizeof(mpz_t) * size * size);
+    s = (mpz_t *) pymalloc(sizeof(mpz_t) * size);
+    t = (mpz_t *) pymalloc(sizeof(mpz_t) * size);
+    if (!comp || !s || !t) {
+        err = 1;
+        goto cleanup;
     
-	}
-	for (int i = 0; i < size; ++i) {
-		mpz_inits(s[i], t[i], NULL);
+    }
+    for (int i = 0; i < size; ++i) {
+        mpz_inits(s[i], t[i], NULL);
     
-	}
-	for (int i = 0; i < size * size; ++i) {
-		mpz_init(comp[i]);
+    }
+    for (int i = 0; i < size * size; ++i) {
+        mpz_init(comp[i]);
     
-	}
-	for (int layer = 0; layer < bplen; ++layer) {
-		unsigned int input_idx;
-		start = current_time();
-		// find out the input bit for the given layer
-		(void) snprintf(fname, fnamelen, "%s/%d.input", dir, layer);
-		(void) load_mpz_scalar(fname, tmp);
-		input_idx = mpz_get_ui(tmp);
-		if (input_idx >= strlen(input)) {
-			PyErr_SetString(PyExc_RuntimeError, "invalid input");
-			err = 1;
-			break;
-		}
-		if (input[input_idx] != '0' && input[input_idx] != '1') {
-			PyErr_SetString(PyExc_RuntimeError, "input must be 0 or 1");
-			err = 1;
-			break;
-		}
-		// load in appropriate matrix for the given input value
-		if (input[input_idx] == '0') {
-			(void) snprintf(fname, fnamelen, "%s/%d.zero", dir, layer);
-		} else {
-			(void) snprintf(fname, fnamelen, "%s/%d.one", dir, layer);
-		}
-		(void) load_mpz_vector(fname, comp, size * size);
-		if (layer == 0) {
-			(void) snprintf(fname, fnamelen, "%s/s_enc", dir);
-			(void) load_mpz_vector(fname, s, size);
-		}
-		mult_vect_by_mat(s, comp, q, size);
-		end = current_time();
-		if (g_verbose)
-			(void) fprintf(stderr, " Multiplying matrices: %f\n",
-						   end - start);
-	}
-	if (!err) {
-		(void) snprintf(fname, fnamelen, "%s/t_enc", dir);
-		(void) load_mpz_vector(fname, t, size);
-		mult_vect_by_vect(tmp, s, t, q, size);
+    }
+    for (int layer = 0; layer < bplen; ++layer) {
+        unsigned int input_idx;
+        start = current_time();
+        // find out the input bit for the given layer
+        (void) snprintf(fname, fnamelen, "%s/%d.input", dir, layer);
+        (void) load_mpz_scalar(fname, tmp);
+        input_idx = mpz_get_ui(tmp);
+        if (input_idx >= strlen(input)) {
+            PyErr_SetString(PyExc_RuntimeError, "invalid input");
+            err = 1;
+            break;
+        }
+        if (input[input_idx] != '0' && input[input_idx] != '1') {
+            PyErr_SetString(PyExc_RuntimeError, "input must be 0 or 1");
+            err = 1;
+            break;
+        }
+        // load in appropriate matrix for the given input value
+        if (input[input_idx] == '0') {
+            (void) snprintf(fname, fnamelen, "%s/%d.zero", dir, layer);
+        } else {
+            (void) snprintf(fname, fnamelen, "%s/%d.one", dir, layer);
+        }
+        (void) load_mpz_vector(fname, comp, size * size);
+        if (layer == 0) {
+            (void) snprintf(fname, fnamelen, "%s/s_enc", dir);
+            (void) load_mpz_vector(fname, s, size);
+        }
+        mult_vect_by_mat(s, comp, q, size);
+        end = current_time();
+        if (g_verbose)
+            (void) fprintf(stderr, " Multiplying matrices: %f\n",
+                           end - start);
+    }
+    if (!err) {
+        (void) snprintf(fname, fnamelen, "%s/t_enc", dir);
+        (void) load_mpz_vector(fname, t, size);
+        mult_vect_by_vect(tmp, s, t, q, size);
 
-		start = current_time();
-		{
-			mpz_t pzt, nu;
-			mpz_inits(pzt, nu, NULL);
-			(void) snprintf(fname, fnamelen, "%s/pzt", dir);
-			(void) load_mpz_scalar(fname, pzt);
-			(void) snprintf(fname, fnamelen, "%s/nu", dir);
-			(void) load_mpz_scalar(fname, nu);
-			iszero = is_zero(tmp, pzt, q, mpz_get_ui(nu));
-			mpz_clears(pzt, nu, NULL);
-		}
-		end = current_time();
-		if (g_verbose)
-			(void) fprintf(stderr, " Zero test: %f\n", end - start);
-	}
-	for (int i = 0; i < size; ++i) {
-		mpz_clears(s[i], t[i], NULL);
-	}
-	for (int i = 0; i < size * size; ++i) {
-		mpz_clear(comp[i]);
-	}
+        start = current_time();
+        {
+            mpz_t pzt, nu;
+            mpz_inits(pzt, nu, NULL);
+            (void) snprintf(fname, fnamelen, "%s/pzt", dir);
+            (void) load_mpz_scalar(fname, pzt);
+            (void) snprintf(fname, fnamelen, "%s/nu", dir);
+            (void) load_mpz_scalar(fname, nu);
+            iszero = is_zero(tmp, pzt, q, mpz_get_ui(nu));
+            mpz_clears(pzt, nu, NULL);
+        }
+        end = current_time();
+        if (g_verbose)
+            (void) fprintf(stderr, " Zero test: %f\n", end - start);
+    }
+    for (int i = 0; i < size; ++i) {
+        mpz_clears(s[i], t[i], NULL);
+    }
+    for (int i = 0; i < size * size; ++i) {
+        mpz_clear(comp[i]);
+    }
 cleanup:
-	mpz_clears(tmp, q, NULL);
-	if (comp)
-		free(comp);
-	if (s)
-		free(s);
-	if (t)
-		free(t);
-	if (fname)
-		free(fname);
-	if (err)
-		return NULL;
-	else
-		return Py_BuildValue("i", iszero ? 0 : 1);
+    mpz_clears(tmp, q, NULL);
+    if (comp)
+        free(comp);
+    if (s)
+        free(s);
+    if (t)
+        free(t);
+    if (fname)
+        free(fname);
+    if (err)
+        return NULL;
+    else
+        return Py_BuildValue("i", iszero ? 0 : 1);
 }
 
 
@@ -565,7 +565,7 @@ obf_attack(PyObject *self, PyObject *args)
         int fnamelen;
         mpz_t *comp;
         mpz_t tmp, pzt, nu;
-		long size;
+        long size;
 
         fnamelen = strlen(st->dir) + 20; // XXX: should include bplen somewhere
         fname = (char *) pymalloc(sizeof(char) * fnamelen);
@@ -825,7 +825,7 @@ ObfMethods[] = {
      "Clean up objects created during setup."},
     {"evaluate", obf_evaluate, METH_VARARGS,
      "evaluate the obfuscation."},
-	{"sz_evaluate", obf_sz_evaluate, METH_VARARGS,
+    {"sz_evaluate", obf_sz_evaluate, METH_VARARGS,
      "evaluate the obfuscation."},
 #ifdef ATTACK
     {"attack", obf_attack, METH_VARARGS,

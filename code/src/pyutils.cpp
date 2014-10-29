@@ -297,4 +297,3 @@ obf_max_mem_usage(PyObject *self, PyObject *args)
 
     Py_RETURN_NONE;
 }
-

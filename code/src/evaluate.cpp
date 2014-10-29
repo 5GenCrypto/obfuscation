@@ -32,7 +32,7 @@ main(int argc, char *argv[])
 
     mpz_inits(tmp, pzt, nu, q, NULL);
 
-	(void) snprintf(fname, fnamelen, "%s/q", dir);
+    (void) snprintf(fname, fnamelen, "%s/q", dir);
     (void) load_mpz_scalar(fname, q);
     (void) snprintf(fname, fnamelen, "%s/size", dir);
     (void) load_mpz_scalar(fname, tmp);
@@ -55,7 +55,7 @@ main(int argc, char *argv[])
         mpz_init(comp[i]);
     }
 
-	(void) snprintf(fname, fnamelen, "%s/s_enc", dir);
+    (void) snprintf(fname, fnamelen, "%s/s_enc", dir);
     (void) load_mpz_vector(fname, s, width);
 
     for (layer = 0; /* empty */; ++layer) {
@@ -86,12 +86,12 @@ main(int argc, char *argv[])
 
         if (layer == 0) {
             (void) load_mpz_vector(fname, comp, width * width);
-			(void) snprintf(fname, fnamelen, "%s/s_enc", dir);
-			(void) load_mpz_vector(fname, s, width);
-			mult_vect_by_mat(s, comp, q, width);
+            (void) snprintf(fname, fnamelen, "%s/s_enc", dir);
+            (void) load_mpz_vector(fname, s, width);
+            mult_vect_by_mat(s, comp, q, width);
         } else {
-			(void) load_mpz_vector(fname, comp, width * width);
-			mult_vect_by_mat(s, comp, q, width);
+            (void) load_mpz_vector(fname, comp, width * width);
+            mult_vect_by_mat(s, comp, q, width);
         }
     }
 
