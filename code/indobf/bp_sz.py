@@ -75,6 +75,18 @@ class SZBranchingProgram(object):
                     n += 1
         return n
 
+    def obliviate(self):
+        assert self.ninputs and self.depth
+        assert not self.randomized
+        newbp = []
+        for m in self.bp:
+            for i in xrange(self.ninputs):
+                if m.inp == i:
+                    newbp.append(m)
+                else:
+                    newbp.append(Layer(i, self.zero, self.zero))
+        self.bp = newbp
+
     def _load_formula(self, fname):
         def _new_gate(num):
             zero = matrix([1, 0])
