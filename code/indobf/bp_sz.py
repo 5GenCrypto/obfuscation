@@ -91,17 +91,17 @@ class SZBranchingProgram(object):
             right = matrix([[0, 1], [1, 0]])
             return _two_input_gate(bp0, bp1, left, right)
         def _id_gate(num, bp0):
-            left = matrix([[0, 0, 1], [1, 0, 0]])
-            right = matrix([[0, 1], [1, 0]])
-            return _two_input_gate(bp0, bp0, left, right)
+            right = matrix([[1, 0], [0, 1]])
+            mult_right(bp0, right)
+            return bp0
         def _or_gate(num, bp0, bp1):
             left = matrix([[0, 1, 1], [1, -1, 0]])
             right = matrix([[0, 1], [1, 0]])
             return _two_input_gate(bp0, bp1, left, right)
         def _not_gate(num, bp0):
-            left = matrix([[0, 0, 1], [-1, 0, 0]])
-            right = matrix([[0, 1], [1, 1]])
-            return _two_input_gate(bp0, bp0, left, right)
+            right = matrix([[1, 1], [0, -1]])
+            mult_right(bp0, right)
+            return bp0
         def _xor_gate(num, bp0, bp1):
             left = matrix([[0, 1, 1], [1, -2, 0]])
             right = matrix([[0, 1], [1, 0]])
