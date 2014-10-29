@@ -116,9 +116,9 @@ def main():
     parser_bp.add_argument('-v', '--verbose', action='store_true',
                            help='be verbose')
     parser_bp.add_argument('-s', '--sahai-zhandry', action='store_true',
-                           help='use the Sahai/Zhandry construction')
+                           help='use the Sahai/Zhandry construction (alpha)')
     parser_bp.add_argument('-z', '--zimmerman', action='store_true',
-                           help='use the Zimmerman construction')
+                           help='use the Zimmerman construction (not working yet)')
     parser_bp.set_defaults(func=bp)
 
     parser_obf = subparsers.add_parser(
@@ -149,9 +149,9 @@ def main():
     parser_obf.add_argument('-v', '--verbose', action='store_true', 
                             help='be verbose')
     parser_obf.add_argument('-s', '--sahai-zhandry', action='store_true',
-                            help='use the Sahai/Zhandry construction')
+                            help='use the Sahai/Zhandry construction (alpha)')
     parser_obf.add_argument('-z', '--zimmerman', action='store_true',
-                            help='use the Zimmerman construction')
+                            help='use the Zimmerman construction (not working yet)')
     parser_obf.set_defaults(func=obf)
 
     args = parser.parse_args()
