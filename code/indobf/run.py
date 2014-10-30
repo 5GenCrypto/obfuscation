@@ -9,8 +9,9 @@ import zobfuscator as zobf
 
 import argparse, os, sys, time
 
+TESTDIR = 'circuits'
+
 def bp(args):
-    testdir = 'circuits'
     if args.zimmerman:
         cls = zobf.Circuit
     elif args.sahai_zhandry:
@@ -20,8 +21,8 @@ def bp(args):
     if args.test_circuit:
         test_circuit(args.test_circuit, cls, None, False, args)
     if args.test_all:
-        for circuit in os.listdir('circuits'):
-            path = os.path.join(testdir, circuit)
+        for circuit in os.listdir(TESTDIR):
+            path = os.path.join(TESTDIR, circuit)
             if os.path.isfile(path) and path.endswith('.circ'):
                 test_circuit(path, cls, None, False, args)
     if args.load_circuit:
@@ -57,6 +58,11 @@ def obf(args):
             print("\x1b[31mError:\x1b[0m --attack flag cannot be run with --test-circuit flag")
             sys.exit(1)
         test_circuit(args.test_circuit, bpclass, obfclass, True, args)
+    elif args.test_all:
+        for circuit in os.listdir(TESTDIR):
+            path = os.path.join(TESTDIR, circuit)
+            if os.path.isfile(path) and path.endswith('.circ'):
+                test_circuit(path, bpclass, obfclass, True, args)
     else:
         directory = None
         if args.load_obf:
@@ -108,7 +114,7 @@ def main():
                            action='store',
                            help='test FILE circuit -> bp conversion')
     parser_bp.add_argument('--test-all', action='store_true',
-                           help='test circuit -> bp conversion')
+                           help='test BP conversion of all circuits in circuit/ directory')
     parser_bp.add_argument('--secparam', metavar='N', type=int, action='store',
                            default=24, help='security parameter')
     parser_bp.add_argument('--obliviate', action='store_true',
@@ -138,6 +144,8 @@ def main():
     parser_obf.add_argument('--test-circuit', metavar='FILE', type=str,
                             action='store',
                             help='test circuit from FILE')
+    parser_obf.add_argument('--test-all', action='store_true',
+                            help='test obfuscation of all circuits in circuit/ directory')
     parser_obf.add_argument('--save', metavar='DIR', type=str, action='store',
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int, action='store',
