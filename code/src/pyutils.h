@@ -20,9 +20,6 @@ PyObject *
 obf_verbose(PyObject *self, PyObject *args);
 
 PyObject *
-obf_setup(PyObject *self, PyObject *args);
-
-PyObject *
 obf_max_mem_usage(PyObject *self, PyObject *args);
 
 #endif

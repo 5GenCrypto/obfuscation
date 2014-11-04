@@ -163,6 +163,7 @@ mult_mats(mpz_t *result, const mpz_t *left, const mpz_t *right, const mpz_t q,
                 mpz_mul(tmp,
                         left[k * m + (i * m + j) % m],
                         right[k + n * ((i * m + j) / m)]);
+                mpz_mod_near(tmp, tmp, q);
                 mpz_add(sum, sum, tmp);
                 mpz_mod_near(sum, sum, q);
             }
@@ -181,22 +182,15 @@ mult_mats(mpz_t *result, const mpz_t *left, const mpz_t *right, const mpz_t q,
 }
 
 void
-mult_vect_by_mat(mpz_t *v, const mpz_t *m, mpz_t q, int size)
+mult_vect_by_mat(mpz_t *v, const mpz_t *m, mpz_t q, int size, mpz_t *tmparray)
 {
-    mpz_t *tmparray;
-    double start, end;
-
-    start = current_time();
-    tmparray = (mpz_t *) malloc(sizeof(mpz_t) * size);
-    for (int i = 0; i < size; ++i) {
-        mpz_init(tmparray[i]);
-    }
 #pragma omp parallel for
     for (int i = 0; i < size; ++i) {
         mpz_t tmp, sum;
         mpz_inits(tmp, sum, NULL);
         for (int j = 0; j < size; ++j) {
             mpz_mul(tmp, v[j], m[i * size + j]);
+            mpz_mod_near(tmp, tmp, q);
             mpz_add(sum, sum, tmp);
             mpz_mod_near(sum, sum, q);
         }
@@ -205,20 +199,12 @@ mult_vect_by_mat(mpz_t *v, const mpz_t *m, mpz_t q, int size)
     }
     for (int i = 0; i < size; ++i) {
         mpz_swap(v[i], tmparray[i]);
-        mpz_clear(tmparray[i]);
     }
-    free(tmparray);
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "    Multiplying took: %f\n", end - start);
 }
 
 void
 mult_vect_by_vect(mpz_t out, const mpz_t *v, const mpz_t *u, mpz_t q, int size)
 {
-    double start, end;
-
-    start = current_time();
     mpz_set_ui(out, 0);
 #pragma omp parallel for
     for (int i = 0; i < size; ++i) {
@@ -229,13 +215,10 @@ mult_vect_by_vect(mpz_t out, const mpz_t *v, const mpz_t *u, mpz_t q, int size)
 #pragma omp critical
         {
             mpz_add(out, out, tmp);
+            mpz_mod_near(out, out, q);
         }
         mpz_clears(tmp, NULL);
     }
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Multiplying took: %f\n",
-                       end - start);
 }
 
 int
