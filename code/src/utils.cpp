@@ -198,8 +198,8 @@ mult_vect_by_mat(mpz_t *v, const mpz_t *m, mpz_t q, int size)
         for (int j = 0; j < size; ++j) {
             mpz_mul(tmp, v[j], m[i * size + j]);
             mpz_add(sum, sum, tmp);
+            mpz_mod_near(sum, sum, q);
         }
-        mpz_mod_near(sum, sum, q);
         mpz_set(tmparray[i], sum);
         mpz_clears(tmp, sum, NULL);
     }
