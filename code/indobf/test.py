@@ -5,7 +5,7 @@ import zobfuscator as zobf
 
 from sage.all import random_prime
 
-def test_circuit(path, cclass, obfclass, obfuscate, args):
+def test_circuit(path, cclass, obfclass, obfuscate, args, zimmerman=False):
     testcases = {}
     print('Testing %s: ' % path, end='')
     if args.verbose:
@@ -32,6 +32,9 @@ def test_circuit(path, cclass, obfclass, obfuscate, args):
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
                 success = False
     else:
+        if zimmerman:
+            print("\x1b[31mError:\x1b[0m Zimmerman's approach doesn't use BPs")
+            return False
         # load circuit/bp
         try:
             if args.zimmerman:

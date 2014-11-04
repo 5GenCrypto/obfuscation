@@ -37,12 +37,29 @@ zstate_destructor(PyObject *self)
     }
 }
 
-static void
-encode(struct zstate *s, mpz_t out, mpz_t in1, mpz_t in2,
-       const unsigned long *indices, unsigned long nindices)
+static int
+write_element(const struct zstate *s, mpz_t elem, const char *name)
 {
+    char *fname;
+    int fnamelen;
+
+    fnamelen = strlen(s->s.dir) + strlen(name) + 2;
+    fname = (char *) malloc(sizeof(char) * fnamelen);
+    if (fname == NULL)
+        return 1;
+    (void) snprintf(fname, fnamelen, "%s/%s", s->s.dir, name);
+    (void) save_mpz_scalar(fname, elem);
+    free(fname);
+    return 0;
+}
+
+static void
+encode(struct zstate *s, mpz_t out, mpz_t in1, mpz_t in2, unsigned int num, ...)
+{
+    va_list indices;
     mpz_t r, tmp;
 
+    va_start(indices, num);
     mpz_inits(r, tmp, NULL);
     mpz_set_ui(out, 0);
     for (unsigned long i = 0; i < s->s.n; ++i) {
@@ -57,8 +74,10 @@ encode(struct zstate *s, mpz_t out, mpz_t in1, mpz_t in2,
         mpz_add(out, out, tmp);
     }
     mpz_mod(out, out, s->s.q);
-    for (unsigned long i = 0; i < nindices; ++i) {
-        mpz_mul(out, out, s->s.zinvs[indices[i]]);
+    for (unsigned long i = 0; i < num; ++i) {
+        mpz_powm_ui(tmp, s->s.zinvs[va_arg(indices, int)],
+                    va_arg(indices, int), s->s.q);
+        mpz_mul(out, out, tmp);
         mpz_mod(out, out, s->s.q);
     }
     mpz_clears(r, tmp, NULL);
@@ -76,12 +95,12 @@ zobf_setup(PyObject *self, PyObject *args)
     s = (struct zstate *) malloc(sizeof(struct zstate));
     if (s == NULL)
         return NULL;
-    py_s = PyCapsule_New((void *) s, NULL, zstate_destructor);
-    if (py_s == NULL)
-        goto error;
     if (!PyArg_ParseTuple(args, "llls", &s->s.secparam, &kappa, &s->s.nzs,
                           &s->s.dir))
-        goto error;
+        return NULL;
+    py_s = PyCapsule_New((void *) s, NULL, zstate_destructor);
+    if (py_s == NULL)
+        return NULL;
 
     /* Calculate CLT parameters */
     alpha = s->s.secparam;
@@ -236,28 +255,16 @@ zobf_setup(PyObject *self, PyObject *args)
     free(zs);
 
     return py_s;
-
-error:
-    if (ps)
-        free(ps);
-    if (zs)
-        free(zs);
-    if (s) {
-        if (s->s.gs)
-            free(s->s.gs);
-        if (s->s.crt_coeffs)
-            free(s->s.crt_coeffs);
-        if (s->s.zinvs)
-            free(s->s.zinvs);
-    }
-    return NULL;
 }
 
 static PyObject *
 zobf_encode_circuit(PyObject *self, PyObject *args)
 {
     PyObject *py_state, *py_y;
+    mpz_t zero, one, tmp;
     int n, m;
+    char *fname;
+    int fnamelen = 10;
     struct zstate *s;
     double start, end;
 
@@ -267,49 +274,73 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
     if (s == NULL)
         return NULL;
 
+    fname = (char *) malloc(sizeof(char) * fnamelen);
+
+    mpz_init(tmp);
+    mpz_init_set_ui(zero, 0);
+    mpz_init_set_ui(one, 1);
+
     for (int i = 0; i < n; ++i) {
-        mpz_t alpha;
-        mpz_init(alpha);
+        mpz_t alpha, delta, gamma, out;
+        mpz_inits(alpha, delta, gamma, out, NULL);
         mpz_urandomm(alpha, s->s.rng, s->nchk);
-        for (int b = 0; b < 2; ++b) {
-            // encode(s, b, alpha, s->s.zinvs[2 * i + b]);
-            // encode(s, 1, 1, s->s.zinvs[2 * i + b]);
-        }
-        mpz_clear(alpha);
+
+        encode(s, out, zero, alpha, 1, 2 * i, 1);
+        (void) snprintf(fname, fnamelen, "x_%d_0", i);
+        (void) write_element(s, out, fname);
+
+        encode(s, out, one, one, 1, 2 * i, 1);
+        (void) snprintf(fname, fnamelen, "u_%d_0", i);
+        (void) write_element(s, out, fname);
+
+        encode(s, out, one, alpha, 1, 2 * i + 1, 1);
+        (void) snprintf(fname, fnamelen, "x_%d_1", i);
+        (void) write_element(s, out, fname);
+
+        encode(s, out, one, one, 1, 2 * i + 1, 1);
+        (void) snprintf(fname, fnamelen, "u_%d_1", i);
+        (void) write_element(s, out, fname);
+
+        mpz_urandomm(delta, s->s.rng, s->nev);
+        mpz_urandomm(gamma, s->s.rng, s->nchk);
+
+        encode(s, out, delta, gamma, 3, 2 * n + 2 * i, 1, 5 * n + i, 1, 6 * n + i, 1);
+        (void) snprintf(fname, fnamelen, "z_%d_0", i);
+        (void) write_element(s, out, fname);
+
+        encode(s, out, zero, gamma, 1, 6 * n + i);
+        (void) snprintf(fname, fnamelen, "w_%d_0", i);
+        (void) write_element(s, out, fname);
+
+        mpz_urandomm(delta, s->s.rng, s->nev);
+        mpz_urandomm(gamma, s->s.rng, s->nchk);
+
+        encode(s, out, delta, gamma, 3, 2 * n + 2 * i, 1, 5 * n + i, 1, 6 * n + i, 1);
+        (void) snprintf(fname, fnamelen, "z_%d_1", i);
+        (void) write_element(s, out, fname);
+
+        encode(s, out, zero, gamma, 1, 6 * n + i);
+        (void) snprintf(fname, fnamelen, "w_%d_0", i);
+        (void) write_element(s, out, fname);
+
+        mpz_clears(alpha, delta, gamma, out, NULL);
     }
     for (int i = 0; i < m; ++i) {
-        mpz_t beta;
-        mpz_init(beta);
+        mpz_t beta, out, y;
+        mpz_inits(beta, out, y, NULL);
         mpz_urandomm(beta, s->s.rng, s->nchk);
-        // encode(s, y[i], beta, s->s.zinvs[2 * n + i]);
-        // encode(s, 1, 1, s->s.zinvs[2 * n + i]);
-        mpz_clear(beta);
+        py_to_mpz(y, PyList_GET_ITEM(py_y, i));
+        encode(s, out, y, beta, 1, 7 * n, 1);
+        (void) snprintf(fname, fnamelen, "y_%d", i);
+        (void) write_element(s, out, fname);
+        mpz_clears(beta, out, y, NULL);
     }
+    encode(s, tmp, one, one, 1, 7 * n);
+    (void) write_element(s, tmp, "v");
 
-    // nindices = PyList_GET_SIZE(py_indices);
-    // indices = (unsigned long *) malloc(sizeof(unsigned long) * nindices);
-    // if (indices == NULL)
-    //     return NULL;
-    // for (unsigned long i = 0; i < nindices; ++i) {
-    //     indices[i] = PyLong_AsUnsignedLong(PyList_GET_ITEM(py_indices, i));
-    // }
+    // TODO: compute and encode C*.
 
-    // mpz_inits(val, in1, in2, NULL);
-
-    // start = current_time();
-    // py_to_mpz(in1, py_in1);
-    // py_to_mpz(in2, py_in2);
-    // encode(s, val, in1, in2, indices, nindices);
-    // (void) write_scalar(s, val, name);
-    // end = current_time();
-    // if (g_verbose)
-    //     (void) fprintf(stderr, "  Encoding element: %f\n", end - start);
-
-    // mpz_clears(val, in1, in2, NULL);
-
-    // free(indices);
-
-    // Py_RETURN_NONE;
+    Py_RETURN_NONE;
 }
 
 static PyMethodDef
@@ -318,7 +349,7 @@ ObfMethods[] = {
      "Set verbosity."},
     {"setup", zobf_setup, METH_VARARGS,
      "Set up obfuscator."},
-    {"encode", zobf_encode_circuit, METH_VARARGS,
+    {"encode_circuit", zobf_encode_circuit, METH_VARARGS,
      "Encode [a, b] under given index sets."},
     {NULL, NULL, 0, NULL}
 };

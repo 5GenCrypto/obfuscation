@@ -33,22 +33,19 @@ def bp(args):
             r = bp.evaluate(args.eval)
             print('Output = %d' % r)
 
-def zimmerman(args):
-    print("\x1b[31mError:\x1b[0m Zimmerman approach not implemented yet")
-
 def obf(args):
     from obfuscator import Obfuscator
     from sz_obfuscator import SZObfuscator
-    if args.zimmerman:
-        zimmerman(args)
-        return
-
+    from zobfuscator import ZimmermanObfuscator
     if args.nslots is None:
         args.nslots = args.secparam
 
     if args.sahai_zhandry:
         bpclass = SZBranchingProgram
         obfclass = SZObfuscator
+    elif args.zimmerman:
+        bpclass = None
+        obfclass = ZimmermanObfuscator
     else:
         bpclass = BranchingProgram
         obfclass = Obfuscator

@@ -1,8 +1,11 @@
 from __future__ import print_function
 
+import _zobfuscator as _zobf
 from circuit import parse
+import utils
+
 import networkx as nx
-from uuid import uuid4 as uuid
+import os, time
 
 class Circuit(object):
     def __init__(self, fname, verbose=False):
@@ -85,25 +88,6 @@ class Circuit(object):
         return g.node[idx]['value']
 
 
-def straddling_sets(n):
-    '''
-    Creates an 'n'-straddling set system.
-    '''
-    symbols = [str(uuid()) for _ in xrange(2 * n - 1)]
-    set1, set2 = [], []
-    tmp1, tmp2 = set(), set()
-    for i, symbol in enumerate(symbols, 1):
-        tmp1.add(symbol)
-        tmp2.add(symbol)
-        if (i - 1) % 2 == 0: # i is odd
-            set1.append(tmp1)
-            tmp1 = set()
-        else:
-            set2.append(tmp2)
-            tmp2 = set()
-    set2.append(tmp2)
-    return set1, set2
-
 class ZimmermanObfuscator(object):
 
     def __init__(self, verbose=False):
@@ -112,17 +96,19 @@ class ZimmermanObfuscator(object):
         _zobf.verbose(self._verbose)
         self.logger = utils.make_logger(self._verbose)
 
-    def _gen_mlm_params(self, secparam, size, nzs, directory):
+    def _gen_mlm_params(self, secparam, nzs, directory):
         self.logger('Generating MLM parameters...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        self._state, primes = _obf.setup(secparam, size, 0, nzs, directory)
+        self._state = _zobf.setup(secparam, 1, nzs, directory)
         end = time.time()
         self.logger('Took: %f' % (end - start))
-        return primes
 
-    def obfuscate(self, circuit, secparam, directory):
+    def _obfuscate(self, circ):
+        _zobf.encode_circuit(self._state, [0], 1, 1)
+
+    def obfuscate(self, circuit, secparam, directory, obliviate=False, nslots=None):
         # remove old files in obfuscation directory
         if os.path.isdir(directory):
             files = os.listdir(directory)
@@ -131,12 +117,12 @@ class ZimmermanObfuscator(object):
                 os.unlink(p)
 
         circ = Circuit(circuit)
-        # set0, set1 = straddling_sets(circ.ninputs)
-        nzs = circ.y_deg + 2 * sum(circ.x_degs) + 3 * circ.ninputs
+        nzs = 1 + 2 + 1 + 1
+        # nzs = circ.y_deg + 2 * sum(circ.x_degs) + 3 * circ.ninputs
 
         start = time.time()
-        primes = self._gen_mlm_params(secparam + circ.depth, nzs, directory)
-        self._obfuscate(circ, primes)
+        self._gen_mlm_params(secparam + circ.depth, nzs, directory)
+        self._obfuscate(circ)
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))
         if self._verbose:
