@@ -96,16 +96,12 @@ encode(struct state *st, mpz_t out, const PyObject *in, const long item,
     for (unsigned long i = 0; i < st->n; ++i) {
         mpz_genrandom(r, &st->rng, st->rho);
         mpz_mul(tmp, r, st->gs[i]);
-        // mpz_mod(tmp, tmp, st->q);
         if (i < st->secparam) {
             py_to_mpz(r, PyList_GET_ITEM(PyList_GET_ITEM(in, i), item));
             mpz_add(tmp, tmp, r);
-            // mpz_mod(tmp, tmp, st->q);
         }
         mpz_mul(tmp, tmp, st->crt_coeffs[i]);
-        // mpz_mod(tmp, tmp, st->q);
         mpz_add(out, out, tmp);
-        // mpz_mod(out, out, st->q);
     }
     if (idx1 >= 0) {
         mpz_mul(out, out, st->zinvs[idx1]);
@@ -249,6 +245,7 @@ obf_setup(PyObject *self, PyObject *args)
         mpz_tdiv_q(q, s->q, ps[i]);
         mpz_invert(s->crt_coeffs[i], q, ps[i]);
         mpz_mul(s->crt_coeffs[i], s->crt_coeffs[i], q);
+        mpz_mod(s->crt_coeffs[i], s->crt_coeffs[i], s->q);
         mpz_clear(q);
     }
 
@@ -291,6 +288,7 @@ obf_setup(PyObject *self, PyObject *args)
             mpz_mul(tmp, tmp, rnd);
             mpz_div(qpi, s->q, ps[i]);
             mpz_mul(tmp, tmp, qpi);
+            mpz_mod(tmp, tmp, s->q);
 #pragma omp critical
             {
                 mpz_add(s->pzt, s->pzt, tmp);
@@ -672,6 +670,8 @@ obf_evaluate(PyObject *self, PyObject *args)
             (void) snprintf(fname, fnamelen, "%s/%d.one", dir, layer);
         }
         (void) load_mpz_vector(fname, comp, size * size);
+
+        // for the first matrix, multiply 'comp' by 's' to get a vector
         if (layer == 0) {
             (void) snprintf(fname, fnamelen, "%s/s_enc", dir);
             (void) load_mpz_vector(fname, s, size);
