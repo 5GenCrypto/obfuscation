@@ -96,15 +96,17 @@ encode(struct state *st, mpz_t out, const PyObject *in, const long item,
     for (unsigned long i = 0; i < st->n; ++i) {
         mpz_genrandom(r, &st->rng, st->rho);
         mpz_mul(tmp, r, st->gs[i]);
-
+        // mpz_mod(tmp, tmp, st->q);
         if (i < st->secparam) {
             py_to_mpz(r, PyList_GET_ITEM(PyList_GET_ITEM(in, i), item));
             mpz_add(tmp, tmp, r);
+            // mpz_mod(tmp, tmp, st->q);
         }
         mpz_mul(tmp, tmp, st->crt_coeffs[i]);
+        // mpz_mod(tmp, tmp, st->q);
         mpz_add(out, out, tmp);
+        // mpz_mod(out, out, st->q);
     }
-    mpz_mod(out, out, st->q);
     if (idx1 >= 0) {
         mpz_mul(out, out, st->zinvs[idx1]);
         mpz_mod(out, out, st->q);
@@ -827,7 +829,7 @@ obf_attack(PyObject *self, PyObject *args)
 
         // Compute omega
         mpz_mul(tmp, tmp, pzt);
-        mpz_mod_near(omega, tmp, q);
+        mpz_mod(omega, tmp, q);
 
         mpz_clears(tmp, pzt, nu, NULL);
 

@@ -41,9 +41,6 @@ int
 save_mpz_vector(const char *fname, const mpz_t *m, const int len);
 
 void
-mpz_mod_near(mpz_t out, const mpz_t a, const mpz_t b);
-
-void
 mult_mats(mpz_t *result, const mpz_t *left, const mpz_t *right, const mpz_t q,
 		  long m, long n, long p);
 

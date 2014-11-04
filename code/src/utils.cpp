@@ -128,21 +128,6 @@ save_mpz_vector(const char *fname, const mpz_t *m, const int len)
 }
 
 void
-mpz_mod_near(mpz_t out, const mpz_t a, const mpz_t b)
-{
-    mpz_t res, shift;
-
-    mpz_inits(res, shift, NULL);
-    mpz_mod(res, a, b);
-    mpz_tdiv_q_2exp(shift, b, 1);
-    if (mpz_cmp(res, shift) > 0) {
-        mpz_sub(res, res, b);
-    }
-    mpz_set(out, res);
-    mpz_clears(res, shift, NULL);
-}
-
-void
 mult_mats(mpz_t *result, const mpz_t *left, const mpz_t *right, const mpz_t q,
           long m, long n, long p)
 {
@@ -163,9 +148,9 @@ mult_mats(mpz_t *result, const mpz_t *left, const mpz_t *right, const mpz_t q,
                 mpz_mul(tmp,
                         left[k * m + (i * m + j) % m],
                         right[k + n * ((i * m + j) / m)]);
-                mpz_mod_near(tmp, tmp, q);
+                mpz_mod(tmp, tmp, q);
                 mpz_add(sum, sum, tmp);
-                mpz_mod_near(sum, sum, q);
+                mpz_mod(sum, sum, q);
             }
             mpz_set(tmparray[i * n + j], sum);
             mpz_clears(tmp, sum, NULL);
@@ -190,9 +175,9 @@ mult_vect_by_mat(mpz_t *v, const mpz_t *m, mpz_t q, int size, mpz_t *tmparray)
         mpz_inits(tmp, sum, NULL);
         for (int j = 0; j < size; ++j) {
             mpz_mul(tmp, v[j], m[i * size + j]);
-            mpz_mod_near(tmp, tmp, q);
+            mpz_mod(tmp, tmp, q);
             mpz_add(sum, sum, tmp);
-            mpz_mod_near(sum, sum, q);
+            mpz_mod(sum, sum, q);
         }
         mpz_set(tmparray[i], sum);
         mpz_clears(tmp, sum, NULL);
@@ -211,11 +196,11 @@ mult_vect_by_vect(mpz_t out, const mpz_t *v, const mpz_t *u, mpz_t q, int size)
         mpz_t tmp;
         mpz_init(tmp);
         mpz_mul(tmp, v[i], u[i]);
-        mpz_mod_near(tmp, tmp, q);
+        mpz_mod(tmp, tmp, q);
 #pragma omp critical
         {
             mpz_add(out, out, tmp);
-            mpz_mod_near(out, out, q);
+            mpz_mod(out, out, q);
         }
         mpz_clears(tmp, NULL);
     }
@@ -229,7 +214,7 @@ is_zero(mpz_t c, mpz_t pzt, mpz_t q, long nu)
 
     mpz_init(tmp);
     mpz_mul(tmp, c, pzt);
-    mpz_mod_near(tmp, tmp, q);
+    mpz_mod(tmp, tmp, q);
     ret = (mpz_sizeinbase(tmp, 2) < (mpz_sizeinbase(q, 2) - nu)) ? 1 : 0;
     mpz_clear(tmp);
 
