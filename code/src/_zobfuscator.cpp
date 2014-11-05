@@ -85,7 +85,34 @@ encode(struct zstate *s, mpz_t out, mpz_t in1, mpz_t in2, unsigned int num, ...)
     mpz_clears(r, tmp, NULL);
 }
 
-PyObject *
+static void
+add(mpz_t out, mpz_t out_one, const mpz_t x, const mpz_t x_one, const mpz_t y,
+    const mpz_t y_one, const mpz_t q)
+{
+    mpz_t a, b;
+    mpz_inits(a, b, NULL);
+
+    mpz_mul(a, x, y_one);
+    mpz_mul(b, x_one, y);
+    mpz_add(out, a, b);
+    mpz_mod(out, out, q);
+
+    mpz_mul(out_one, x_one, y_one);
+    mpz_mod(out_one, out_one, q);
+    mpz_clears(a, b, NULL);
+}
+
+static void
+multiply(mpz_t out, mpz_t out_one, const mpz_t x, const mpz_t x_one,
+         const mpz_t y, const mpz_t y_one, const mpz_t q)
+{
+    mpz_mul(out, x, y);
+    mpz_mod(out, out, q);
+    mpz_mul(out_one, x_one, y_one);
+    mpz_mod(out_one, out_one, q);
+}
+
+static PyObject *
 zobf_setup(PyObject *self, PyObject *args)
 {
     long alpha, beta, eta, nu, kappa, rho_f;
@@ -302,17 +329,17 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
         (void) snprintf(fname, fnamelen, "x_%d_0", i);
         (void) write_element(s, out, fname);
 
-        // encode(s, out, one, one, 1, 2 * i, 1);
-        // (void) snprintf(fname, fnamelen, "u_%d_0", i);
-        // (void) write_element(s, out, fname);
+        encode(s, out, one, one, 1, 2 * i, 1);
+        (void) snprintf(fname, fnamelen, "u_%d_0", i);
+        (void) write_element(s, out, fname);
 
         encode(s, out, one, alphas[i], 1, 2 * i + 1, 1);
         (void) snprintf(fname, fnamelen, "x_%d_1", i);
         (void) write_element(s, out, fname);
 
-        // encode(s, out, one, one, 1, 2 * i + 1, 1);
-        // (void) snprintf(fname, fnamelen, "u_%d_1", i);
-        // (void) write_element(s, out, fname);
+        encode(s, out, one, one, 1, 2 * i + 1, 1);
+        (void) snprintf(fname, fnamelen, "u_%d_1", i);
+        (void) write_element(s, out, fname);
 
         mpz_urandomm(delta, s->s.rng, s->nev);
         mpz_urandomm(gamma, s->s.rng, s->nchk);
@@ -354,10 +381,10 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
         (void) write_element(s, out, fname);
         mpz_clears(out, y, NULL);
     }
-    // encode(s, tmp, one, one, 1, 4 * n, 1);
-    // (void) write_element(s, tmp, "v");
+    encode(s, tmp, one, one, 1, 4 * n, 1);
+    (void) write_element(s, tmp, "v");
 
-    mpz_mul(c_star, alphas[0], betas[0]);
+    mpz_add(c_star, alphas[0], betas[0]);
     encode(s, tmp, zero, c_star, 4,
            0, 1, 1, 1, 2, 1, 4, 1);
     (void) write_element(s, tmp, "c_star");
@@ -376,8 +403,8 @@ zobf_evaluate(PyObject *self, PyObject *args)
     long n, m = 1;
     int fnamelen;
     int iszero;
-    mpz_t tmp, c_1, c_2, q;
-    mpz_t *xs, *ys;
+    mpz_t tmp, tmp2, tmpone, c_1, c_2, q;
+    mpz_t *xs, *xones, *ys, *yones;
 
     if (!PyArg_ParseTuple(args, "ssl", &dir, &input, &n))
         return NULL;
@@ -386,20 +413,23 @@ zobf_evaluate(PyObject *self, PyObject *args)
     if (fname == NULL)
         return NULL;
 
-    mpz_inits(tmp, c_1, c_2, q, NULL);
+    mpz_inits(tmp, tmp2, tmpone, c_1, c_2, q, NULL);
     xs = (mpz_t *) malloc(sizeof(mpz_t) * n);
+    xones = (mpz_t *) malloc(sizeof(mpz_t) * n);
     for (int i = 0; i < n; ++i) {
-        mpz_init(xs[i]);
+        mpz_inits(xs[i], xones[i], NULL);
     }
     ys = (mpz_t *) malloc(sizeof(mpz_t) * m);
+    yones = (mpz_t *) malloc(sizeof(mpz_t) * m);
     for (int i = 0; i < m; ++i) {
-        mpz_init(ys[i]);
+        mpz_inits(ys[i], yones[i], NULL);
     }
 
     // Load q
     (void) snprintf(fname, fnamelen, "%s/q", dir);
     (void) load_mpz_scalar(fname, q);
 
+    // Check that all input choices are bits
     for (int i = 0; i < n; ++i) {
         if (input[i] != '0' && input[i] != '1') {
             PyErr_SetString(PyExc_RuntimeError, "input must be 0 or 1");
@@ -407,16 +437,26 @@ zobf_evaluate(PyObject *self, PyObject *args)
         }
     }
 
+    // Load in appropriate input
     for (int i = 0; i < n; ++i) {
         (void) snprintf(fname, fnamelen, "%s/x_%d_%c", dir, i, input[i]);
         (void) load_mpz_scalar(fname, xs[i]);
+        (void) snprintf(fname, fnamelen, "%s/u_%d_%c", dir, i, input[i]);
+        (void) load_mpz_scalar(fname, xones[i]);
     }
 
-    (void) snprintf(fname, fnamelen, "%s/y_0", dir);
-    load_mpz_scalar(fname, ys[0]);
+    // Load in secret input
+    for (int i = 0; i < m; ++i) {
+        (void) snprintf(fname, fnamelen, "%s/y_%d", dir, i);
+        (void) load_mpz_scalar(fname, ys[0]);
+        (void) snprintf(fname, fnamelen, "%s/v", dir);
+        (void) load_mpz_scalar(fname, yones[0]);
+    }
 
-    mpz_mul(c_1, xs[0], ys[0]);
-    mpz_mod(c_1, c_1, q);
+    add(tmp, tmpone, xs[0], xones[0], ys[0], yones[0], q);
+    // multiply(tmp, tmpone, xs[0], xones[0], ys[0], yones[0], q);
+
+    mpz_set(c_1, tmp);
 
     for (int i = 0; i < n; ++i) {
         mpz_t z;

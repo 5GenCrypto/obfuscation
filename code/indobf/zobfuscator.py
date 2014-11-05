@@ -128,7 +128,7 @@ class ZimmermanObfuscator(object):
         self.logger('Took: %f' % (end - start))
 
     def _obfuscate(self, circ):
-        _zobf.encode_circuit(self._state, [1L], 1, 1)
+        _zobf.encode_circuit(self._state, [0L], 1, 1)
 
     def obfuscate(self, circuit, secparam, directory, obliviate=False, nslots=None):
         # remove old files in obfuscation directory
