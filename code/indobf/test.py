@@ -28,7 +28,11 @@ def test_circuit(path, cclass, obfclass, obfuscate, args, zimmerman=False):
                     else '%s.obf.%d' % (path, args.secparam)
         obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate)
         for k, v in testcases.items():
-            if obf.evaluate(directory, k) != v:
+            if zimmerman:
+                r = obf.evaluate(directory, path, k)
+            else:
+                r = obf.evaluate(directory, k)
+            if r != v:
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
                 success = False
     else:
@@ -48,13 +52,9 @@ def test_circuit(path, cclass, obfclass, obfuscate, args, zimmerman=False):
             return False
         # evaluate circuit/bp
         for k, v in testcases.items():
-            # try:
-                if c.evaluate(k) != v:
-                    print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
-                    success = False
-            # except Exception:
-            #     print('\x1b[31mFail\x1b[0m (%s: evaluation failed)' % k)
-            #     success = False
+            if c.evaluate(k) != v:
+                print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
+                success = False
     if success:
         print('\x1b[32mPass\x1b[0m')
     return success

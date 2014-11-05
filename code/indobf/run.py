@@ -54,7 +54,8 @@ def obf(args):
         if args.attack:
             print("\x1b[31mError:\x1b[0m --attack flag cannot be run with --test-circuit flag")
             sys.exit(1)
-        test_circuit(args.test_circuit, bpclass, obfclass, True, args)
+        test_circuit(args.test_circuit, bpclass, obfclass, True, args,
+                     zimmerman=args.zimmerman)
     elif args.test_all:
         for circuit in os.listdir(TESTDIR):
             path = os.path.join(TESTDIR, circuit)

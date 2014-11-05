@@ -8,14 +8,14 @@ def _parse_param(line):
     except ValueError:
         raise ParseException("Invalid line '%s'" % line)
     param = param.lower()
-    try:
-        value = int(value)
-    except ValueError:
-        raise ParseException("Invalid value '%s'" % value)
-    if param == 'nins':
-        return {'ninputs': value}
-    elif param == 'depth':
-        return {'depth': value}
+    if param in ('nins', 'depth'):
+        try:
+            value = int(value)
+        except ValueError:
+            raise ParseException("Invalid value '%s'" % value)
+        return {param: value}
+    elif param == 'secret':
+        return {'secret': value}
     else:
         raise ParseException("Invalid parameter '%s'" % param)
 
@@ -64,4 +64,4 @@ def parse(fname, bp, f_inp_gate, f_gate, keyed=False):
                 raise ParseException('Line %d: unknown gate type' % lineno)
     if not output:
         raise ParseException('no output gate found')
-    return bp[-1], info['nlayers'], info['ninputs'], info['depth']
+    return bp[-1], info

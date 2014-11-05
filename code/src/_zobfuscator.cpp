@@ -294,15 +294,18 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
     mpz_t zero, one, tmp, c_star;
     mpz_t *alphas, *betas;
     int n, m;
-    char *fname;
+    char *circuit, *fname;
     int fnamelen = 10;
     struct zstate *s;
 
-    if (!PyArg_ParseTuple(args, "OOii", &py_state, &py_y, &n, &m))
+    if (!PyArg_ParseTuple(args, "OsOii", &py_state, &circuit, &py_y, &n, &m))
         return NULL;
     s = (struct zstate *) PyCapsule_GetPointer(py_state, NULL);
     if (s == NULL)
         return NULL;
+
+    if (g_verbose)
+        (void) fprintf(stderr, "Encoding circuit '%s'\n", circuit);
 
     fname = (char *) malloc(sizeof(char) * fnamelen);
 
@@ -384,7 +387,9 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
     encode(s, tmp, one, one, 1, 4 * n, 1);
     (void) write_element(s, tmp, "v");
 
-    mpz_add(c_star, alphas[0], betas[0]);
+    // TODO: evaluate circuit on alphas and betas
+
+    mpz_mul(c_star, alphas[0], betas[0]);
     encode(s, tmp, zero, c_star, 4,
            0, 1, 1, 1, 2, 1, 4, 1);
     (void) write_element(s, tmp, "c_star");
@@ -397,18 +402,16 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
 static PyObject *
 zobf_evaluate(PyObject *self, PyObject *args)
 {
-    char *dir = NULL;
-    char *input = NULL;
-    char *fname = NULL;
+    char *circuit, *dir, *input, *fname;
     long n, m = 1;
     int fnamelen;
     int iszero;
     mpz_t tmp, tmp2, tmpone, c_1, c_2, q;
     mpz_t *xs, *xones, *ys, *yones;
 
-    if (!PyArg_ParseTuple(args, "ssl", &dir, &input, &n))
+    if (!PyArg_ParseTuple(args, "sssl", &dir, &circuit, &input, &n))
         return NULL;
-    fnamelen = strlen(dir) + 20; // XXX: should include bplen somewhere
+    fnamelen = strlen(dir) + 20; // XXX: should include length somewhere
     fname = (char *) malloc(sizeof(char) * fnamelen);
     if (fname == NULL)
         return NULL;
@@ -453,8 +456,10 @@ zobf_evaluate(PyObject *self, PyObject *args)
         (void) load_mpz_scalar(fname, yones[0]);
     }
 
-    add(tmp, tmpone, xs[0], xones[0], ys[0], yones[0], q);
-    // multiply(tmp, tmpone, xs[0], xones[0], ys[0], yones[0], q);
+    // TODO: evaluate circuit on inputs here
+
+    // add(tmp, tmpone, xs[0], xones[0], ys[0], yones[0], q);
+    multiply(tmp, tmpone, xs[0], xones[0], ys[0], yones[0], q);
 
     mpz_set(c_1, tmp);
 
@@ -516,6 +521,8 @@ ObfMethods[] = {
      "Encode circuit."},
     {"evaluate", zobf_evaluate, METH_VARARGS,
      "Evaluate circuit."},
+    {"max_mem_usage", obf_max_mem_usage, METH_VARARGS,
+     "Compute the maximum memory usage."},
     {NULL, NULL, 0, NULL}
 };
 
