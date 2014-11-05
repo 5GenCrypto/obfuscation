@@ -19,7 +19,7 @@ def _parse_param(line):
     else:
         raise ParseException("Invalid parameter '%s'" % param)
 
-def parse(fname, bp, f_inp_gate, f_gate):
+def parse(fname, bp, f_inp_gate, f_gate, keyed=False):
     info = {}
     info['nlayers'] = info['ninputs'] = info['depth'] = 0
     output = False
@@ -37,7 +37,11 @@ def parse(fname, bp, f_inp_gate, f_gate):
                 raise ParseException(
                     'Line %d: gate index not a number' % lineno)
             if rest.startswith('input'):
-                f_inp_gate(bp, num)
+                if keyed:
+                    _, inp = rest.split(None, 1)
+                    f_inp_gate(bp, num, inp.strip())
+                else:
+                    f_inp_gate(bp, num)
                 info['nlayers'] += 1
             elif rest.startswith('gate') or rest.startswith('output'):
                 if rest.startswith('output'):
