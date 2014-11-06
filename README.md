@@ -13,13 +13,14 @@ literature, mainly the work of Ananth, Gupta, Ishai, and Sahai (CCS 2014.
 https://eprint.iacr.org/2014/222), using a graded encoding scheme based on the
 code of Coron et al. (CRYPTO, 2013. https://eprint.iacr.org/2013/183).
 
-The implementation is in a mix of Python and C, using Sage
-(http://sagemath.org), GNU GMP (https://gmplib.org) and OpenMP
-(http://openmp.org).  The current code is still in development, but the master
-branch should work most of the time.
-
 <b>NEW</b>: We now have an (alpha) implementation of the Sahai-Zhandry scheme
 (Cryptology ePrint Archive, 2014/773. https://eprint.iacr.org/2014/773)!
+
+The implementation is in a mix of Python and C, using Sage
+(http://sagemath.org), GNU GMP (https://gmplib.org) and OpenMP
+(http://openmp.org).  <b>The code is under active development, and may not be
+stable!</b> I will try to keep the master branch in a working state (most of the
+time), though.
 
 Instructions for building and running the code are in code/README.md, and
 scripts for running experiments and processing the results are in the scripts/
