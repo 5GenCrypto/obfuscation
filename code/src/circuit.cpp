@@ -79,17 +79,19 @@ circ_parse(const char *circname)
         return NULL;
     }
 
-    len = 100;
+    len = 128;                  // XXX: fixme
     line = (char *) malloc(sizeof(char) * len);
 
-    // Determine the number of gates
+    // Count the number of gates
     while ((read = getline(&line, &len, f)) != -1) {
         char *type;
 
         if (line[0] == ':' || line[0] == '#' || line[0] == '\n')
             continue;
-        (void) strtok(line, " ");
-        type = strtok(NULL, " ");
+        if (strtok(line, " ") == NULL)
+            continue;
+        if ((type = strtok(NULL, " ")) == NULL)
+            continue;
         if (strcmp(type, "input") == 0
             || strcmp(type, "gate") == 0
             || strcmp(type, "output") == 0) {
@@ -121,8 +123,10 @@ circ_parse(const char *circname)
         }
         if (strcmp(type, "input") != 0
             && strcmp(type, "gate") != 0
-            && strcmp(type, "output") != 0)
+            && strcmp(type, "output") != 0) {
+            (void) fprintf(stderr, "warning: unknown type '%s'\n", type);
             continue;
+        }
 
         if (strcmp(type, "input") == 0) {
             char *inp;
@@ -142,7 +146,7 @@ circ_parse(const char *circname)
                 err = 1;
                 goto cleanup;
             }
-        } else if (strcmp(type, "gate") == 0 || strcmp(type, "output") == 0) {
+        } else {
             char *gtype;
             int left, right;
 

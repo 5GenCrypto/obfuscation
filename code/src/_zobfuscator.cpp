@@ -110,8 +110,10 @@ zobf_setup(PyObject *self, PyObject *args)
     if (s == NULL)
         return NULL;
     if (!PyArg_ParseTuple(args, "lllOs", &s->s.secparam, &kappa, &s->s.nzs,
-                          &py_pows, &s->s.dir))
+                          &py_pows, &s->s.dir)) {
+        free(s);
         return NULL;
+    }
 
     /* Calculate CLT parameters */
     alpha = s->s.secparam;
@@ -140,6 +142,7 @@ zobf_setup(PyObject *self, PyObject *args)
     s->s.crt_coeffs = (mpz_t *) malloc(sizeof(mpz_t) * s->s.n);
     zs = (mpz_t *) malloc(sizeof(mpz_t) * s->s.nzs);
     s->s.zinvs = (mpz_t *) malloc(sizeof(mpz_t) * s->s.nzs);
+    // XXX: probably should do some error checking at some point...
 
     seed_rng(&s->s.rng);
 
@@ -226,7 +229,7 @@ zobf_setup(PyObject *self, PyObject *args)
         mpz_t zk, tmp;
         mpz_init(tmp);
         mpz_init_set_ui(zk, 1);
-        // compute z^k mod q
+        // compute z_1^t_1 ... z_k^t_k mod q
         for (unsigned long i = 0; i < s->s.nzs; ++i) {
             pow = PyLong_AsLong(PyList_GET_ITEM(py_pows, i));
             mpz_powm_ui(tmp, zs[i], pow, s->s.q);
@@ -259,7 +262,8 @@ zobf_setup(PyObject *self, PyObject *args)
     if (g_verbose)
         (void) fprintf(stderr, "  Generating pzt: %f\n", end - start);
 
-    (void) write_setup_params(&s->s, nu, 0);
+    (void) write_setup_params(&s->s, nu, 0); // XXX: change write_setup_params
+                                             // so we don't need to pass 0
 
     for (unsigned long i = 0; i < s->s.n; ++i) {
         mpz_clear(ps[i]);
@@ -288,7 +292,8 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
     int n, m, ydeg;
     int *indices, *pows;
     char *circuit, *fname;
-    int fnamelen = 10;
+    int fnamelen = 10;          // XXX: fixme
+    int idx_set_size;
     struct zstate *s;
 
     if (!PyArg_ParseTuple(args, "OsOOiii", &py_state, &circuit, &py_y,
@@ -297,14 +302,14 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
     s = (struct zstate *) PyCapsule_GetPointer(py_state, NULL);
     if (s == NULL)
         return NULL;
+    fname = (char *) malloc(sizeof(char) * fnamelen);
+    if (fname == NULL)
+        return NULL;
 
     if (g_verbose) {
         (void) fprintf(stderr, "Encoding circuit '%s'\n", circuit);
-        (void) fprintf(stderr, "  n = %d\n", n);
-        (void) fprintf(stderr, "  m = %d\n", m);
+        (void) fprintf(stderr, "  n = %d, m = %d\n", n, m);
     }
-
-    fname = (char *) malloc(sizeof(char) * fnamelen);
 
     mpz_inits(c_star, tmp, NULL);
     mpz_init_set_ui(zero, 0);
@@ -321,12 +326,23 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
         mpz_urandomm(betas[i], s->s.rng, s->nchk);
     }
 
-    indices = (int *) malloc(sizeof(int) * (1 + 4 * n));
-    pows = (int *) malloc(sizeof(int) * (1 + 4 * n));
+    // The index set is laid out as follows:
+    //   - The first 2 * n entries contain X_i,0 and X_i,1
+    //   - The next n entries contain Z_i
+    //   - The next n entries contain W_i
+    //   - The final entry contains Y
+    idx_set_size = 4 * n + 1;
+
+    indices = (int *) malloc(sizeof(int) * idx_set_size);
+    pows = (int *) malloc(sizeof(int) * idx_set_size);
 
     for (int i = 0; i < n; ++i) {
         mpz_t delta, gamma, out;
+        int deg;
+
         mpz_inits(delta, gamma, out, NULL);
+
+        deg = PyLong_AsLong(PyList_GET_ITEM(py_xdegs, i));
 
         set_indices_pows(indices, pows, 1, 2 * i, 1);
         encode(s, out, zero, alphas[i], 1, indices, pows);
@@ -351,7 +367,7 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
         mpz_urandomm(delta, s->s.rng, s->nev);
         mpz_urandomm(gamma, s->s.rng, s->nchk);
 
-        set_indices_pows(indices, pows, 3, 2 * i + 1, 1, 2 * n + i, 1, 3 * n + i, 1);
+        set_indices_pows(indices, pows, 3, 2 * i + 1, deg, 2 * n + i, 1, 3 * n + i, 1);
         encode(s, out, delta, gamma, 3, indices, pows);
         (void) snprintf(fname, fnamelen, "z_%d_0", i);
         (void) write_element(s, out, fname);
@@ -364,7 +380,7 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
         mpz_urandomm(delta, s->s.rng, s->nev);
         mpz_urandomm(gamma, s->s.rng, s->nchk);
 
-        set_indices_pows(indices, pows, 3, 2 * i, 1, 2 * n + i, 1, 3 * n + i, 1);
+        set_indices_pows(indices, pows, 3, 2 * i, deg, 2 * n + i, 1, 3 * n + i, 1);
         encode(s, out, delta, gamma, 3, indices, pows);
         (void) snprintf(fname, fnamelen, "z_%d_1", i);
         (void) write_element(s, out, fname);
@@ -401,18 +417,25 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
     }
 
     {
-        int length = 3 * n + 1;
         for (int i = 0; i < n; ++i) {
+            int deg;
+
+            deg = PyLong_AsLong(PyList_GET_ITEM(py_xdegs, i));
+            // X_i,0^deg(x_i)
             indices[2 * i] = 2 * i;
-            pows[2 * i] = PyLong_AsLong(PyList_GET_ITEM(py_xdegs, i));
+            pows[2 * i] = deg;
+            // X_i,1^deg(x_i)
             indices[2 * i + 1] = 2 * i + 1;
-            pows[2 * i + 1] = PyLong_AsLong(PyList_GET_ITEM(py_xdegs, i));
+            pows[2 * i + 1] = deg;
+            // Z_i
             indices[2 * n + i] = 2 * n + i;
             pows[2 * n + i] = 1;
         }
+        // Y^deg(y)
         indices[3 * n] = 4 * n;
         pows[3 * n] = ydeg;
-        encode(s, tmp, zero, c_star, length, indices, pows);
+        // The C* encoding contains everything but the W_i symbols
+        encode(s, tmp, zero, c_star, 3 * n + 1, indices, pows);
     }
     (void) write_element(s, tmp, "c_star");
 
@@ -428,7 +451,7 @@ zobf_evaluate(PyObject *self, PyObject *args)
     long n, m = 1;
     int fnamelen;
     int iszero;
-    mpz_t tmp, tmp2, tmpone, c_1, c_2, q;
+    mpz_t tmp, c_1, c_2, q, z, w;
     mpz_t *xs, *xones, *ys, *yones;
 
     if (!PyArg_ParseTuple(args, "sssl", &dir, &circuit, &input, &n))
@@ -438,7 +461,8 @@ zobf_evaluate(PyObject *self, PyObject *args)
     if (fname == NULL)
         return NULL;
 
-    mpz_inits(tmp, tmp2, tmpone, c_1, c_2, q, NULL);
+    mpz_inits(tmp, c_1, c_2, q, z, w, NULL);
+
     xs = (mpz_t *) malloc(sizeof(mpz_t) * n);
     xones = (mpz_t *) malloc(sizeof(mpz_t) * n);
     for (int i = 0; i < n; ++i) {
@@ -482,32 +506,22 @@ zobf_evaluate(PyObject *self, PyObject *args)
         struct circuit *c;
 
         c = circ_parse(circuit);
-        circ_evaluate_encoding(c, xs, xones, ys, yones, tmp, q);
+        circ_evaluate_encoding(c, xs, xones, ys, yones, c_1, q);
         circ_cleanup(c);
-    }
-
-    mpz_set(c_1, tmp);
-
-    for (int i = 0; i < n; ++i) {
-        mpz_t z;
-        mpz_init(z);
-        (void) snprintf(fname, fnamelen, "%s/z_%d_%c", dir, i, input[i]);
-        (void) load_mpz_scalar(fname, z);
-        mpz_mul(c_1, c_1, z);
-        mpz_mod(c_1, c_1, q);
-        mpz_clear(z);
     }
 
     (void) snprintf(fname, fnamelen, "%s/c_star", dir);
     (void) load_mpz_scalar(fname, c_2);
+
     for (int i = 0; i < n; ++i) {
-        mpz_t w;
-        mpz_init(w);
+        (void) snprintf(fname, fnamelen, "%s/z_%d_%c", dir, i, input[i]);
+        (void) load_mpz_scalar(fname, z);
+        mpz_mul(c_1, c_1, z);
+        mpz_mod(c_1, c_1, q);
         (void) snprintf(fname, fnamelen, "%s/w_%d_%c", dir, i, input[i]);
         (void) load_mpz_scalar(fname, w);
         mpz_mul(c_2, c_2, w);
         mpz_mod(c_2, c_2, q);
-        mpz_clear(w);
     }
 
     mpz_sub(tmp, c_1, c_2);
@@ -523,6 +537,7 @@ zobf_evaluate(PyObject *self, PyObject *args)
         mpz_clears(pzt, nu, NULL);
     }
 
+    free(fname);
     for (int i = 0; i < m; ++i) {
         mpz_clear(ys[i]);
     }
@@ -531,7 +546,7 @@ zobf_evaluate(PyObject *self, PyObject *args)
         mpz_clear(xs[i]);
     }
     free(xs);
-    mpz_clears(tmp, c_1, c_2, q, NULL);
+    mpz_clears(tmp, c_1, c_2, q, z, w, NULL);
 
     return Py_BuildValue("i", iszero ? 0 : 1);
 }

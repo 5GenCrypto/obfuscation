@@ -46,6 +46,7 @@ class Circuit(object):
         return [g]
 
     def _compute_deg(self, circ, inp):
+        # XXX: This is wrong!
         start = None
         for k, v in circ.node.iteritems():
             if 'label' in v:
@@ -127,7 +128,8 @@ class ZimmermanObfuscator(object):
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
-    def obfuscate(self, circname, secparam, directory, obliviate=False, nslots=None):
+    def obfuscate(self, circname, secparam, directory, obliviate=False,
+                  nslots=None):
         # remove old files in obfuscation directory
         if os.path.isdir(directory):
             files = os.listdir(directory)
