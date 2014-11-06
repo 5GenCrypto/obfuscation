@@ -1,0 +1,8 @@
+: nins 2
+: depth 1
+: secret 0
+# TEST 1 1
+# TEST 0 0
+0 input x
+1 input y
+2 output ADD 0 1

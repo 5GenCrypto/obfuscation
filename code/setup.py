@@ -14,8 +14,9 @@ libraries = [
 ]
 compile_args = [
     '-fopenmp',
-    '-O3',
+    # '-O3',
     '-Wall',
+    '-g',
 ]
 
 if ATTACK:
@@ -27,6 +28,7 @@ zobfuscator = Extension(
     libraries=libraries,
     extra_compile_args=compile_args,
     sources=[
+        'src/circuit.cpp',
         'src/_zobfuscator.cpp',
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',

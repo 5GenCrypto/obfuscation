@@ -1,3 +1,4 @@
+#include "circuit.h"
 #include "utils.h"
 #include "pyutils.h"
 
@@ -83,33 +84,6 @@ encode(struct zstate *s, mpz_t out, mpz_t in1, mpz_t in2, unsigned int num, ...)
         mpz_mod(out, out, s->s.q);
     }
     mpz_clears(r, tmp, NULL);
-}
-
-static void
-add(mpz_t out, mpz_t out_one, const mpz_t x, const mpz_t x_one, const mpz_t y,
-    const mpz_t y_one, const mpz_t q)
-{
-    mpz_t a, b;
-    mpz_inits(a, b, NULL);
-
-    mpz_mul(a, x, y_one);
-    mpz_mul(b, x_one, y);
-    mpz_add(out, a, b);
-    mpz_mod(out, out, q);
-
-    mpz_mul(out_one, x_one, y_one);
-    mpz_mod(out_one, out_one, q);
-    mpz_clears(a, b, NULL);
-}
-
-static void
-multiply(mpz_t out, mpz_t out_one, const mpz_t x, const mpz_t x_one,
-         const mpz_t y, const mpz_t y_one, const mpz_t q)
-{
-    mpz_mul(out, x, y);
-    mpz_mod(out, out, q);
-    mpz_mul(out_one, x_one, y_one);
-    mpz_mod(out_one, out_one, q);
 }
 
 static PyObject *
@@ -387,9 +361,16 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
     encode(s, tmp, one, one, 1, 4 * n, 1);
     (void) write_element(s, tmp, "v");
 
-    // TODO: evaluate circuit on alphas and betas
+    if (g_verbose)
+        (void) fprintf(stderr, "Computing C* from '%s'...\n", circuit);
+    {
+        struct circuit *c;
 
-    mpz_mul(c_star, alphas[0], betas[0]);
+        c = circ_parse(circuit);
+        circ_evaluate(c, alphas, betas, c_star, s->s.q);
+        circ_cleanup(c);
+    }
+
     encode(s, tmp, zero, c_star, 4,
            0, 1, 1, 1, 2, 1, 4, 1);
     (void) write_element(s, tmp, "c_star");
@@ -456,10 +437,13 @@ zobf_evaluate(PyObject *self, PyObject *args)
         (void) load_mpz_scalar(fname, yones[0]);
     }
 
-    // TODO: evaluate circuit on inputs here
+    {
+        struct circuit *c;
 
-    // add(tmp, tmpone, xs[0], xones[0], ys[0], yones[0], q);
-    multiply(tmp, tmpone, xs[0], xones[0], ys[0], yones[0], q);
+        c = circ_parse(circuit);
+        circ_evaluate_encoding(c, xs, xones, ys, yones, tmp, q);
+        circ_cleanup(c);
+    }
 
     mpz_set(c_1, tmp);
 

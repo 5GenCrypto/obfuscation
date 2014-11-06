@@ -17,6 +17,8 @@ class Circuit(object):
         self.n_xins = 0
         self.n_yins = 0
         self._parse(fname)
+        print('y_deg = %s' % self.y_deg)
+        print('x_degs = %s' % self.x_degs)
 
     def _inp_gate(self, g, num, inp):
         assert(inp.startswith('x') or inp.startswith('y'))
@@ -55,7 +57,7 @@ class Circuit(object):
         deg = 0
         for node in path:
             if 'gate' in circ.node[node]:
-                if circ.node[node]['gate'] == 'MUL':
+                if circ.node[node]['gate'] in ('ADD', 'MUL'):
                     deg += 1
         print('Degree of %s = %d' % (inp, deg))
         return deg
@@ -117,6 +119,7 @@ class ZimmermanObfuscator(object):
         self.logger('Encoding circuit...')
         start = time.time()
         s = [long(c) for c in circ.info['secret']]
+        print('secret = %s' % circ.info['secret'])
         assert(len(s) == circ.n_yins)
         _zobf.encode_circuit(self._state, circname, s, circ.n_xins, circ.n_yins)
         end = time.time()
