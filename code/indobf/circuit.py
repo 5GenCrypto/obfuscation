@@ -20,8 +20,7 @@ def _parse_param(line):
         raise ParseException("Invalid parameter '%s'" % param)
 
 def parse(fname, bp, f_inp_gate, f_gate, keyed=False):
-    info = {}
-    info['nlayers'] = info['ninputs'] = info['depth'] = 0
+    info = {'nlayers': 0}
     output = False
     with open(fname) as f:
         for lineno, line in enumerate(f, 1):

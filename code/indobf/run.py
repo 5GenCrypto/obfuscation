@@ -12,9 +12,7 @@ import argparse, os, sys, time
 TESTDIR = 'circuits'
 
 def bp(args):
-    if args.zimmerman:
-        cls = zobf.Circuit
-    elif args.sahai_zhandry:
+    if args.sahai_zhandry:
         cls = SZBranchingProgram
     else:
         cls = BranchingProgram
@@ -59,8 +57,10 @@ def obf(args):
     elif args.test_all:
         for circuit in os.listdir(TESTDIR):
             path = os.path.join(TESTDIR, circuit)
-            if os.path.isfile(path) and path.endswith('.circ'):
-                test_circuit(path, bpclass, obfclass, True, args)
+            ext = '.acirc' if args.zimmerman else '.circ'
+            if os.path.isfile(path) and path.endswith(ext):
+                test_circuit(path, bpclass, obfclass, True, args,
+                             zimmerman=args.zimmerman)
     else:
         directory = None
         if args.load_obf:
@@ -121,8 +121,6 @@ def main():
                            help='be verbose')
     parser_bp.add_argument('-s', '--sahai-zhandry', action='store_true',
                            help='use the Sahai/Zhandry construction (alpha)')
-    parser_bp.add_argument('-z', '--zimmerman', action='store_true',
-                           help='use the Zimmerman construction (not working yet)')
     parser_bp.set_defaults(func=bp)
 
     parser_obf = subparsers.add_parser(
