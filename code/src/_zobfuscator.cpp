@@ -102,18 +102,15 @@ zobf_setup(PyObject *self, PyObject *args)
 {
     long alpha, beta, eta, nu, kappa, rho_f;
     mpz_t *ps, *zs;
-    PyObject *py_s;
+    PyObject *py_pows;
     double start, end;
     struct zstate *s;
 
     s = (struct zstate *) malloc(sizeof(struct zstate));
     if (s == NULL)
         return NULL;
-    if (!PyArg_ParseTuple(args, "llls", &s->s.secparam, &kappa, &s->s.nzs,
-                          &s->s.dir))
-        return NULL;
-    py_s = PyCapsule_New((void *) s, NULL, zstate_destructor);
-    if (py_s == NULL)
+    if (!PyArg_ParseTuple(args, "lllOs", &s->s.secparam, &kappa, &s->s.nzs,
+                          &py_pows, &s->s.dir))
         return NULL;
 
     /* Calculate CLT parameters */
@@ -225,11 +222,15 @@ zobf_setup(PyObject *self, PyObject *args)
     /* Compute pzt */
     start = current_time();
     {
-        mpz_t zk;
+        int pow;
+        mpz_t zk, tmp;
+        mpz_init(tmp);
         mpz_init_set_ui(zk, 1);
         // compute z^k mod q
         for (unsigned long i = 0; i < s->s.nzs; ++i) {
-            mpz_mul(zk, zk, zs[i]);
+            pow = PyLong_AsLong(PyList_GET_ITEM(py_pows, i));
+            mpz_powm_ui(tmp, zs[i], pow, s->s.q);
+            mpz_mul(zk, zk, tmp);
             mpz_mod(zk, zk, s->s.q);
         }
 #pragma omp parallel for
@@ -269,7 +270,13 @@ zobf_setup(PyObject *self, PyObject *args)
     }
     free(zs);
 
-    return py_s;
+    {
+        PyObject *py_state;
+        py_state = PyCapsule_New((void *) s, NULL, zstate_destructor);
+        if (py_state == NULL)
+            return NULL;
+        return py_state;
+    }
 }
 
 static PyObject *

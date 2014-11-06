@@ -107,12 +107,12 @@ class ZimmermanObfuscator(object):
         _zobf.verbose(self._verbose)
         self.logger = utils.make_logger(self._verbose)
 
-    def _gen_mlm_params(self, secparam, kappa, nzs, directory):
+    def _gen_mlm_params(self, secparam, kappa, nzs, pows, directory):
         self.logger('Generating MLM parameters...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        self._state = _zobf.setup(secparam, kappa, nzs, directory)
+        self._state = _zobf.setup(secparam, kappa, nzs, pows, directory)
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
@@ -137,11 +137,18 @@ class ZimmermanObfuscator(object):
 
         circ = Circuit(circname)
         nzs = 1 + 4 * circ.n_xins
+        pows = []
+        for pow in circ.x_degs:
+            pows.extend([pow, pow])
+        pows.extend([1 for _ in xrange(2 * circ.n_xins)])
+        pows.append(circ.y_deg)
+        assert(len(pows) == nzs)
+        print(pows)
+
         kappa = len(circ.circuit.nodes())
-        print(kappa)
 
         start = time.time()
-        self._gen_mlm_params(secparam + circ.info['depth'], kappa, nzs, directory)
+        self._gen_mlm_params(secparam, kappa, nzs, pows, directory)
         self._obfuscate(circname, circ)
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))
