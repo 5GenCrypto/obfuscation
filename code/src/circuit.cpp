@@ -104,7 +104,6 @@ circ_parse(const char *circname)
         (void) fclose(f);
         return NULL;
     }
-
     circuit_init(circ, ngates);
 
     while ((read = getline(&line, &len, f)) != -1) {
@@ -143,11 +142,7 @@ circ_parse(const char *circname)
                 err = 1;
                 goto cleanup;
             }
-        } else if (strcmp(type, "gate") == 0) {
-            fprintf(stderr, "NOT HANDLED YET!\n");
-            err = 1;
-            goto cleanup;
-        } else {                // "output"
+        } else if (strcmp(type, "gate") == 0 || strcmp(type, "output") == 0) {
             char *gtype;
             int left, right;
 

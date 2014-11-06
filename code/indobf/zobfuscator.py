@@ -53,7 +53,7 @@ class Circuit(object):
                     start = k
         if start is None:
             raise Exception("couldn't find '%s'" % inp)
-        path = nx.shortest_path(circ, start, 2) # XXX:
+        path = nx.shortest_path(circ, start, circ.nodes()[-1])
         deg = 0
         for node in path:
             if 'gate' in circ.node[node]:
@@ -65,7 +65,8 @@ class Circuit(object):
     def _parse(self, fname):
         g = nx.digraph.DiGraph()
         self.circuit, self.info = parse(fname, [g], self._inp_gate, self._gate, keyed=True)
-        self.x_degs = [self._compute_deg(self.circuit, 'x')]
+        self.x_degs = [self._compute_deg(self.circuit, 'x%d' % i) for i in range(self.n_xins)]
+        assert(self.n_yins == 1)
         self.y_deg = self._compute_deg(self.circuit, 'y')
 
     def evaluate(self, x):
@@ -106,12 +107,12 @@ class ZimmermanObfuscator(object):
         _zobf.verbose(self._verbose)
         self.logger = utils.make_logger(self._verbose)
 
-    def _gen_mlm_params(self, secparam, nzs, directory):
+    def _gen_mlm_params(self, secparam, kappa, nzs, directory):
         self.logger('Generating MLM parameters...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        self._state = _zobf.setup(secparam, 3, nzs, directory)
+        self._state = _zobf.setup(secparam, kappa, nzs, directory)
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
@@ -121,7 +122,8 @@ class ZimmermanObfuscator(object):
         s = [long(c) for c in circ.info['secret']]
         print('secret = %s' % circ.info['secret'])
         assert(len(s) == circ.n_yins)
-        _zobf.encode_circuit(self._state, circname, s, circ.n_xins, circ.n_yins)
+        _zobf.encode_circuit(self._state, circname, s, circ.x_degs, circ.y_deg,
+                             circ.n_xins, circ.n_yins)
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
@@ -134,10 +136,12 @@ class ZimmermanObfuscator(object):
                 os.unlink(p)
 
         circ = Circuit(circname)
-        nzs = 1 + 4 * sum(circ.x_degs)
+        nzs = 1 + 4 * circ.n_xins
+        kappa = len(circ.circuit.nodes())
+        print(kappa)
 
         start = time.time()
-        self._gen_mlm_params(secparam + circ.info['depth'], nzs, directory)
+        self._gen_mlm_params(secparam + circ.info['depth'], kappa, nzs, directory)
         self._obfuscate(circname, circ)
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))
