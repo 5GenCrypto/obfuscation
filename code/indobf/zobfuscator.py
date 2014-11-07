@@ -23,11 +23,12 @@ class Circuit(object):
         assert(inp.startswith('x') or inp.startswith('y'))
         if inp.startswith('x'):
             self.n_xins += 1
+            g[0].add_node(num, label=[inp])
         elif inp.startswith('y'):
             self.n_yins += 1
             inp, value = inp.split(None, 1)
             self.ys.append(long(value))
-        g[0].add_node(num, label=[inp])
+            g[0].add_node(num, label=[inp], value=long(value))
 
     def _gate(self, g, num, lineno, gate, inputs):
         g = g[0]
@@ -60,33 +61,27 @@ class Circuit(object):
         self.x_degs, self.y_deg = self._compute_degs(self.circuit, self.n_xins, self.n_yins)
 
     def evaluate(self, x):
-        raise Exception("Not implemented yet!")
-        # assert self.circuit
-        # g = self.circuit.copy()
-        # for node in nx.topological_sort(g):
-        #     if node < self.ninputs:
-        #         g.add_node(node, value=int(x[node]))
-        #     elif g.node[node]['gate'] in ('ID', 'NOT'):
-        #         idx = g.pred[node].keys()[0]
-        #         if g.node[node]['gate'] == 'ID':
-        #             value = g.node[idx]['value']
-        #         elif g.node[node]['gate'] == 'NOT':
-        #             value = int(g.node[idx]['value'] == 0)
-        #         g.add_node(node, value=value)
-        #     elif g.node[node]['gate'] in ('AND', 'OR', 'XOR'):
-        #         idx1 = g.pred[node].keys()[0]
-        #         idx2 = g.pred[node].keys()[1]
-        #         if g.node[node]['gate'] == 'AND':
-        #             value = g.node[idx1]['value'] & g.node[idx2]['value']
-        #         elif g.node[node]['gate'] == 'OR':
-        #             value = g.node[idx1]['value'] | g.node[idx2]['value']
-        #         elif g.node[node]['gate'] == 'XOR':
-        #             value = g.node[idx1]['value'] ^ g.node[idx2]['value']
-        #         g.add_node(node, value=value)
-        #     else:
-        #         raise Exception('Unable to evaluate')
-        # idx = nx.topological_sort(g)[-1]
-        # return g.node[idx]['value']
+        # XXX: this is a massive hack
+        assert self.circuit
+        g = self.circuit.copy()
+        for node in nx.topological_sort(g):
+            if 'gate' not in g.node[node]:
+                if g.node[node]['label'][0].startswith('x'):
+                    g.add_node(node, value=int(x[node]))
+                else:
+                    g.add_node(node, value=int(g.node[node]['value']))
+            elif g.node[node]['gate'] in ('ADD', 'MUL'):
+                idx1 = g.pred[node].keys()[0]
+                idx2 = g.pred[node].keys()[1]
+                if g.node[node]['gate'] == 'ADD':
+                    value = g.node[idx1]['value'] + g.node[idx2]['value']
+                elif g.node[node]['gate'] == 'MUL':
+                    value = g.node[idx1]['value'] * g.node[idx2]['value']
+                g.add_node(node, value=value)
+            else:
+                raise Exception('Unable to evaluate')
+        idx = nx.topological_sort(g)[-1]
+        return g.node[idx]['value'] != 0
 
 
 class ZimmermanObfuscator(object):
@@ -155,5 +150,4 @@ class ZimmermanObfuscator(object):
         return result
 
     def cleanup(self):
-        pass
-        # _zobf.cleanup(self._state)
+        _zobf.cleanup(self._state)

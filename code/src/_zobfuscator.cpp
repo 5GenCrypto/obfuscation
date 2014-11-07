@@ -398,6 +398,9 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
         mpz_inits(out, y, NULL);
 
         py_to_mpz(y, PyList_GET_ITEM(py_ys, i));
+        if (mpz_sgn(y) == -1) {
+            mpz_mod(y, y, s->nev);
+        }
         encode(s, out, y, betas[i], 1, indices, pows);
         (void) snprintf(fname, fnamelen, "y_%d", i);
         (void) write_element(s, out, fname);
@@ -412,14 +415,15 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
         struct circuit *c;
 
         c = circ_parse(circuit);
-        circ_evaluate(c, alphas, betas, c_star, s->s.q);
+        (void) circ_evaluate(c, alphas, betas, c_star, s->s.q);
         circ_cleanup(c);
     }
 
     {
+        // The C* encoding contains everything but the W_i symbols.
+        // Here we calculate the appropriate indices and powers.
         for (int i = 0; i < n; ++i) {
             int deg;
-
             deg = PyLong_AsLong(PyList_GET_ITEM(py_xdegs, i));
             // X_i,0^deg(x_i)
             indices[2 * i] = 2 * i;
@@ -434,7 +438,7 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
         // Y^deg(y)
         indices[3 * n] = 4 * n;
         pows[3 * n] = ydeg;
-        // The C* encoding contains everything but the W_i symbols
+        // Encode against these indices/powers
         encode(s, tmp, zero, c_star, 3 * n + 1, indices, pows);
     }
     (void) write_element(s, tmp, "c_star");
@@ -451,7 +455,7 @@ zobf_evaluate(PyObject *self, PyObject *args)
     long n, m = 1;
     int fnamelen;
     int iszero;
-    mpz_t tmp, c_1, c_2, q, z, w;
+    mpz_t c_1, c_2, q, z, w;
     mpz_t *xs, *xones, *ys, *yones;
 
     if (!PyArg_ParseTuple(args, "sssl", &dir, &circuit, &input, &n))
@@ -461,7 +465,7 @@ zobf_evaluate(PyObject *self, PyObject *args)
     if (fname == NULL)
         return NULL;
 
-    mpz_inits(tmp, c_1, c_2, q, z, w, NULL);
+    mpz_inits(c_1, c_2, q, z, w, NULL);
 
     xs = (mpz_t *) malloc(sizeof(mpz_t) * n);
     xones = (mpz_t *) malloc(sizeof(mpz_t) * n);
@@ -502,16 +506,20 @@ zobf_evaluate(PyObject *self, PyObject *args)
         (void) load_mpz_scalar(fname, yones[i]);
     }
 
+    // Evaluate the circuit on x_1, ..., x_n
     {
         struct circuit *c;
 
         c = circ_parse(circuit);
-        circ_evaluate_encoding(c, xs, xones, ys, yones, c_1, q);
+        (void) circ_evaluate_encoding(c, xs, xones, ys, yones, c_1, q);
         circ_cleanup(c);
     }
+
+    // Load in c_2
     (void) snprintf(fname, fnamelen, "%s/c_star", dir);
     (void) load_mpz_scalar(fname, c_2);
 
+    // Compute c_1 * \Prod z_{i,x_i} and c_2 * \Prod w_{i,x_i}
     for (int i = 0; i < n; ++i) {
         (void) snprintf(fname, fnamelen, "%s/z_%d_%c", dir, i, input[i]);
         (void) load_mpz_scalar(fname, z);
@@ -523,32 +531,65 @@ zobf_evaluate(PyObject *self, PyObject *args)
         mpz_mod(c_2, c_2, q);
     }
 
-    mpz_sub(tmp, c_1, c_2);
-
+    // Compute c_1 - c_2 and zero test
     {
-        mpz_t pzt, nu;
-        mpz_inits(pzt, nu, NULL);
+        mpz_t pzt, nu, tmp;
+        mpz_inits(tmp, pzt, nu, NULL);
         (void) snprintf(fname, fnamelen, "%s/pzt", dir);
         (void) load_mpz_scalar(fname, pzt);
         (void) snprintf(fname, fnamelen, "%s/nu", dir);
         (void) load_mpz_scalar(fname, nu);
+        mpz_sub(tmp, c_1, c_2);
         iszero = is_zero(tmp, pzt, q, mpz_get_ui(nu));
-        mpz_clears(pzt, nu, NULL);
+        mpz_clears(tmp, pzt, nu, NULL);
     }
 
     free(fname);
     for (int i = 0; i < m; ++i) {
-        mpz_clear(ys[i]);
+        mpz_clears(ys[i], yones[i], NULL);
     }
     free(ys);
+    free(yones);
     for (int i = 0; i < n; ++i) {
-        mpz_clear(xs[i]);
+        mpz_clears(xs[i], xones[i], NULL);
     }
     free(xs);
-    mpz_clears(tmp, c_1, c_2, q, z, w, NULL);
+    free(xones);
+    mpz_clears(c_1, c_2, q, z, w, NULL);
 
     return Py_BuildValue("i", iszero ? 0 : 1);
 }
+
+static PyObject *
+zobf_cleanup(PyObject *self, PyObject *args)
+{
+    PyObject *py_state;
+    struct zstate *s;
+
+    if (!PyArg_ParseTuple(args, "O", &py_state))
+        return NULL;
+
+    s = (struct zstate *) PyCapsule_GetPointer(py_state, NULL);
+    if (s == NULL)
+        return NULL;
+
+    gmp_randclear(s->s.rng);
+    mpz_clears(s->s.q, s->s.pzt, NULL);
+    for (unsigned long i = 0; i < s->s.n; ++i) {
+        mpz_clears(s->s.gs[i], s->s.crt_coeffs[i], NULL);
+    }
+    free(s->s.gs);
+    free(s->s.crt_coeffs);
+    for (unsigned long i = 0; i < s->s.nzs; ++i) {
+        mpz_clear(s->s.zinvs[i]);
+    }
+    free(s->s.zinvs);
+    mpz_clears(s->nev, s->nchk, NULL);
+    free(s);
+
+    Py_RETURN_NONE;
+}
+
 
 static PyMethodDef
 ObfMethods[] = {
@@ -562,6 +603,9 @@ ObfMethods[] = {
      "Evaluate circuit."},
     {"max_mem_usage", obf_max_mem_usage, METH_VARARGS,
      "Compute the maximum memory usage."},
+    {"cleanup", zobf_cleanup, METH_VARARGS,
+     "Clean up objects created during setup."},
+
     {NULL, NULL, 0, NULL}
 };
 

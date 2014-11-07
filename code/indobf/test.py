@@ -5,7 +5,7 @@ import zobfuscator as zobf
 
 from sage.all import random_prime
 
-def test_circuit(path, cclass, obfclass, obfuscate, args, zimmerman=False):
+def test_circuit(path, cclass, obfclass, obfuscate, args):
     testcases = {}
     print('Testing %s: ' % path, end='')
     if args.verbose:
@@ -28,7 +28,7 @@ def test_circuit(path, cclass, obfclass, obfuscate, args, zimmerman=False):
                     else '%s.obf.%d' % (path, args.secparam)
         obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate)
         for k, v in testcases.items():
-            if zimmerman:
+            if args.zimmerman:
                 r = obf.evaluate(directory, path, k)
             else:
                 r = obf.evaluate(directory, k)
@@ -36,9 +36,6 @@ def test_circuit(path, cclass, obfclass, obfuscate, args, zimmerman=False):
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
                 success = False
     else:
-        if zimmerman:
-            print("\x1b[31mError:\x1b[0m Zimmerman's approach doesn't use BPs")
-            return False
         # load circuit/bp
         try:
             if args.zimmerman:

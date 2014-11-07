@@ -177,7 +177,7 @@ cleanup:
     return circ;
 }
 
-void
+int
 circ_evaluate(const struct circuit *circ, const mpz_t *alphas,
               const mpz_t *betas, mpz_t out, const mpz_t q)
 {
@@ -202,10 +202,12 @@ circ_evaluate(const struct circuit *circ, const mpz_t *alphas,
             mpz_mod(gate->value, gate->value, q);
             break;
         default:
-            break;
+            (void) fprintf(stderr, "error: unknown gate type!\n");
+            return 1;
         }
     }
     mpz_set(out, circ->gates[circ->ngates - 1].value);
+    return 0;
 }
 
 static void
@@ -235,7 +237,7 @@ multiply(mpz_t out, mpz_t out_one, const mpz_t x, const mpz_t x_one,
     mpz_mod(out_one, out_one, q);
 }
 
-void
+int
 circ_evaluate_encoding(const struct circuit *circ, const mpz_t *xs,
                        const mpz_t *xones, const mpz_t *ys, const mpz_t *yones,
                        mpz_t out, const mpz_t q)
@@ -267,10 +269,12 @@ circ_evaluate_encoding(const struct circuit *circ, const mpz_t *xs,
                      gate->right->one_value, q);
             break;
         default:
-            break;
+            (void) fprintf(stderr, "error: unknown gate type!\n");
+            return 1;
         }
     }
     mpz_set(out, circ->gates[circ->ngates - 1].value);
+    return 0;
 }
 
 void
