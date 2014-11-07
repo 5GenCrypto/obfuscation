@@ -452,13 +452,13 @@ static PyObject *
 zobf_evaluate(PyObject *self, PyObject *args)
 {
     char *circuit, *dir, *input, *fname;
-    long n, m = 1;
+    long n, m;
     int fnamelen;
     int iszero;
     mpz_t c_1, c_2, q, z, w;
     mpz_t *xs, *xones, *ys, *yones;
 
-    if (!PyArg_ParseTuple(args, "sssl", &dir, &circuit, &input, &n))
+    if (!PyArg_ParseTuple(args, "sssll", &dir, &circuit, &input, &n, &m))
         return NULL;
     fnamelen = strlen(dir) + 20; // XXX: should include length somewhere
     fname = (char *) malloc(sizeof(char) * fnamelen);

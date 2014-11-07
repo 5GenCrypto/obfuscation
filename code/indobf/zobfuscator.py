@@ -17,6 +17,7 @@ class Circuit(object):
         self.circuit = None
         self.n_xins = 0
         self.n_yins = 0
+        self.ngates = 0
         self._parse(fname)
 
     def _inp_gate(self, g, num, inp):
@@ -45,6 +46,7 @@ class Circuit(object):
             'MUL': _mul_gate,
         }
         gates[gate](num, *inputs)
+        self.ngates += 1
         return [g]
 
     def _compute_degs(self, circ, n_xins, n_yins):
@@ -127,7 +129,7 @@ class ZimmermanObfuscator(object):
         pows.append(circ.y_deg)
         assert(len(pows) == nzs)
 
-        kappa = len(circ.circuit.nodes())
+        kappa = circ.ngates + 2
 
         start = time.time()
         self._gen_mlm_params(secparam, kappa, nzs, pows, directory)
@@ -142,7 +144,13 @@ class ZimmermanObfuscator(object):
         start = time.time()
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        result = _zobf.evaluate(directory, circname, inp, len(inp))
+        # Count number of y values
+        m = 0
+        with open(circname) as f:
+            for line in f:
+                if 'y' in line:
+                    m += 1
+        result = _zobf.evaluate(directory, circname, inp, len(inp), m)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         if self._verbose:
