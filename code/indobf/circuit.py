@@ -14,8 +14,6 @@ def _parse_param(line):
         except ValueError:
             raise ParseException("Invalid value '%s'" % value)
         return {param: value}
-    elif param == 'secret':
-        return {'secret': value}
     else:
         raise ParseException("Invalid parameter '%s'" % param)
 

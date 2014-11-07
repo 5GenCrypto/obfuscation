@@ -11,6 +11,7 @@ class Circuit(object):
     def __init__(self, fname, verbose=False):
         self._verbose = verbose
         self.info = None
+        self.ys = []
         self.y_deg = 0
         self.x_degs = None
         self.circuit = None
@@ -24,6 +25,8 @@ class Circuit(object):
             self.n_xins += 1
         elif inp.startswith('y'):
             self.n_yins += 1
+            inp, value = inp.split(None, 1)
+            self.ys.append(long(value))
         g[0].add_node(num, label=[inp])
 
     def _gate(self, g, num, lineno, gate, inputs):
@@ -106,10 +109,8 @@ class ZimmermanObfuscator(object):
     def _obfuscate(self, circname, circ):
         self.logger('Encoding circuit...')
         start = time.time()
-        s = [long(c) for c in circ.info['secret']]
-        assert(len(s) == circ.n_yins)
-        _zobf.encode_circuit(self._state, circname, s, circ.x_degs, circ.y_deg,
-                             circ.n_xins, circ.n_yins)
+        _zobf.encode_circuit(self._state, circname, circ.ys, circ.x_degs,
+                             circ.y_deg, circ.n_xins, circ.n_yins)
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
@@ -123,7 +124,7 @@ class ZimmermanObfuscator(object):
                 os.unlink(p)
 
         circ = Circuit(circname)
-        nzs = 1 + 4 * circ.n_xins
+        nzs = 4 * circ.n_xins + 1
         pows = []
         for pow in circ.x_degs:
             pows.extend([pow, pow])

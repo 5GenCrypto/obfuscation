@@ -1,11 +1,10 @@
 : depth 2
-: secret 1
 # TEST 00 0
 # TEST 01 1
 # TEST 10 1
 # TEST 11 1
 0 input x0
 1 input x1
-2 input y0
+2 input y0 1
 3 gate ADD 0 1
 4 output MUL 3 2

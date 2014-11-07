@@ -286,7 +286,7 @@ zobf_setup(PyObject *self, PyObject *args)
 static PyObject *
 zobf_encode_circuit(PyObject *self, PyObject *args)
 {
-    PyObject *py_state, *py_y, *py_xdegs;
+    PyObject *py_state, *py_ys, *py_xdegs;
     mpz_t zero, one, tmp, c_star;
     mpz_t *alphas, *betas;
     int n, m, ydeg;
@@ -296,7 +296,7 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
     int idx_set_size;
     struct zstate *s;
 
-    if (!PyArg_ParseTuple(args, "OsOOiii", &py_state, &circuit, &py_y,
+    if (!PyArg_ParseTuple(args, "OsOOiii", &py_state, &circuit, &py_ys,
                           &py_xdegs, &ydeg, &n, &m))
         return NULL;
     s = (struct zstate *) PyCapsule_GetPointer(py_state, NULL);
@@ -397,7 +397,7 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
         mpz_t out, y;
         mpz_inits(out, y, NULL);
 
-        py_to_mpz(y, PyList_GET_ITEM(py_y, i));
+        py_to_mpz(y, PyList_GET_ITEM(py_ys, i));
         encode(s, out, y, betas[i], 1, indices, pows);
         (void) snprintf(fname, fnamelen, "y_%d", i);
         (void) write_element(s, out, fname);
