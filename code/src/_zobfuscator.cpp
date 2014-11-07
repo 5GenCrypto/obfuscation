@@ -497,9 +497,9 @@ zobf_evaluate(PyObject *self, PyObject *args)
     // Load in secret input
     for (int i = 0; i < m; ++i) {
         (void) snprintf(fname, fnamelen, "%s/y_%d", dir, i);
-        (void) load_mpz_scalar(fname, ys[0]);
+        (void) load_mpz_scalar(fname, ys[i]);
         (void) snprintf(fname, fnamelen, "%s/v", dir);
-        (void) load_mpz_scalar(fname, yones[0]);
+        (void) load_mpz_scalar(fname, yones[i]);
     }
 
     {
@@ -509,7 +509,6 @@ zobf_evaluate(PyObject *self, PyObject *args)
         circ_evaluate_encoding(c, xs, xones, ys, yones, c_1, q);
         circ_cleanup(c);
     }
-
     (void) snprintf(fname, fnamelen, "%s/c_star", dir);
     (void) load_mpz_scalar(fname, c_2);
 

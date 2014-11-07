@@ -4,5 +4,5 @@
 # TEST 1 1
 # TEST 0 0
 0 input x0
-1 input y
+1 input y0
 2 output ADD 0 1

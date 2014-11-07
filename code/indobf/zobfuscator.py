@@ -5,7 +5,7 @@ from circuit import parse
 import utils
 
 import networkx as nx
-import os, time
+import copy, os, time
 
 class Circuit(object):
     def __init__(self, fname, verbose=False):
@@ -17,8 +17,6 @@ class Circuit(object):
         self.n_xins = 0
         self.n_yins = 0
         self._parse(fname)
-        # print('y_deg = %s' % self.y_deg)
-        # print('x_degs = %s' % self.x_degs)
 
     def _inp_gate(self, g, num, inp):
         assert(inp.startswith('x') or inp.startswith('y'))
@@ -26,16 +24,16 @@ class Circuit(object):
             self.n_xins += 1
         elif inp.startswith('y'):
             self.n_yins += 1
-        g[0].add_node(num, label=inp)
+        g[0].add_node(num, label=[inp])
 
     def _gate(self, g, num, lineno, gate, inputs):
         g = g[0]
         def _add_gate(num, x, y):
-            g.add_node(num, gate='ADD')
+            g.add_node(num, gate='ADD', label=[])
             g.add_edge(x, num)
             g.add_edge(y, num)
         def _mul_gate(num, x, y):
-            g.add_node(num, gate='MUL')
+            g.add_node(num, gate='MUL', label=[])
             g.add_edge(x, num)
             g.add_edge(y, num)
         gates = {
@@ -45,29 +43,18 @@ class Circuit(object):
         gates[gate](num, *inputs)
         return [g]
 
-    def _compute_deg(self, circ, inp):
-        # XXX: This is wrong!
-        start = None
-        for k, v in circ.node.iteritems():
-            if 'label' in v:
-                if v['label'] == inp:
-                    start = k
-        if start is None:
-            raise Exception("couldn't find '%s'" % inp)
-        path = nx.shortest_path(circ, start, circ.nodes()[-1])
-        deg = 0
-        for node in path:
-            if 'gate' in circ.node[node]:
-                if circ.node[node]['gate'] in ('ADD', 'MUL'):
-                    deg += 1
-        return deg
+    def _compute_degs(self, circ, n_xins, n_yins):
+        for k, v in circ.pred.iteritems():
+            for p in v.iterkeys():
+                circ.node[k]['label'].extend(circ.node[p]['label'])
+        x_degs = [circ.node[circ.nodes()[-1]]['label'].count('x%d' % i) for i in xrange(n_xins)]
+        y_degs = [circ.node[circ.nodes()[-1]]['label'].count('y%d' % i) for i in xrange(n_yins)]
+        return x_degs, sum(y_degs)
 
     def _parse(self, fname):
         g = nx.digraph.DiGraph()
         self.circuit, self.info = parse(fname, [g], self._inp_gate, self._gate, keyed=True)
-        self.x_degs = [self._compute_deg(self.circuit, 'x%d' % i) for i in range(self.n_xins)]
-        assert(self.n_yins == 1)
-        self.y_deg = self._compute_deg(self.circuit, 'y')
+        self.x_degs, self.y_deg = self._compute_degs(self.circuit, self.n_xins, self.n_yins)
 
     def evaluate(self, x):
         raise Exception("Not implemented yet!")
@@ -159,10 +146,13 @@ class ZimmermanObfuscator(object):
         start = time.time()
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        result = _zobf.evaluate(directory, circname, inp, 1)
+        result = _zobf.evaluate(directory, circname, inp, len(inp))
         end = time.time()
         self.logger('Took: %f' % (end - start))
         if self._verbose:
             _zobf.max_mem_usage()
         return result
 
+    def cleanup(self):
+        pass
+        # _zobf.cleanup(self._state)

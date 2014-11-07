@@ -91,7 +91,10 @@ def obf(args):
         if args.eval:
             assert directory
             obf = obfclass(verbose=args.verbose)
-            r = obf.evaluate(directory, args.eval)
+            if args.zimmerman:
+                r = obf.evaluate(directory, args.load_circuit, args.eval)
+            else:
+                r = obf.evaluate(directory, args.eval)
             print('Output = %d' % r)
 
 def main():
