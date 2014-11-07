@@ -3,7 +3,7 @@
 import random, sys
 from math import log
 
-def error():
+def usage():
     print('Usage: point.py <bitlength>')
     sys.exit(1)
 
@@ -12,14 +12,46 @@ def random_bitstring(bitlength):
     bits = bin(r)[2:]
     return '0' * (bitlength - len(bits)) + bits
 
-def main(argv):
-    if len(argv) != 2:
-        error()
-    try:
-        bitlength = int(argv[1])
-    except ValueError:
-        error()
+def random_int(bitlength):
+    return random.randint(0, 2 ** bitlength - 1)
 
+def arithmetic_point(bitlength):
+    with open('point-%d.acirc' % bitlength, 'w') as f:
+        secret = random_int(bitlength)
+        print(secret)
+        bits = bin(secret)[2:]
+        secret_bits = '0' * (bitlength - len(bits)) + bits
+        f.write('# TEST %s 0\n' % secret_bits)
+        for _ in xrange(5):
+            test = random_bitstring(bitlength)
+            if test != secret:
+                f.write('# TEST %s 1\n' % test)
+        num = 0
+        for i in xrange(bitlength):
+            f.write('%d input x%d\n' % (num, i))
+            num += 1
+        dbl = 0
+        for i in xrange(bitlength):
+            f.write('%d input y%d %d\n' % (num, i, 2**dbl))
+            dbl += 1
+            num += 1
+        f.write('%d input y%d -%d\n' % (num, bitlength, secret))
+        snum = num
+        num += 1
+        muls = num
+        for i in xrange(bitlength):
+            f.write('%d gate MUL %d %d\n' % (num, i, bitlength + i))
+            num += 1
+        f.write('%d gate ADD %d %d\n' % (num, muls, muls + 1))
+        num += 1
+        muls += 2
+        for i in xrange(1, bitlength - 1):
+            f.write('%d gate ADD %d %d\n' % (num, num - 1, muls))
+            num += 1
+            muls += 1
+        f.write('%d output ADD %d %d\n' % (num, num - 1, snum))
+
+def binary_point(bitlength):
     with open('point-%d.circ' % bitlength, 'w') as f:
         f.write(': nins %d\n' % bitlength)
         f.write(': depth %d\n' % (int(log(bitlength, 2) + 2)))
@@ -59,6 +91,17 @@ def main(argv):
                                             leftover))
             start = start + 1
         f.write('%d output NOT %d\n' % (start, start - 1))
+
+def main(argv):
+    if len(argv) != 2:
+        usage()
+    try:
+        bitlength = int(argv[1])
+    except ValueError:
+        usage()
+
+    binary_point(bitlength)
+    arithmetic_point(bitlength)
 
 if __name__ == '__main__':
     try:
