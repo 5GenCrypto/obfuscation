@@ -18,7 +18,6 @@ def random_int(bitlength):
 def arithmetic_point(bitlength):
     with open('point-%d.acirc' % bitlength, 'w') as f:
         secret = random_int(bitlength)
-        print(secret)
         bits = bin(secret)[2:]
         secret_bits = '0' * (bitlength - len(bits)) + bits
         f.write('# TEST %s 0\n' % secret_bits)
