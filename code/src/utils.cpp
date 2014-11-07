@@ -54,77 +54,63 @@ seed_rng(gmp_randstate_t *rng)
 int
 load_mpz_scalar(const char *fname, mpz_t x)
 {
-    int ret = SUCCESS;
     FILE *f;
-
     if ((f = fopen(fname, "r")) == NULL) {
         perror(fname);
-        return FAILURE;
+        return 1;
     }
     (void) mpz_inp_raw(x, f);
-
     (void) fclose(f);
-    return ret;
+    return 0;
 }
 
 int
 save_mpz_scalar(const char *fname, const mpz_t x)
 {
     FILE *f;
-
     if ((f = fopen(fname, "w")) == NULL) {
         perror(fname);
-        return FAILURE;
+        return 1;
     }
     if (mpz_out_raw(f, x) == 0) {
-        (void) fprintf(stderr, "ERROR: saving value failed!\n");
         (void) fclose(f);
-        return FAILURE;
+        return 1;
     }
     (void) fclose(f);
-    return SUCCESS;
+    return 0;
 }
 
 int
 load_mpz_vector(const char *fname, mpz_t *m, const int len)
 {
-    int ret = SUCCESS;
     FILE *f;
-    
     if ((f = fopen(fname, "r")) == NULL) {
         perror(fname);
-        return FAILURE;
+        return 1;
     }
-
     for (int i = 0; i < len; ++i) {
         (void) mpz_inp_raw(m[i], f);
     }
-
     (void) fclose(f);
-    return ret;
+    return 0;
 }
 
 int
 save_mpz_vector(const char *fname, const mpz_t *m, const int len)
 {
-    int ret = SUCCESS;
     FILE *f;
-
     if ((f = fopen(fname, "w")) == NULL) {
         perror(fname);
-        return FAILURE;
+        return 1;
     }
-
     for (int i = 0; i < len; ++i) {
         if (mpz_out_raw(f, m[i]) == 0) {
-            fprintf(stderr, "ERROR: saving value failed!\n");
             (void) fclose(f);
-            return FAILURE;
+            return 1;
         }
     }
-
     (void) fclose(f);
-    return ret;
+    return 0;
 }
 
 void

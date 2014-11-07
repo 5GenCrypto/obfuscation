@@ -1,0 +1,7 @@
+: nins 2
+: depth 1
+# TEST 1 1
+# TEST 0 0
+0 input x0
+1 input y0 1
+2 output MUL 0 1

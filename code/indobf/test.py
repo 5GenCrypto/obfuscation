@@ -5,7 +5,7 @@ import zobfuscator as zobf
 
 from sage.all import random_prime
 
-def test_circuit(path, cclass, obfclass, obfuscate, args):
+def test_circuit(path, cclass, obfclass, obfuscate, args, zimmerman=False):
     testcases = {}
     print('Testing %s: ' % path, end='')
     if args.verbose:
@@ -28,10 +28,17 @@ def test_circuit(path, cclass, obfclass, obfuscate, args):
                     else '%s.obf.%d' % (path, args.secparam)
         obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate)
         for k, v in testcases.items():
-            if obf.evaluate(directory, k) != v:
+            if zimmerman:
+                r = obf.evaluate(directory, path, k)
+            else:
+                r = obf.evaluate(directory, k)
+            if r != v:
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
                 success = False
     else:
+        if zimmerman:
+            print("\x1b[31mError:\x1b[0m Zimmerman's approach doesn't use BPs")
+            return False
         # load circuit/bp
         try:
             if args.zimmerman:
@@ -45,13 +52,9 @@ def test_circuit(path, cclass, obfclass, obfuscate, args):
             return False
         # evaluate circuit/bp
         for k, v in testcases.items():
-            # try:
-                if c.evaluate(k) != v:
-                    print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
-                    success = False
-            # except Exception:
-            #     print('\x1b[31mFail\x1b[0m (%s: evaluation failed)' % k)
-            #     success = False
+            if c.evaluate(k) != v:
+                print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
+                success = False
     if success:
         print('\x1b[32mPass\x1b[0m')
     return success

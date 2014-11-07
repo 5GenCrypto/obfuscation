@@ -14,14 +14,28 @@ libraries = [
 ]
 compile_args = [
     '-fopenmp',
-    '-O3',
+    # '-O3',
     '-Wall',
+    '-g',
 ]
 
 if ATTACK:
     libraries.append('fplll')
     compile_args.append('-DATTACK')
 
+zobfuscator = Extension(
+    'indobf._zobfuscator',
+    libraries=libraries,
+    extra_compile_args=compile_args,
+    sources=[
+        'src/circuit.cpp',
+        'src/_zobfuscator.cpp',
+        'src/mpn_pylong.cpp',
+        'src/mpz_pylong.cpp',
+        'src/pyutils.cpp',
+        'src/utils.cpp',
+    ]
+)
 
 obfuscator = Extension(
     'indobf._obfuscator',
@@ -29,7 +43,6 @@ obfuscator = Extension(
     extra_compile_args=compile_args,
     sources=[
         'src/_obfuscator.cpp',
-        'src/_zobfuscator.cpp',
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
         'src/pyutils.cpp',
@@ -43,7 +56,7 @@ setup(name=__name__,
       description='Cryptographic obfuscation implementation',
       package_data={'circuits': ['*.circ']},
       packages=['indobf', 'circuits'],
-      ext_modules=[obfuscator],
+      ext_modules=[obfuscator, zobfuscator],
       test_suite='t',
       classifiers=[
           'Topic :: Security :: Cryptography',

@@ -8,20 +8,17 @@ def _parse_param(line):
     except ValueError:
         raise ParseException("Invalid line '%s'" % line)
     param = param.lower()
-    try:
-        value = int(value)
-    except ValueError:
-        raise ParseException("Invalid value '%s'" % value)
-    if param == 'nins':
-        return {'ninputs': value}
-    elif param == 'depth':
-        return {'depth': value}
+    if param in ('nins', 'depth'):
+        try:
+            value = int(value)
+        except ValueError:
+            raise ParseException("Invalid value '%s'" % value)
+        return {param: value}
     else:
         raise ParseException("Invalid parameter '%s'" % param)
 
-def parse(fname, bp, f_inp_gate, f_gate):
-    info = {}
-    info['nlayers'] = info['ninputs'] = info['depth'] = 0
+def parse(fname, bp, f_inp_gate, f_gate, keyed=False):
+    info = {'nlayers': 0}
     output = False
     with open(fname) as f:
         for lineno, line in enumerate(f, 1):
@@ -37,7 +34,11 @@ def parse(fname, bp, f_inp_gate, f_gate):
                 raise ParseException(
                     'Line %d: gate index not a number' % lineno)
             if rest.startswith('input'):
-                f_inp_gate(bp, num)
+                if keyed:
+                    _, inp = rest.split(None, 1)
+                    f_inp_gate(bp, num, inp.strip())
+                else:
+                    f_inp_gate(bp, num)
                 info['nlayers'] += 1
             elif rest.startswith('gate') or rest.startswith('output'):
                 if rest.startswith('output'):
@@ -60,4 +61,4 @@ def parse(fname, bp, f_inp_gate, f_gate):
                 raise ParseException('Line %d: unknown gate type' % lineno)
     if not output:
         raise ParseException('no output gate found')
-    return bp[-1], info['nlayers'], info['ninputs'], info['depth']
+    return bp[-1], info

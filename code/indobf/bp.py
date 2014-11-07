@@ -278,8 +278,8 @@ class BranchingProgram(object):
                     'Line %d: only Boolean formulas supported' % lineno)
             wires.update(inputs)
             bp.append(gates[gate](num, *inputs))
-        bp, self.nlayers, self.ninputs, self.depth = parse(fname, bp, _inp_gate,
-                                                           _gate)
+        bp, info = parse(fname, bp, _inp_gate, _gate)
+        self.nlayers, self.ninputs, self.depth = info['nlayers'], info['nins'], info['depth']
         return bp
 
     def _obliviate_graph(self, graph):
