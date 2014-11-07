@@ -64,6 +64,7 @@ class Circuit(object):
 
     def evaluate(self, x):
         # XXX: this is a massive hack
+        x = x[::-1]
         assert self.circuit
         g = self.circuit.copy()
         for node in nx.topological_sort(g):
@@ -129,7 +130,8 @@ class ZimmermanObfuscator(object):
         pows.append(circ.y_deg)
         assert(len(pows) == nzs)
 
-        kappa = circ.ngates + 2
+        # XXX: what should kappa be set to!?
+        kappa = circ.ngates + 3
 
         start = time.time()
         self._gen_mlm_params(secparam, kappa, nzs, pows, directory)
@@ -144,6 +146,7 @@ class ZimmermanObfuscator(object):
         start = time.time()
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
+        inp = inp[::-1]
         # Count number of y values
         m = 0
         with open(circname) as f:
