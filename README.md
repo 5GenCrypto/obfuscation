@@ -13,11 +13,12 @@ literature, mainly the work of Ananth, Gupta, Ishai, and Sahai (CCS 2014.
 https://eprint.iacr.org/2014/222), using a graded encoding scheme based on the
 code of Coron et al. (CRYPTO, 2013. https://eprint.iacr.org/2013/183).
 
-<b>NEW</b>: We now have an implementation of the Sahai-Zhandry scheme
-(Cryptology ePrint Archive, 2014/773. https://eprint.iacr.org/2014/773)!
+<b>NEW (29 Oct 2014)</b>: We now have an implementation of the Sahai-Zhandry
+scheme (Cryptology ePrint Archive, 2014/773. https://eprint.iacr.org/2014/773)!
 
-<b>NEW</b>: We now have a (very much alpha) implementation of the Zimmerman
-scheme (Cryptology ePrint Archive, 2014/776. https://eprint.iacr.org/2014/776)!
+<b>NEW</b> (07 Nov 2014): We now have a (very much alpha) implementation of the
+Zimmerman scheme (Cryptology ePrint Archive,
+2014/776. https://eprint.iacr.org/2014/776)!
 
 The implementation is in a mix of Python and C, using Sage
 (http://sagemath.org), GNU GMP (https://gmplib.org) and OpenMP
