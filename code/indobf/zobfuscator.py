@@ -51,14 +51,21 @@ class Circuit(object):
 
     def _compute_degs(self, circ, n_xins, n_yins):
         for k, v in circ.pred.iteritems():
-            for p in v.iterkeys():
+            assert(0 <= len(v.keys()) <= 2)
+            if len(v.keys()) == 1:
+                p = v.keys()[0]
                 circ.node[k]['label'].extend(circ.node[p]['label'])
+                circ.node[k]['label'].extend(circ.node[p]['label'])
+            else:
+                for p in v.iterkeys():
+                    circ.node[k]['label'].extend(circ.node[p]['label'])
         x_degs = [circ.node[circ.nodes()[-1]]['label'].count('x%d' % i) for i in xrange(n_xins)]
         y_degs = [circ.node[circ.nodes()[-1]]['label'].count('y%d' % i) for i in xrange(n_yins)]
         return x_degs, sum(y_degs)
 
     def _parse(self, fname):
         g = nx.digraph.DiGraph()
+        # g = nx.multidigraph.MultiDiGraph()
         self.circuit, self.info = parse(fname, [g], self._inp_gate, self._gate, keyed=True)
         self.x_degs, self.y_deg = self._compute_degs(self.circuit, self.n_xins, self.n_yins)
 
@@ -74,8 +81,13 @@ class Circuit(object):
                 else:
                     g.add_node(node, value=int(g.node[node]['value']))
             elif g.node[node]['gate'] in ('ADD', 'MUL'):
-                idx1 = g.pred[node].keys()[0]
-                idx2 = g.pred[node].keys()[1]
+                keys = g.pred[node].keys()
+                if len(keys) == 1:
+                    idx1 = idx2 = keys[0]
+                else:
+                    assert(len(keys) == 2)
+                    idx1 = g.pred[node].keys()[0]
+                    idx2 = g.pred[node].keys()[1]
                 if g.node[node]['gate'] == 'ADD':
                     value = g.node[idx1]['value'] + g.node[idx2]['value']
                 elif g.node[node]['gate'] == 'MUL':
