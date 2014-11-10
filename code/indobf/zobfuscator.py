@@ -158,12 +158,13 @@ class ZimmermanObfuscator(object):
         if self._verbose:
             _zobf.max_mem_usage()
 
-    def evaluate(self, directory, circname, inp):
+    def evaluate(self, directory, inp):
         self.logger('Evaluating %s...' % inp)
         start = time.time()
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
         inp = inp[::-1]
+        circname = os.path.join(directory, 'circuit')
         # Count number of y values
         m = 0
         with open(circname) as f:

@@ -257,6 +257,15 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
         struct circuit *c;
 
         c = circ_parse(circuit);
+        {
+            int circnamelen;
+            char *circname;
+            circnamelen = strlen(s->s.dir) + strlen("/circuit") + 2;
+            circname = (char *) malloc(sizeof(char) * circnamelen);
+            (void) snprintf(circname, circnamelen, "%s/circuit", s->s.dir);
+            (void) circ_copy_circuit(circuit, circname);
+            free(circname);
+        }
         (void) circ_evaluate(c, alphas, betas, c_star, s->s.q);
         circ_cleanup(c);
     }
@@ -415,19 +424,21 @@ zobf_cleanup(PyObject *self, PyObject *args)
     if (s == NULL)
         return NULL;
 
-    gmp_randclear(s->s.rng);
-    mpz_clears(s->s.q, s->s.pzt, NULL);
-    for (unsigned long i = 0; i < s->s.n; ++i) {
-        mpz_clears(s->s.gs[i], s->s.crt_coeffs[i], NULL);
-    }
-    free(s->s.gs);
-    free(s->s.crt_coeffs);
-    for (unsigned long i = 0; i < s->s.nzs; ++i) {
-        mpz_clear(s->s.zinvs[i]);
-    }
-    free(s->s.zinvs);
-    mpz_clears(s->nev, s->nchk, NULL);
-    free(s);
+    // XXX: this causes segfaults... why?
+
+    // gmp_randclear(s->s.rng);
+    // mpz_clears(s->s.q, s->s.pzt, NULL);
+    // for (unsigned long i = 0; i < s->s.n; ++i) {
+    //     mpz_clears(s->s.gs[i], s->s.crt_coeffs[i], NULL);
+    // }
+    // free(s->s.gs);
+    // free(s->s.crt_coeffs);
+    // for (unsigned long i = 0; i < s->s.nzs; ++i) {
+    //     mpz_clear(s->s.zinvs[i]);
+    // }
+    // free(s->s.zinvs);
+    // mpz_clears(s->nev, s->nchk, NULL);
+    // free(s);
 
     Py_RETURN_NONE;
 }

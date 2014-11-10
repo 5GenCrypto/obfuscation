@@ -26,12 +26,10 @@ def test_circuit(path, cclass, obfclass, obfuscate, args):
         obf = obfclass(verbose=args.verbose)
         directory = args.save if args.save \
                     else '%s.obf.%d' % (path, args.secparam)
-        obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate)
+        obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate,
+                      nslots=args.nslots)
         for k, v in testcases.items():
-            if args.zimmerman:
-                r = obf.evaluate(directory, path, k)
-            else:
-                r = obf.evaluate(directory, k)
+            r = obf.evaluate(directory, k)
             if r != v:
                 print('\x1b[31mFail\x1b[0m (%s != %d) ' % (k, v))
                 success = False

@@ -295,7 +295,6 @@ mult_mats(mpz_t *result, const mpz_t *left, const mpz_t *right, const mpz_t q,
                 mpz_mul(tmp,
                         left[k * m + (i * m + j) % m],
                         right[k + n * ((i * m + j) / m)]);
-                mpz_mod(tmp, tmp, q);
                 mpz_add(sum, sum, tmp);
                 mpz_mod(sum, sum, q);
             }
@@ -322,7 +321,6 @@ mult_vect_by_mat(mpz_t *v, const mpz_t *m, mpz_t q, int size, mpz_t *tmparray)
         mpz_inits(tmp, sum, NULL);
         for (int j = 0; j < size; ++j) {
             mpz_mul(tmp, v[j], m[i * size + j]);
-            mpz_mod(tmp, tmp, q);
             mpz_add(sum, sum, tmp);
             mpz_mod(sum, sum, q);
         }
@@ -343,7 +341,6 @@ mult_vect_by_vect(mpz_t out, const mpz_t *v, const mpz_t *u, mpz_t q, int size)
         mpz_t tmp;
         mpz_init(tmp);
         mpz_mul(tmp, v[i], u[i]);
-        mpz_mod(tmp, tmp, q);
 #pragma omp critical
         {
             mpz_add(out, out, tmp);

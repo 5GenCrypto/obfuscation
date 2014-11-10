@@ -178,6 +178,58 @@ cleanup:
 }
 
 int
+circ_copy_circuit(const char * const circname, const char * const newcirc)
+{
+    FILE *in, *out;
+    char *line, *tmp;
+    size_t len;
+    ssize_t read;
+
+    if ((in = fopen(circname, "r")) == NULL) {
+        perror(circname);
+        return 1;
+    }
+
+    if ((out = fopen(newcirc, "w")) == NULL) {
+        perror(newcirc);
+        fclose(in);
+        return 1;
+    }
+
+    len = 128;                  // XXX: fixme
+    line = (char *) malloc(sizeof(char) * len);
+    tmp = (char *) malloc(sizeof(char) * len);
+
+    while ((read = getline(&line, &len, in)) != -1) {
+        memset(tmp, '\0', 128);
+        (void) memcpy(tmp, line, 128);
+        char *num = strtok(line, " ");
+        if (num) {
+            char *type = strtok(NULL, " ");
+            if (type) {
+                if (strcmp(type, "input") == 0) {
+                    char *inp = strtok(NULL, " ");
+                    if (inp && inp[0] == 'y') {
+                        (void) snprintf(tmp, 128, "%s %s %s hidden\n", num, type, inp);
+                        len = len > 128 ? 128 : len;
+                        (void) fwrite(tmp, sizeof(char), strlen(tmp), out);
+                        continue;
+                    }
+                }
+            }
+        }
+        (void) fwrite(tmp, sizeof(char), strlen(tmp), out);
+    }
+
+    (void) fclose(in);
+    (void) fclose(out);
+
+    return 0;
+}
+
+
+
+int
 circ_evaluate(const struct circuit *circ, const mpz_t *alphas,
               const mpz_t *betas, mpz_t out, const mpz_t q)
 {

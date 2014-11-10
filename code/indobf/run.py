@@ -91,21 +91,18 @@ def obf(args):
         if args.eval:
             assert directory
             obf = obfclass(verbose=args.verbose)
-            if args.zimmerman:
-                r = obf.evaluate(directory, args.load_circuit, args.eval)
-            else:
-                r = obf.evaluate(directory, args.eval)
+            r = obf.evaluate(directory, args.eval)
             print('Output = %d' % r)
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Run indistinguishability obfuscator.',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        description='Run indistinguishability obfuscator.')
+        # formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     subparsers = parser.add_subparsers()
 
     parser_bp = subparsers.add_parser(
         'bp',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        # formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help='commands for circuit -> branching program conversion')
     parser_bp.add_argument('--eval', metavar='INPUT', type=str, action='store',
                            help='evaluate branching program on INPUT')
@@ -117,7 +114,7 @@ def main():
     parser_bp.add_argument('--test-all', action='store_true',
                            help='test BP conversion of all circuits in circuit/ directory')
     parser_bp.add_argument('--secparam', metavar='N', type=int, action='store',
-                           default=24, help='security parameter')
+                           default=24, help='security parameter (default: %(default)s)')
     parser_bp.add_argument('--obliviate', action='store_true',
                            help='obliviate the branching program')
     parser_bp.add_argument('-v', '--verbose', action='store_true',
@@ -125,12 +122,12 @@ def main():
     parser_bp.add_argument('-s', '--sahai-zhandry', action='store_true',
                            help='use the Sahai/Zhandry construction')
     parser_bp.add_argument('-z', '--zimmerman', action='store_true',
-                           help='use the Zimmerman construction (not working yet)')
+                           help='use the Zimmerman construction')
     parser_bp.set_defaults(func=bp)
 
     parser_obf = subparsers.add_parser(
         'obf',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        # formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help='commands for obfuscating a circuit/branching program')
     parser_obf.add_argument('--attack', action='store_true',
                             help='attack obfuscation')
@@ -150,17 +147,17 @@ def main():
     parser_obf.add_argument('--save', metavar='DIR', type=str, action='store',
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int, action='store',
-                            default=24, help='security parameter')
+                            default=24, help='security parameter (default: %(default)s)')
     parser_obf.add_argument('--obliviate', action='store_true',
                             help='obliviate the branching program')
     parser_obf.add_argument('--nslots', metavar='N', type=int, action='store',
-                            default=None, help='number of slots to fill (None sets number to secparam)')
+                            default=None, help='number of slots to fill (default: security parameter)')
     parser_obf.add_argument('-v', '--verbose', action='store_true', 
                             help='be verbose')
     parser_obf.add_argument('-s', '--sahai-zhandry', action='store_true',
                             help='use the Sahai/Zhandry construction')
     parser_obf.add_argument('-z', '--zimmerman', action='store_true',
-                            help='use the Zimmerman construction (alpha)')
+                            help='use the Zimmerman construction')
     parser_obf.set_defaults(func=obf)
 
     args = parser.parse_args()
