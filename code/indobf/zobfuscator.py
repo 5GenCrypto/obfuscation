@@ -106,7 +106,7 @@ class ZimmermanObfuscator(object):
 
     def _obfuscate(self, circname, circ):
         self.logger('Encoding circuit...')
-        self.logger('  n = %s, m = %s' % (circ.n_xins, circ.y_ins))
+        self.logger('  n = %s, m = %s' % (circ.n_xins, circ.n_yins))
         start = time.time()
         _zobf.encode_circuit(self._state, circname, circ.ys, circ.x_degs,
                              circ.y_deg, circ.n_xins, circ.n_yins)
