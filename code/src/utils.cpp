@@ -222,7 +222,7 @@ mlm_setup(struct state *s, long *pows, long kappa, long size)
     if (g_verbose)
         (void) fprintf(stderr, "  Generating z_i's: %f\n", end - start);
 
-    //     /* Compute pzt */
+    /* Compute pzt */
     start = current_time();
     {
         mpz_t zk, tmp;

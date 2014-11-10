@@ -189,7 +189,7 @@ obf_encode_vectors(PyObject *self, PyObject *args)
     // We assume that all vectors have the same length, and thus just grab the
     // length of the first vector
     length = PyList_GET_SIZE(PyList_GET_ITEM(py_vectors, 0));
-    vector = (mpz_t *) pymalloc(sizeof(mpz_t) * length);
+    vector = (mpz_t *) malloc(sizeof(mpz_t) * length);
     if (vector == NULL)
         return NULL;
 
@@ -246,8 +246,8 @@ obf_encode_layers(PyObject *self, PyObject *args)
     if (oneidx1 < 0 && oneidx2 < 0)
         return NULL;
 
-    zero = (mpz_t *) pymalloc(sizeof(mpz_t) * nrows * ncols);
-    one = (mpz_t *) pymalloc(sizeof(mpz_t) * nrows * ncols);
+    zero = (mpz_t *) malloc(sizeof(mpz_t) * nrows * ncols);
+    one = (mpz_t *) malloc(sizeof(mpz_t) * nrows * ncols);
     if (!zero || !one)
         return NULL;
 
@@ -315,7 +315,7 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
 
     fnamelen = strlen(dir) + 20; // XXX: should include bplen somewhere
 
-    fname = (char *) pymalloc(sizeof(char) * fnamelen);
+    fname = (char *) malloc(sizeof(char) * fnamelen);
     if (fname == NULL)
         return NULL;
 
@@ -444,8 +444,8 @@ obf_evaluate(PyObject *self, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "ssl", &dir, &input, &bplen))
         return NULL;
-    fnamelen = strlen(dir) + 20; // XXX: should include bplen somewhere
-    fname = (char *) pymalloc(sizeof(char) * fnamelen);
+    fnamelen = strlen(dir) + sizeof bplen + 7;
+    fname = (char *) malloc(sizeof(char) * fnamelen);
     if (fname == NULL)
         return NULL;
 
@@ -460,21 +460,18 @@ obf_evaluate(PyObject *self, PyObject *args)
     (void) snprintf(fname, fnamelen, "%s/q", dir);
     (void) load_mpz_scalar(fname, q);
 
-    comp = (mpz_t *) pymalloc(sizeof(mpz_t) * size * size);
-    s = (mpz_t *) pymalloc(sizeof(mpz_t) * size);
-    t = (mpz_t *) pymalloc(sizeof(mpz_t) * size);
+    comp = (mpz_t *) malloc(sizeof(mpz_t) * size * size);
+    s = (mpz_t *) malloc(sizeof(mpz_t) * size);
+    t = (mpz_t *) malloc(sizeof(mpz_t) * size);
     if (!comp || !s || !t) {
         err = 1;
         goto cleanup;
-    
     }
     for (int i = 0; i < size; ++i) {
         mpz_inits(s[i], t[i], NULL);
-    
     }
     for (int i = 0; i < size * size; ++i) {
         mpz_init(comp[i]);
-    
     }
     for (int layer = 0; layer < bplen; ++layer) {
         unsigned int input_idx;
@@ -603,7 +600,7 @@ obf_attack(PyObject *self, PyObject *args)
     int nslots;
     PyObject *py_out;
 
-    st = (struct state *) pymalloc(sizeof(struct state));
+    st = (struct state *) malloc(sizeof(struct state));
 
     if (!PyArg_ParseTuple(args, "sllli", &st->dir, &bplen,
                           &st->secparam, &kappa, &nslots))
@@ -624,7 +621,7 @@ obf_attack(PyObject *self, PyObject *args)
         long size;
 
         fnamelen = strlen(st->dir) + 20; // XXX: should include bplen somewhere
-        fname = (char *) pymalloc(sizeof(char) * fnamelen);
+        fname = (char *) malloc(sizeof(char) * fnamelen);
 
         mpz_inits(tmp, pzt, nu, NULL);
 
@@ -633,7 +630,7 @@ obf_attack(PyObject *self, PyObject *args)
         (void) load_mpz_scalar(fname, tmp);
         size = mpz_get_ui(tmp);
 
-        comp = (mpz_t *) pymalloc(sizeof(mpz_t) * size * size);
+        comp = (mpz_t *) malloc(sizeof(mpz_t) * size * size);
         for (int i = 0; i < size * size; ++i) {
             mpz_init(comp[i]);
         }
@@ -706,11 +703,11 @@ obf_attack(PyObject *self, PyObject *args)
             (void) fprintf(stderr, "  N: %ld\n", st->n);
         }
 
-        hs = (mpz_t *) pymalloc(sizeof(mpz_t) * st->n);
-        ms = (mpz_t *) pymalloc(sizeof(mpz_t) * nslots);
-        ps = (mpz_t *) pymalloc(sizeof(mpz_t) * st->n);
-        rs = (mpz_t *) pymalloc(sizeof(mpz_t) * st->n);
-        st->gs = (mpz_t *) pymalloc(sizeof(mpz_t) * st->n);
+        hs = (mpz_t *) malloc(sizeof(mpz_t) * st->n);
+        ms = (mpz_t *) malloc(sizeof(mpz_t) * nslots);
+        ps = (mpz_t *) malloc(sizeof(mpz_t) * st->n);
+        rs = (mpz_t *) malloc(sizeof(mpz_t) * st->n);
+        st->gs = (mpz_t *) malloc(sizeof(mpz_t) * st->n);
 
         seed_rng(&st->rng);
 

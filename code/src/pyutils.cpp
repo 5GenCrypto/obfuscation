@@ -34,16 +34,6 @@ state_destructor(PyObject *self)
     }
 }
 
-void *
-pymalloc(const size_t size)
-{
-    void * r;
-    if ((r = malloc(size)) == NULL) {
-        PyErr_SetString(PyExc_MemoryError, "Can't allocate memory");
-    }
-    return r;
-}
-
 PyObject *
 mpz_to_py(const mpz_t in)
 {

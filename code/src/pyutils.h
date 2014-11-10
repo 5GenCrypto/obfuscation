@@ -7,9 +7,6 @@
 void
 state_destructor(PyObject *self);
 
-void *
-pymalloc(const size_t size);
-
 PyObject *
 mpz_to_py(const mpz_t in);
 
