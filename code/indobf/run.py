@@ -14,7 +14,7 @@ def bp(args):
     if args.sahai_zhandry:
         cls = SZBranchingProgram
     elif args.zimmerman:
-        from zobfuscator import Circuit
+        from z_obfuscator import Circuit
         cls = Circuit
     else:
         cls = BranchingProgram
@@ -34,9 +34,9 @@ def bp(args):
             print('Output = %d' % r)
 
 def obf(args):
-    from obfuscator import Obfuscator
+    from agis_obfuscator import AGISObfuscator
     from sz_obfuscator import SZObfuscator
-    from zobfuscator import ZimmermanObfuscator
+    from z_obfuscator import ZObfuscator
     if args.nslots is None:
         args.nslots = args.secparam
 
@@ -45,10 +45,10 @@ def obf(args):
         obfclass = SZObfuscator
     elif args.zimmerman:
         bpclass = None
-        obfclass = ZimmermanObfuscator
+        obfclass = ZObfuscator
     else:
         bpclass = BranchingProgram
-        obfclass = Obfuscator
+        obfclass = AGISObfuscator
 
     if args.test_circuit:
         if args.attack:

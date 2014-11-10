@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import _zobfuscator as _zobf
 from circuit import parse
-import utils
+import obfuscator, utils
 
 import networkx as nx
 import copy, math, os, time
@@ -98,13 +98,10 @@ class Circuit(object):
         return g.node[idx]['value'] != 0
 
 
-class ZimmermanObfuscator(object):
+class ZObfuscator(obfuscator.Obfuscator):
 
     def __init__(self, verbose=False):
-        self._state = None
-        self._verbose = verbose
-        _zobf.verbose(self._verbose)
-        self.logger = utils.make_logger(self._verbose)
+        super(ZObfuscator, self).__init__(_zobf, verbose=verbose)
 
     def _gen_mlm_params(self, secparam, kappa, nzs, pows, directory):
         self.logger('Generating MLM parameters...')
@@ -128,12 +125,8 @@ class ZimmermanObfuscator(object):
                   nslots=None):
         self.logger("Obfuscating '%s'" % circname)
         start = time.time()
-        # remove old files in obfuscation directory
-        if os.path.isdir(directory):
-            files = os.listdir(directory)
-            for file in os.listdir(directory):
-                p = os.path.join(directory, file)
-                os.unlink(p)
+
+        self._remove_old(directory)
 
         circ = Circuit(circname)
         self.logger('  number of gates = %s' % circ.ngates)

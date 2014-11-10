@@ -1,8 +1,6 @@
 from __future__ import print_function
 
 from circuit import ParseException
-import zobfuscator as zobf
-
 from sage.all import random_prime
 
 def test_circuit(path, cclass, obfclass, obfuscate, args):
