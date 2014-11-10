@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <gmp.h>
+#include <math.h>
 #include <omp.h>
 #include <stdlib.h>
 #include <string.h>
@@ -110,6 +111,166 @@ save_mpz_vector(const char *fname, const mpz_t *m, const int len)
         }
     }
     (void) fclose(f);
+    return 0;
+}
+
+int
+mlm_setup(struct state *s, long *pows, long kappa, long size)
+{
+    long alpha, beta, eta, nu, rho_f;
+    mpz_t *ps, *zs;
+    double start, end;
+
+    /* Calculate CLT parameters */
+    alpha = s->secparam;
+    beta = s->secparam;
+    s->rho = s->secparam;
+    rho_f = kappa * (s->rho + alpha + 2);
+    eta = rho_f + alpha + 2 * beta + s->secparam + 8;
+    nu = eta - beta - rho_f - s->secparam + 3;
+    s->n = (int) (eta * log2((float) s->secparam));
+
+    if (g_verbose) {
+        fprintf(stderr, "  Security Parameter: %ld\n", s->secparam);
+        fprintf(stderr, "  Kappa: %ld\n", kappa);
+        fprintf(stderr, "  Alpha: %ld\n", alpha);
+        fprintf(stderr, "  Beta: %ld\n", beta);
+        fprintf(stderr, "  Eta: %ld\n", eta);
+        fprintf(stderr, "  Nu: %ld\n", nu);
+        fprintf(stderr, "  Rho: %ld\n", s->rho);
+        fprintf(stderr, "  Rho_f: %ld\n", rho_f);
+        fprintf(stderr, "  N: %ld\n", s->n);
+        fprintf(stderr, "  Number of Zs: %ld\n", s->nzs);
+    }
+
+    ps = (mpz_t *) malloc(sizeof(mpz_t) * s->n);
+    s->gs = (mpz_t *) malloc(sizeof(mpz_t) * s->n);
+    s->crt_coeffs = (mpz_t *) malloc(sizeof(mpz_t) * s->n);
+    zs = (mpz_t *) malloc(sizeof(mpz_t) * s->nzs);
+    s->zinvs = (mpz_t *) malloc(sizeof(mpz_t) * s->nzs);
+
+    seed_rng(&s->rng);
+
+    /* initialize gmp variables */
+    mpz_init_set_ui(s->q, 1);
+    mpz_init_set_ui(s->pzt, 0);
+    for (unsigned long i = 0; i < s->n; ++i) {
+        mpz_init_set_ui(ps[i], 1);
+        mpz_inits(s->gs[i], s->crt_coeffs[i], NULL);
+    }
+    for (unsigned long i = 0; i < s->nzs; ++i) {
+        mpz_inits(zs[i], s->zinvs[i], NULL);
+    }
+
+    /* Generate p_i's and g_i's, as well as q = \prod p_i */
+    start = current_time();
+#pragma omp parallel for
+    for (unsigned long i = 0; i < s->n; ++i) {
+        mpz_t p_unif;
+        mpz_init(p_unif);
+        // XXX: the primes generated here aren't officially uniform
+        mpz_urandomb(p_unif, s->rng, eta);
+        mpz_nextprime(ps[i], p_unif);
+        mpz_urandomb(p_unif, s->rng, alpha);
+        mpz_nextprime(s->gs[i], p_unif);
+#pragma omp critical
+        {
+            //
+            // This step is very expensive, and unfortunately it blocks the
+            // parallelism of generating the primes.
+            //
+            mpz_mul(s->q, s->q, ps[i]);
+        }
+        mpz_clear(p_unif);
+    }
+    end = current_time();
+    if (g_verbose)
+        (void) fprintf(stderr, "  Generating p_i's and g_i's: %f\n",
+                       end - start);
+
+    /* Compute CRT coefficients */
+    start = current_time();
+    //
+    // This step is needed for making encoding efficient.  Unfortunately, the
+    // CRT coefficients take an enormous amount of memory to compute / store.
+    //
+#pragma omp parallel for
+    for (unsigned long i = 0; i < s->n; ++i) {
+        mpz_t q;
+        mpz_init(q);
+        mpz_tdiv_q(q, s->q, ps[i]);
+        mpz_invert(s->crt_coeffs[i], q, ps[i]);
+        mpz_mul(s->crt_coeffs[i], s->crt_coeffs[i], q);
+        mpz_mod(s->crt_coeffs[i], s->crt_coeffs[i], s->q);
+        mpz_clear(q);
+    }
+
+    end = current_time();
+    if (g_verbose)
+        (void) fprintf(stderr, "  Generating CRT coefficients: %f\n",
+                       end - start);
+
+    /* Compute z_i's */
+    start = current_time();
+#pragma omp parallel for
+    for (unsigned long i = 0; i < s->nzs; ++i) {
+        do {
+            mpz_urandomm(zs[i], s->rng, s->q);
+        } while (mpz_invert(s->zinvs[i], zs[i], s->q) == 0);
+    }
+    end = current_time();
+    if (g_verbose)
+        (void) fprintf(stderr, "  Generating z_i's: %f\n", end - start);
+
+    //     /* Compute pzt */
+    start = current_time();
+    {
+        mpz_t zk, tmp;
+        mpz_init(tmp);
+        mpz_init_set_ui(zk, 1);
+        // compute z_1^t_1 ... z_k^t_k mod q
+        for (unsigned long i = 0; i < s->nzs; ++i) {
+            mpz_powm_ui(tmp, zs[i], pows[i], s->q);
+            mpz_mul(zk, zk, tmp);
+            mpz_mod(zk, zk, s->q);
+        }
+#pragma omp parallel for
+        for (unsigned long i = 0; i < s->n; ++i) {
+            mpz_t tmp, qpi, rnd;
+            mpz_inits(tmp, qpi, rnd, NULL);
+            // compute (((g_i)^{-1} mod p_i) * z^k mod p_i) * r_i * (q / p_i)
+            mpz_invert(tmp, s->gs[i], ps[i]);
+            mpz_mul(tmp, tmp, zk);
+            mpz_mod(tmp, tmp, ps[i]);
+            mpz_genrandom(rnd, &s->rng, beta);
+            mpz_mul(tmp, tmp, rnd);
+            mpz_div(qpi, s->q, ps[i]);
+            mpz_mul(tmp, tmp, qpi);
+            mpz_mod(tmp, tmp, s->q);
+#pragma omp critical
+            {
+                mpz_add(s->pzt, s->pzt, tmp);
+            }
+            mpz_clears(tmp, qpi, rnd, NULL);
+        }
+        mpz_mod(s->pzt, s->pzt, s->q);
+        mpz_clear(zk);
+    }
+    end = current_time();
+    if (g_verbose)
+        (void) fprintf(stderr, "  Generating pzt: %f\n", end - start);
+
+    (void) write_setup_params(s, nu, size);
+
+    for (unsigned long i = 0; i < s->n; ++i) {
+        mpz_clear(ps[i]);
+    }
+    free(ps);
+    for (unsigned long i = 0; i < s->nzs; ++i) {
+        mpz_clear(zs[i]);
+    }
+    free(zs);
+
     return 0;
 }
 

@@ -65,7 +65,6 @@ class Circuit(object):
 
     def _parse(self, fname):
         g = nx.digraph.DiGraph()
-        # g = nx.multidigraph.MultiDiGraph()
         self.circuit, self.info = parse(fname, [g], self._inp_gate, self._gate, keyed=True)
         self.x_degs, self.y_deg = self._compute_degs(self.circuit, self.n_xins, self.n_yins)
 

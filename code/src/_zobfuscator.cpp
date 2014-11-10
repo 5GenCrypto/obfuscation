@@ -100,10 +100,9 @@ encode(struct zstate *s, mpz_t out, mpz_t in1, mpz_t in2, unsigned int num,
 static PyObject *
 zobf_setup(PyObject *self, PyObject *args)
 {
-    long alpha, beta, eta, nu, kappa, rho_f;
-    mpz_t *ps, *zs;
+    long kappa;
     PyObject *py_pows;
-    double start, end;
+    long *pows;
     struct zstate *s;
 
     s = (struct zstate *) malloc(sizeof(struct zstate));
@@ -115,165 +114,15 @@ zobf_setup(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    /* Calculate CLT parameters */
-    alpha = s->s.secparam;
-    beta = s->s.secparam;
-    s->s.rho = s->s.secparam;
-    rho_f = kappa * (s->s.rho + alpha + 2);
-    eta = rho_f + alpha + 2 * beta + s->s.secparam + 8;
-    nu = eta - beta - rho_f - s->s.secparam + 3;
-    s->s.n = (int) (eta * log2((float) s->s.secparam));
-
-    if (g_verbose) {
-        fprintf(stderr, "  Security Parameter: %ld\n", s->s.secparam);
-        fprintf(stderr, "  Kappa: %ld\n", kappa);
-        fprintf(stderr, "  Alpha: %ld\n", alpha);
-        fprintf(stderr, "  Beta: %ld\n", beta);
-        fprintf(stderr, "  Eta: %ld\n", eta);
-        fprintf(stderr, "  Nu: %ld\n", nu);
-        fprintf(stderr, "  Rho: %ld\n", s->s.rho);
-        fprintf(stderr, "  Rho_f: %ld\n", rho_f);
-        fprintf(stderr, "  N: %ld\n", s->s.n);
-        fprintf(stderr, "  Number of Zs: %ld\n", s->s.nzs);
+    pows = (long *) malloc(sizeof(long) * s->s.nzs);
+    for (size_t i = 0; i < s->s.nzs; ++i) {
+        pows[i] = PyLong_AsLong(PyList_GET_ITEM(py_pows, i));
     }
 
-    ps = (mpz_t *) malloc(sizeof(mpz_t) * s->s.n);
-    s->s.gs = (mpz_t *) malloc(sizeof(mpz_t) * s->s.n);
-    s->s.crt_coeffs = (mpz_t *) malloc(sizeof(mpz_t) * s->s.n);
-    zs = (mpz_t *) malloc(sizeof(mpz_t) * s->s.nzs);
-    s->s.zinvs = (mpz_t *) malloc(sizeof(mpz_t) * s->s.nzs);
-    // XXX: probably should do some error checking at some point...
-
-    seed_rng(&s->s.rng);
-
-    /* initialize gmp variables */
-    mpz_init_set_ui(s->s.q, 1);
-    mpz_init_set_ui(s->s.pzt, 0);
-    for (unsigned long i = 0; i < s->s.n; ++i) {
-        mpz_init_set_ui(ps[i], 1);
-        mpz_inits(s->s.gs[i], s->s.crt_coeffs[i], NULL);
-    }
-    for (unsigned long i = 0; i < s->s.nzs; ++i) {
-        mpz_inits(zs[i], s->s.zinvs[i], NULL);
-    }
-
-    /* Generate p_i's and g_i's, as well as q = \prod p_i */
-    start = current_time();
-    mpz_init_set_ui(s->nev, 1);
-    mpz_init_set_ui(s->nchk, 1);
-#pragma omp parallel for
-    for (unsigned long i = 0; i < s->s.n; ++i) {
-        mpz_t p_unif;
-        mpz_init(p_unif);
-        // XXX: the primes generated here aren't officially uniform
-        mpz_urandomb(p_unif, s->s.rng, eta);
-        mpz_nextprime(ps[i], p_unif);
-        mpz_urandomb(p_unif, s->s.rng, alpha);
-        mpz_nextprime(s->s.gs[i], p_unif);
-#pragma omp critical
-        {
-            //
-            // This step is very expensive, and unfortunately it blocks the
-            // parallelism of generating the primes.
-            //
-            if (i == 0)
-                mpz_set(s->nev, s->s.gs[i]);
-            else if (i == 1)
-                mpz_set(s->nchk, s->s.gs[i]);
-            mpz_mul(s->s.q, s->s.q, ps[i]);
-        }
-        mpz_clear(p_unif);
-    }
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Generating p_i's and g_i's: %f\n",
-                       end - start);
-
-    /* Compute CRT coefficients */
-    start = current_time();
-    //
-    // This step is needed for making encoding efficient.  Unfortunately, the
-    // CRT coefficients take an enormous amount of memory to compute / store.
-    //
-#pragma omp parallel for
-    for (unsigned long i = 0; i < s->s.n; ++i) {
-        mpz_t q;
-        mpz_init(q);
-        mpz_tdiv_q(q, s->s.q, ps[i]);
-        mpz_invert(s->s.crt_coeffs[i], q, ps[i]);
-        mpz_mul(s->s.crt_coeffs[i], s->s.crt_coeffs[i], q);
-        mpz_clear(q);
-    }
-
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Generating CRT coefficients: %f\n",
-                       end - start);
-
-    /* Compute z_i's */
-    start = current_time();
-#pragma omp parallel for
-    for (unsigned long i = 0; i < s->s.nzs; ++i) {
-        do {
-            mpz_urandomm(zs[i], s->s.rng, s->s.q);
-        } while (mpz_invert(s->s.zinvs[i], zs[i], s->s.q) == 0);
-    }
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Generating z_i's: %f\n", end - start);
-
-    /* Compute pzt */
-    start = current_time();
-    {
-        int pow;
-        mpz_t zk, tmp;
-        mpz_init(tmp);
-        mpz_init_set_ui(zk, 1);
-        // compute z_1^t_1 ... z_k^t_k mod q
-        for (unsigned long i = 0; i < s->s.nzs; ++i) {
-            pow = PyLong_AsLong(PyList_GET_ITEM(py_pows, i));
-            mpz_powm_ui(tmp, zs[i], pow, s->s.q);
-            mpz_mul(zk, zk, tmp);
-            mpz_mod(zk, zk, s->s.q);
-        }
-#pragma omp parallel for
-        for (unsigned long i = 0; i < s->s.n; ++i) {
-            mpz_t tmp, qpi, rnd;
-            mpz_inits(tmp, qpi, rnd, NULL);
-            // compute (((g_i)^{-1} mod p_i) * z^k mod p_i) * r_i * (q / p_i)
-            mpz_invert(tmp, s->s.gs[i], ps[i]);
-            mpz_mul(tmp, tmp, zk);
-            mpz_mod(tmp, tmp, ps[i]);
-            mpz_genrandom(rnd, &s->s.rng, beta);
-            mpz_mul(tmp, tmp, rnd);
-            mpz_div(qpi, s->s.q, ps[i]);
-            mpz_mul(tmp, tmp, qpi);
-            mpz_mod(tmp, tmp, s->s.q);
-#pragma omp critical
-            {
-                mpz_add(s->s.pzt, s->s.pzt, tmp);
-            }
-            mpz_clears(tmp, qpi, rnd, NULL);
-        }
-        mpz_mod(s->s.pzt, s->s.pzt, s->s.q);
-        mpz_clear(zk);
-    }
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Generating pzt: %f\n", end - start);
-
-    (void) write_setup_params(&s->s, nu, 0); // XXX: change write_setup_params
-                                             // so we don't need to pass 0
-
-    for (unsigned long i = 0; i < s->s.n; ++i) {
-        mpz_clear(ps[i]);
-    }
-    free(ps);
-    for (unsigned long i = 0; i < s->s.nzs; ++i) {
-        mpz_clear(zs[i]);
-    }
-    free(zs);
-
+    (void) mlm_setup(&s->s, pows, kappa, 0);
+    mpz_init_set(s->nev, s->s.gs[0]);
+    mpz_init_set(s->nchk, s->s.gs[1]);
+    
     {
         PyObject *py_state;
         py_state = PyCapsule_New((void *) s, NULL, zstate_destructor);
@@ -292,7 +141,7 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
     int n, m, ydeg;
     int *indices, *pows;
     char *circuit, *fname;
-    int fnamelen = 10;          // XXX: fixme
+    int fnamelen = sizeof(int) + 5;
     int idx_set_size;
     struct zstate *s;
 
@@ -453,7 +302,7 @@ zobf_evaluate(PyObject *self, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "sssll", &dir, &circuit, &input, &n, &m))
         return NULL;
-    fnamelen = strlen(dir) + 20; // XXX: should include length somewhere
+    fnamelen = strlen(dir) + sizeof(int) + 5;
     fname = (char *) malloc(sizeof(char) * fnamelen);
     if (fname == NULL)
         return NULL;

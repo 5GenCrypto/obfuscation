@@ -29,6 +29,9 @@ int
 seed_rng(gmp_randstate_t *rng);
 
 int
+mlm_setup(struct state *s, long *pows, long kappa, long size);
+
+int
 load_mpz_scalar(const char *fname, mpz_t x);
 
 int
