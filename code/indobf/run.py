@@ -97,12 +97,10 @@ def obf(args):
 def main():
     parser = argparse.ArgumentParser(
         description='Run indistinguishability obfuscator.')
-        # formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     subparsers = parser.add_subparsers()
 
     parser_bp = subparsers.add_parser(
         'bp',
-        # formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help='commands for circuit -> branching program conversion')
     parser_bp.add_argument('--eval', metavar='INPUT', type=str, action='store',
                            help='evaluate branching program on INPUT')
@@ -127,7 +125,6 @@ def main():
 
     parser_obf = subparsers.add_parser(
         'obf',
-        # formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help='commands for obfuscating a circuit/branching program')
     parser_obf.add_argument('--attack', action='store_true',
                             help='attack obfuscation')
