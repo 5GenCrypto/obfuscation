@@ -5,7 +5,7 @@ from circuit import parse
 import utils
 
 import networkx as nx
-import copy, os, time
+import copy, math, os, time
 
 class Circuit(object):
     def __init__(self, fname, verbose=False):
@@ -17,17 +17,19 @@ class Circuit(object):
         self.circuit = None
         self.n_xins = 0
         self.n_yins = 0
+        self.ngates = 0
         self._parse(fname)
 
     def _inp_gate(self, g, num, inp):
         assert(inp.startswith('x') or inp.startswith('y'))
         if inp.startswith('x'):
             self.n_xins += 1
+            g[0].add_node(num, label=[inp])
         elif inp.startswith('y'):
             self.n_yins += 1
             inp, value = inp.split(None, 1)
             self.ys.append(long(value))
-        g[0].add_node(num, label=[inp])
+            g[0].add_node(num, label=[inp], value=long(value))
 
     def _gate(self, g, num, lineno, gate, inputs):
         g = g[0]
@@ -44,6 +46,7 @@ class Circuit(object):
             'MUL': _mul_gate,
         }
         gates[gate](num, *inputs)
+        self.ngates += 1
         return [g]
 
     def _compute_degs(self, circ, n_xins, n_yins):
@@ -60,33 +63,28 @@ class Circuit(object):
         self.x_degs, self.y_deg = self._compute_degs(self.circuit, self.n_xins, self.n_yins)
 
     def evaluate(self, x):
-        raise Exception("Not implemented yet!")
-        # assert self.circuit
-        # g = self.circuit.copy()
-        # for node in nx.topological_sort(g):
-        #     if node < self.ninputs:
-        #         g.add_node(node, value=int(x[node]))
-        #     elif g.node[node]['gate'] in ('ID', 'NOT'):
-        #         idx = g.pred[node].keys()[0]
-        #         if g.node[node]['gate'] == 'ID':
-        #             value = g.node[idx]['value']
-        #         elif g.node[node]['gate'] == 'NOT':
-        #             value = int(g.node[idx]['value'] == 0)
-        #         g.add_node(node, value=value)
-        #     elif g.node[node]['gate'] in ('AND', 'OR', 'XOR'):
-        #         idx1 = g.pred[node].keys()[0]
-        #         idx2 = g.pred[node].keys()[1]
-        #         if g.node[node]['gate'] == 'AND':
-        #             value = g.node[idx1]['value'] & g.node[idx2]['value']
-        #         elif g.node[node]['gate'] == 'OR':
-        #             value = g.node[idx1]['value'] | g.node[idx2]['value']
-        #         elif g.node[node]['gate'] == 'XOR':
-        #             value = g.node[idx1]['value'] ^ g.node[idx2]['value']
-        #         g.add_node(node, value=value)
-        #     else:
-        #         raise Exception('Unable to evaluate')
-        # idx = nx.topological_sort(g)[-1]
-        # return g.node[idx]['value']
+        # XXX: this is a massive hack
+        x = x[::-1]
+        assert self.circuit
+        g = self.circuit.copy()
+        for node in nx.topological_sort(g):
+            if 'gate' not in g.node[node]:
+                if g.node[node]['label'][0].startswith('x'):
+                    g.add_node(node, value=int(x[node]))
+                else:
+                    g.add_node(node, value=int(g.node[node]['value']))
+            elif g.node[node]['gate'] in ('ADD', 'MUL'):
+                idx1 = g.pred[node].keys()[0]
+                idx2 = g.pred[node].keys()[1]
+                if g.node[node]['gate'] == 'ADD':
+                    value = g.node[idx1]['value'] + g.node[idx2]['value']
+                elif g.node[node]['gate'] == 'MUL':
+                    value = g.node[idx1]['value'] * g.node[idx2]['value']
+                g.add_node(node, value=value)
+            else:
+                raise Exception('Unable to evaluate')
+        idx = nx.topological_sort(g)[-1]
+        return g.node[idx]['value'] != 0
 
 
 class ZimmermanObfuscator(object):
@@ -108,6 +106,7 @@ class ZimmermanObfuscator(object):
 
     def _obfuscate(self, circname, circ):
         self.logger('Encoding circuit...')
+        self.logger('  n = %s, m = %s' % (circ.n_xins, circ.y_ins))
         start = time.time()
         _zobf.encode_circuit(self._state, circname, circ.ys, circ.x_degs,
                              circ.y_deg, circ.n_xins, circ.n_yins)
@@ -116,6 +115,8 @@ class ZimmermanObfuscator(object):
 
     def obfuscate(self, circname, secparam, directory, obliviate=False,
                   nslots=None):
+        self.logger("Obfuscating '%s'" % circname)
+        start = time.time()
         # remove old files in obfuscation directory
         if os.path.isdir(directory):
             files = os.listdir(directory)
@@ -124,6 +125,9 @@ class ZimmermanObfuscator(object):
                 os.unlink(p)
 
         circ = Circuit(circname)
+        self.logger('  number of gates = %s' % circ.ngates)
+        self.logger('  deg(xs) = %s' % circ.x_degs)
+        self.logger('  deg(y) = %s' % circ.y_deg)
         nzs = 4 * circ.n_xins + 1
         pows = []
         for pow in circ.x_degs:
@@ -132,9 +136,10 @@ class ZimmermanObfuscator(object):
         pows.append(circ.y_deg)
         assert(len(pows) == nzs)
 
-        kappa = len(circ.circuit.nodes())
+        # XXX: what should kappa be set to!?  This seems to work for point
+        # functions, but might not work for other circuits...
+        kappa = circ.ngates + int(math.ceil(circ.n_xins / 2.0)) + 1
 
-        start = time.time()
         self._gen_mlm_params(secparam, kappa, nzs, pows, directory)
         self._obfuscate(circname, circ)
         end = time.time()
@@ -147,7 +152,14 @@ class ZimmermanObfuscator(object):
         start = time.time()
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        result = _zobf.evaluate(directory, circname, inp, len(inp))
+        inp = inp[::-1]
+        # Count number of y values
+        m = 0
+        with open(circname) as f:
+            for line in f:
+                if 'y' in line:
+                    m += 1
+        result = _zobf.evaluate(directory, circname, inp, len(inp), m)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         if self._verbose:
@@ -155,5 +167,4 @@ class ZimmermanObfuscator(object):
         return result
 
     def cleanup(self):
-        pass
-        # _zobf.cleanup(self._state)
+        _zobf.cleanup(self._state)

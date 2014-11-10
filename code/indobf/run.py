@@ -5,7 +5,6 @@ from __future__ import print_function
 from bp import BranchingProgram
 from bp_sz import SZBranchingProgram
 from test import test_circuit
-import zobfuscator as zobf
 
 import argparse, os, sys, time
 
@@ -14,6 +13,9 @@ TESTDIR = 'circuits'
 def bp(args):
     if args.sahai_zhandry:
         cls = SZBranchingProgram
+    elif args.zimmerman:
+        from zobfuscator import Circuit
+        cls = Circuit
     else:
         cls = BranchingProgram
     if args.test_circuit:
@@ -52,15 +54,13 @@ def obf(args):
         if args.attack:
             print("\x1b[31mError:\x1b[0m --attack flag cannot be run with --test-circuit flag")
             sys.exit(1)
-        test_circuit(args.test_circuit, bpclass, obfclass, True, args,
-                     zimmerman=args.zimmerman)
+        test_circuit(args.test_circuit, bpclass, obfclass, True, args)
     elif args.test_all:
         for circuit in os.listdir(TESTDIR):
             path = os.path.join(TESTDIR, circuit)
             ext = '.acirc' if args.zimmerman else '.circ'
             if os.path.isfile(path) and path.endswith(ext):
-                test_circuit(path, bpclass, obfclass, True, args,
-                             zimmerman=args.zimmerman)
+                test_circuit(path, bpclass, obfclass, True, args)
     else:
         directory = None
         if args.load_obf:
@@ -124,6 +124,8 @@ def main():
                            help='be verbose')
     parser_bp.add_argument('-s', '--sahai-zhandry', action='store_true',
                            help='use the Sahai/Zhandry construction')
+    parser_bp.add_argument('-z', '--zimmerman', action='store_true',
+                           help='use the Zimmerman construction (not working yet)')
     parser_bp.set_defaults(func=bp)
 
     parser_obf = subparsers.add_parser(

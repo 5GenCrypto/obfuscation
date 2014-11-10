@@ -755,6 +755,7 @@ obf_cleanup(PyObject *self, PyObject *args)
         mpz_clear(s->zinvs[i]);
     }
     free(s->zinvs);
+    free(s);
 
     Py_RETURN_NONE;
 }

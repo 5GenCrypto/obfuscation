@@ -22,7 +22,8 @@ def parse(fname, bp, f_inp_gate, f_gate, keyed=False):
     output = False
     with open(fname) as f:
         for lineno, line in enumerate(f, 1):
-            if line.startswith('#'):
+            line = line.strip()
+            if line == '' or line.startswith('#'):
                 continue
             elif line.startswith(':'):
                 info.update(_parse_param(line))
@@ -36,7 +37,7 @@ def parse(fname, bp, f_inp_gate, f_gate, keyed=False):
             if rest.startswith('input'):
                 if keyed:
                     _, inp = rest.split(None, 1)
-                    f_inp_gate(bp, num, inp.strip())
+                    f_inp_gate(bp, num, inp)
                 else:
                     f_inp_gate(bp, num)
                 info['nlayers'] += 1
