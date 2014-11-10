@@ -23,27 +23,27 @@ def arithmetic_point(bitlength):
         f.write('# TEST %s 0\n' % secret_bits)
         for _ in xrange(5):
             test = random_bitstring(bitlength)
-            if test != secret:
+            if test != secret_bits:
                 f.write('# TEST %s 1\n' % test)
         num = 0
         for i in xrange(bitlength):
             f.write('%d input x%d\n' % (num, i))
             num += 1
-        dbl = 0
-        for i in xrange(bitlength):
+        dbl = 1
+        for i in xrange(bitlength - 1):
             f.write('%d input y%d %d\n' % (num, i, 2**dbl))
             dbl += 1
             num += 1
-        f.write('%d input y%d -%d\n' % (num, bitlength, secret))
+        f.write('%d input y%d -%d\n' % (num, bitlength - 1, secret))
         snum = num
         num += 1
         muls = num
-        for i in xrange(bitlength):
-            f.write('%d gate MUL %d %d\n' % (num, i, bitlength + i))
+        for i in xrange(bitlength - 1):
+            f.write('%d gate MUL %d %d\n' % (num, i + 1, bitlength + i))
             num += 1
-        f.write('%d gate ADD %d %d\n' % (num, muls, muls + 1))
+        f.write('%d gate ADD %d %d\n' % (num, 0, muls))
         num += 1
-        muls += 2
+        muls += 1
         for i in xrange(1, bitlength - 1):
             f.write('%d gate ADD %d %d\n' % (num, num - 1, muls))
             num += 1
