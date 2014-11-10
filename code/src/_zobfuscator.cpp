@@ -306,11 +306,6 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
     if (fname == NULL)
         return NULL;
 
-    if (g_verbose) {
-        (void) fprintf(stderr, "Encoding circuit '%s'\n", circuit);
-        (void) fprintf(stderr, "  n = %d, m = %d\n", n, m);
-    }
-
     mpz_inits(c_star, tmp, NULL);
     mpz_init_set_ui(zero, 0);
     mpz_init_set_ui(one, 1);
@@ -409,8 +404,6 @@ zobf_encode_circuit(PyObject *self, PyObject *args)
     encode(s, tmp, one, one, 1, indices, pows);
     (void) write_element(s, tmp, "v");
 
-    if (g_verbose)
-        (void) fprintf(stderr, "Computing C* from '%s'...\n", circuit);
     {
         struct circuit *c;
 

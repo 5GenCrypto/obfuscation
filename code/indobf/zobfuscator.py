@@ -5,7 +5,7 @@ from circuit import parse
 import utils
 
 import networkx as nx
-import copy, os, time
+import copy, math, os, time
 
 class Circuit(object):
     def __init__(self, fname, verbose=False):
@@ -106,6 +106,7 @@ class ZimmermanObfuscator(object):
 
     def _obfuscate(self, circname, circ):
         self.logger('Encoding circuit...')
+        self.logger('  n = %s, m = %s' % (circ.n_xins, circ.y_ins))
         start = time.time()
         _zobf.encode_circuit(self._state, circname, circ.ys, circ.x_degs,
                              circ.y_deg, circ.n_xins, circ.n_yins)
@@ -114,6 +115,8 @@ class ZimmermanObfuscator(object):
 
     def obfuscate(self, circname, secparam, directory, obliviate=False,
                   nslots=None):
+        self.logger("Obfuscating '%s'" % circname)
+        start = time.time()
         # remove old files in obfuscation directory
         if os.path.isdir(directory):
             files = os.listdir(directory)
@@ -122,6 +125,9 @@ class ZimmermanObfuscator(object):
                 os.unlink(p)
 
         circ = Circuit(circname)
+        self.logger('  number of gates = %s' % circ.ngates)
+        self.logger('  deg(xs) = %s' % circ.x_degs)
+        self.logger('  deg(y) = %s' % circ.y_deg)
         nzs = 4 * circ.n_xins + 1
         pows = []
         for pow in circ.x_degs:
@@ -130,10 +136,10 @@ class ZimmermanObfuscator(object):
         pows.append(circ.y_deg)
         assert(len(pows) == nzs)
 
-        # XXX: what should kappa be set to!?
-        kappa = circ.ngates + 3
+        # XXX: what should kappa be set to!?  This seems to work for point
+        # functions, but might not work for other circuits...
+        kappa = circ.ngates + int(math.ceil(circ.n_xins / 2.0)) + 1
 
-        start = time.time()
         self._gen_mlm_params(secparam, kappa, nzs, pows, directory)
         self._obfuscate(circname, circ)
         end = time.time()
