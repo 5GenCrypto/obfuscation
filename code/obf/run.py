@@ -10,6 +10,13 @@ import argparse, os, sys, time
 
 TESTDIR = 'circuits'
 
+def test_all(args, bpclass, obfclass, obfuscate):
+    for circuit in os.listdir(TESTDIR):
+        path = os.path.join(TESTDIR, circuit)
+        ext = '.acirc' if args.zimmerman else '.circ'
+        if os.path.isfile(path) and path.endswith(ext):
+            test_circuit(path, bpclass, obfclass, obfuscate, args)
+
 def bp(args):
     if args.sahai_zhandry:
         cls = SZBranchingProgram
@@ -21,10 +28,7 @@ def bp(args):
     if args.test_circuit:
         test_circuit(args.test_circuit, cls, None, False, args)
     if args.test_all:
-        for circuit in os.listdir(TESTDIR):
-            path = os.path.join(TESTDIR, circuit)
-            if os.path.isfile(path) and path.endswith('.circ'):
-                test_circuit(path, cls, None, False, args)
+        test_all(args, cls, None, False)
     if args.load_circuit:
         bp = cls(args.load_circuit, verbose=args.verbose)
         if args.obliviate:
@@ -56,11 +60,7 @@ def obf(args):
             sys.exit(1)
         test_circuit(args.test_circuit, bpclass, obfclass, True, args)
     elif args.test_all:
-        for circuit in os.listdir(TESTDIR):
-            path = os.path.join(TESTDIR, circuit)
-            ext = '.acirc' if args.zimmerman else '.circ'
-            if os.path.isfile(path) and path.endswith(ext):
-                test_circuit(path, bpclass, obfclass, True, args)
+        test_all(args, bpclass, obfclass, True)
     else:
         directory = None
         if args.load_obf:
