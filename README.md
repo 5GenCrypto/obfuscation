@@ -5,11 +5,11 @@ as listed in the following table:
 
 Scheme | ePrint Reference | Status
 ------ | ---------------- | ------
-Ananth, Gupta, Ishai, Sahai | [2014/222](https://eprint.iacr.org/2014/222) |
-Sahai, Zhandry | [2014/773](https://eprint.iacr.org/2014/773) |
-Zimmerman | [2014/776](https://eprint.iacr.org/2014/776) | alpha
+Ananth, Gupta, Ishai, Sahai (AGIS) | [2014/222](https://eprint.iacr.org/2014/222) |
+Sahai, Zhandry (SZ) | [2014/773](https://eprint.iacr.org/2014/773) |
+Zimmerman (Z) | [2014/776](https://eprint.iacr.org/2014/776) | alpha
 
-A discussion of the Ananth et al. implementation appears in the work:
+A discussion of the AGIS implementation appears in the work:
 
 "Implementing Cryptographic Program Obfuscation." Daniel Apon, Yan Huang,
 Jonathan Katz, Alex J. Malozemoff. Cryptology ePrint Archive 2014/779.
