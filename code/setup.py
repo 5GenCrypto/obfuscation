@@ -4,7 +4,7 @@ from setuptools import setup, Extension, find_packages
 
 ATTACK = 0
 
-__name__ = 'ind_obfuscation'
+__name__ = 'obfuscation'
 __author__ = 'Alex J. Malozemoff'
 __version__ = '0.9'
 
@@ -24,7 +24,7 @@ if ATTACK:
     compile_args.append('-DATTACK')
 
 zobfuscator = Extension(
-    'indobf._zobfuscator',
+    'obf._zobfuscator',
     libraries=libraries,
     extra_compile_args=compile_args,
     sources=[
@@ -38,7 +38,7 @@ zobfuscator = Extension(
 )
 
 obfuscator = Extension(
-    'indobf._obfuscator',
+    'obf._obfuscator',
     libraries=libraries,
     extra_compile_args=compile_args,
     sources=[
@@ -53,9 +53,9 @@ obfuscator = Extension(
 setup(name=__name__,
       author=__author__,
       version=__version__,
-      description='Cryptographic obfuscation implementation',
+      description='Cryptographic program obfuscation',
       package_data={'circuits': ['*.circ']},
-      packages=['indobf', 'circuits'],
+      packages=['obf', 'circuits'],
       ext_modules=[obfuscator, zobfuscator],
       test_suite='t',
       classifiers=[

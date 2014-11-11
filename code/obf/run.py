@@ -2,8 +2,8 @@
 
 from __future__ import print_function
 
-from bp import BranchingProgram
-from bp_sz import SZBranchingProgram
+from agis_bp import AGISBranchingProgram
+from sz_bp import SZBranchingProgram
 from test import test_circuit
 
 import argparse, os, sys, time
@@ -17,7 +17,7 @@ def bp(args):
         from z_obfuscator import Circuit
         cls = Circuit
     else:
-        cls = BranchingProgram
+        cls = AGISBranchingProgram
     if args.test_circuit:
         test_circuit(args.test_circuit, cls, None, False, args)
     if args.test_all:
@@ -47,7 +47,7 @@ def obf(args):
         bpclass = None
         obfclass = ZObfuscator
     else:
-        bpclass = BranchingProgram
+        bpclass = AGISBranchingProgram
         obfclass = AGISObfuscator
 
     if args.test_circuit:

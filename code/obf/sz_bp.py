@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from bp import Layer
+from bp import AbstractBranchingProgram, Layer
 from circuit import ParseException
 from sage.all import matrix, MatrixSpace, ZZ
 import utils
@@ -35,45 +35,10 @@ def mult_left(bps, m):
 def mult_right(bps, m):
     bps[-1] = bps[-1].mult_right(m)
 
-class SZBranchingProgram(object):
+class SZBranchingProgram(AbstractBranchingProgram):
     def __init__(self, fname, verbose=False, obliviate=False):
-        self._verbose = verbose
-        self.logger = utils.make_logger(self._verbose)
-        self.nlayers = 0
-        self.ninputs = None
-        self.depth = None
-        self.bp = None
-        self._randomized = False
-        self.zero = None
+        super(SZBranchingProgram, self).__init__(verbose=verbose)
         self.bp = self._load_formula(fname)
-    def __len__(self):
-        return len(self.bp)
-    def __iter__(self):
-        return self.bp.__iter__()
-    def next(self):
-        return self.bp.next()
-    def __getitem__(self, i):
-        return self.bp[i]
-    def __repr__(self):
-        return repr(self.bp)
-
-    def set_straddling_sets(self):
-        inpdir = {}
-        for layer in self.bp:
-            inpdir.setdefault(layer.inp, []).append(layer)
-        n = 0
-        for layers in inpdir.itervalues():
-            max = len(layers) - 1
-            for i, layer in enumerate(layers):
-                if i < max:
-                    layer.zeroset = [n - 1, n]  if i else [n]
-                    layer.oneset = [n, n + 1]
-                    n += 2
-                else:
-                    layer.zeroset = [n - 1, n] if max else [n]
-                    layer.oneset = [n]
-                    n += 1
-        return n
 
     def obliviate(self):
         assert self.ninputs and self.depth
@@ -161,7 +126,7 @@ class SZBranchingProgram(object):
         return bp[-1]
 
     def randomize(self, prime):
-        assert not self._randomized
+        assert not self.randomized
         prev = None
         for i in xrange(0, len(self.bp)):
             d_i_minus_one = self.bp[i].zero.nrows()
@@ -191,7 +156,7 @@ class SZBranchingProgram(object):
             T[i, i] = random.randint(0, prime - 1)
         MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), r, c)
         self.bp[-1] = self.bp[-1].group(MSZp, prime).mult_right(T)
-        self._randomized = True
+        self.randomized = True
 
     def evaluate(self, x):
         assert self.bp

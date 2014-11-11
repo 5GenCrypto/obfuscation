@@ -1,11 +1,8 @@
 from __future__ import print_function
 
 import _obfuscator as _obf
-import obfuscator, utils
-from bp import BranchingProgram
-
-from sage.all import copy, VectorSpace, Zmod, ZZ
-from numpy import log2
+from obfuscator import Obfuscator
+from agis_bp import AGISBranchingProgram
 
 import copy, os, time
 
@@ -19,7 +16,7 @@ def pad(array, length, bplength):
     else:
         return array
 
-class AGISObfuscator(obfuscator.Obfuscator):
+class AGISObfuscator(Obfuscator):
     def __init__(self, verbose=False):
         super(AGISObfuscator, self).__init__(_obf, verbose=verbose)
 
@@ -96,8 +93,8 @@ class AGISObfuscator(obfuscator.Obfuscator):
             nslots = secparam
 
         # create a dummy branching program to determine parameters
-        bp = BranchingProgram(circuit, verbose=self._verbose,
-                              obliviate=obliviate)
+        bp = AGISBranchingProgram(circuit, verbose=self._verbose,
+                                  obliviate=obliviate)
 
         # add two to kappa due to the bookend vectors
         kappa = len(bp) + 2
@@ -109,7 +106,8 @@ class AGISObfuscator(obfuscator.Obfuscator):
 
         start = time.time()
         primes = self._gen_mlm_params(secparam, kappa, width, nzs, directory)
-        bps = self._construct_bps(BranchingProgram, nslots, circuit, primes, obliviate)
+        bps = self._construct_bps(AGISBranchingProgram, nslots, circuit,
+                                  primes, obliviate)
         self._randomize(secparam, bps, primes)
         self._construct_bookend_vectors(bps, primes, nzs)
         self._obfuscate(bps, len(primes))

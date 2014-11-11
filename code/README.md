@@ -14,7 +14,7 @@ python setup.py test
 If this succeeds, you should now be able to test it as follows:
 
 ```
-sage indobf/run.py obf --test-circuit circuits/and.circ --secparam 8 --verbose
+sage obf/run.py obf --test-circuit circuits/and.circ --secparam 8 --verbose
 ```
 
 This should print out a bunch of stuff, and take no more than 5 seconds to run.
@@ -43,7 +43,7 @@ need the fpLLL library (http://perso.ens-lyon.fr/damien.stehle/fplll/) for the
 code to compile.  You can then run
 
 ```
-sage indobf/run.py obf --load-circuit circuits/and.circ --secparam 16 --attack --nslots 1
+sage obf/run.py obf --load-circuit circuits/and.circ --secparam 16 --attack --nslots 1
 ```
 
 This obfuscates an AND circuit using only 1 slot of the plaintext space, and

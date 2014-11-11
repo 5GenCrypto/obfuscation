@@ -99,7 +99,6 @@ class Circuit(object):
 
 
 class ZObfuscator(obfuscator.Obfuscator):
-
     def __init__(self, verbose=False):
         super(ZObfuscator, self).__init__(_zobf, verbose=verbose)
 

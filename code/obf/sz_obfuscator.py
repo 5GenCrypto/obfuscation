@@ -1,12 +1,12 @@
 from __future__ import print_function
 
 import _obfuscator as _obf
-import agis_obfuscator, utils
-from bp_sz import SZBranchingProgram
+from agis_obfuscator import AGISObfuscator
+from sz_bp import SZBranchingProgram
 
 import os, time
 
-class SZObfuscator(agis_obfuscator.AGISObfuscator):
+class SZObfuscator(AGISObfuscator):
     def __init__(self, verbose=False):
         super(SZObfuscator, self).__init__(verbose=verbose)
 
