@@ -3,11 +3,11 @@
 This code presents several implementations of cryptographic obfuscation, as
 listed in the following table:
 
-name | reference | status
----- | --------- | ------
-AGIS | (https://eprint.iacr.org/2014/222) |
-SZ   | (https://eprint.iacr.org/2014/773) |
-Z    | (https://eprint.iacr.org/2014/776) | alpha
+Scheme | ePrint Reference | Status
+------ | ---------------- | ------
+Ananth, Gupta, Ishai, Sahai | [2014/222](https://eprint.iacr.org/2014/222) |
+Sahai, Zhandry | [2014/773](https://eprint.iacr.org/2014/773) |
+Zimmerman | [2014/776](https://eprint.iacr.org/2014/776) | alpha
 
 A discussion of the AGIS implementation appears in the work:
 
@@ -15,12 +15,12 @@ A discussion of the AGIS implementation appears in the work:
 Jonathan Katz, Alex J. Malozemoff. Cryptology ePrint Archive 2014/779.
 https://eprint.iacr.org/2014/779.
 
-All schemes use the graded encoding scheme based on the code of Coron et
-al. (CRYPTO, 2013. https://eprint.iacr.org/2013/183).  The implementation is in
-a mix of Python and C, using [Sage](http://sagemath.org), [GNU
-GMP](https://gmplib.org) and [OpenMP](http://openmp.org).  <b>The code is under
-active development, and may not be stable!</b> I will try to keep the master
-branch in a working state (most of the time), though.
+All schemes use the graded encoding scheme of Coron et al. (CRYPTO,
+2013. https://eprint.iacr.org/2013/183).  The implementation is in a mix of
+Python and C, using [Sage](http://sagemath.org), [GNU GMP](https://gmplib.org)
+and [OpenMP](http://openmp.org).  <b>The code is under active development, and
+may not be stable!</b> I will try to keep the master branch in a working state
+(most of the time), though.
 
 Instructions for building and running the code are in code/README.md, and
 scripts for running experiments and processing the results are in the scripts/
