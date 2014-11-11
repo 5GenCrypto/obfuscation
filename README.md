@@ -7,7 +7,10 @@ Scheme | ePrint Reference | Status
 ------ | ---------------- | ------
 Ananth, Gupta, Ishai, Sahai (AGIS) | [2014/222](https://eprint.iacr.org/2014/222) |
 Sahai, Zhandry (SZ) | [2014/773](https://eprint.iacr.org/2014/773) |
-Zimmerman (Z) | [2014/776](https://eprint.iacr.org/2014/776) | alpha
+Zimmerman (Z) | [2014/776](https://eprint.iacr.org/2014/776) | not working
+
+For some background on cryptographic program obfuscation, see
+https://eprint.iacr.org/2013/451.
 
 A discussion of the AGIS implementation appears in the work:
 
