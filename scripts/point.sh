@@ -8,6 +8,7 @@ PYTHON='python2'
 CODE_DIR='../code'
 CIRCUIT_DIR='../code/circuits'
 LOG_DIR='runs'
+SCHEME=''
 
 mkdir -p $LOG_DIR
 
@@ -33,18 +34,20 @@ for point in `seq $MIN $INC $MAX`
 do
     circuit="point-$point.circ"
     echo "* Running $circuit with security parameter $secparam"
-    $SAGE $CODE_DIR/indobf/run.py obf \
-        --load-circuit $CIRCUIT_DIR/$circuit \
-        --secparam $secparam \
-        --verbose 2>&1 | tee $dir/$circuit-$secparam-obf-time.log
+    $SAGE $CODE_DIR/obf/run.py obf \
+          --load-circuit $CIRCUIT_DIR/$circuit \
+          --secparam $secparam \
+          $SCHEME \
+          --verbose 2>&1 | tee $dir/$circuit-$secparam-obf-time.log
     obf=$circuit.obf.$secparam
     du --bytes $CIRCUIT_DIR/$obf/* \
         | tee $dir/$circuit-$secparam-obf-size.log
     eval=`sed -n 1p $CIRCUIT_DIR/$circuit | awk '{ print $3 }'`
     echo $eval
-    $SAGE $CODE_DIR/indobf/run.py obf \
-        --load-obf $CIRCUIT_DIR/$obf \
-        --eval $eval \
-        --verbose 2>&1 | tee $dir/$circuit-$secparam-eval-time.log
+    $SAGE $CODE_DIR/obf/run.py obf \
+          --load-obf $CIRCUIT_DIR/$obf \
+          --eval $eval \
+          $SCHEME \
+          --verbose 2>&1 | tee $dir/$circuit-$secparam-eval-time.log
     rm -rf $CIRCUIT_DIR/$circuit.obf.$secparam
 done

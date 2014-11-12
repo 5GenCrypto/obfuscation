@@ -31,14 +31,14 @@ mkdir -p $dir
 for secparam in `seq $MIN $INC $MAX`
 do
     echo "* Running $circuit with security parameter $secparam"
-    $SAGE $CODE_DIR/indobf/run.py obf \
+    $SAGE $CODE_DIR/obf/run.py obf \
         --load-circuit $CIRCUIT_DIR/$circuit \
         --secparam $secparam \
         --verbose 2>&1 | tee $dir/$circuit-$secparam-obf-time.log
     obf=$circuit.obf.$secparam
     du --bytes $CIRCUIT_DIR/$obf/* \
         | tee $dir/$circuit-$secparam-obf-size.log
-    $SAGE $CODE_DIR/indobf/run.py obf \
+    $SAGE $CODE_DIR/obf/run.py obf \
         --load-obf $CIRCUIT_DIR/$obf \
         --eval $eval \
         --verbose 2>&1 | tee $dir/$circuit-$secparam-eval-time.log
