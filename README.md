@@ -3,11 +3,11 @@
 This code presents several implementations of cryptographic program obfuscation,
 as listed in the following table:
 
-Scheme | ePrint Reference | Status
------- | ---------------- | ------
-Ananth, Gupta, Ishai, Sahai (AGIS) | [2014/222](https://eprint.iacr.org/2014/222) |
-Sahai, Zhandry (SZ) | [2014/773](https://eprint.iacr.org/2014/773) |
-Zimmerman (Z) | [2014/776](https://eprint.iacr.org/2014/776) | not working
+Scheme | Authors | ePrint Reference
+------ | ------- | ----------------
+AGIS   | Ananth, Gupta, Ishai, Sahai | [2014/222](https://eprint.iacr.org/2014/222)
+SZ     | Sahai, Zhandry | [2014/773](https://eprint.iacr.org/2014/773)
+Z      | Zimmerman | [2014/776](https://eprint.iacr.org/2014/776)
 
 For some background on cryptographic program obfuscation, see
 https://eprint.iacr.org/2013/451.
