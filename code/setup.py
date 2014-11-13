@@ -4,9 +4,9 @@ from setuptools import setup, Extension, find_packages
 
 ATTACK = 0
 
-__name__ = 'obfuscation'
+__name__ = 'obfuscator'
 __author__ = 'Alex J. Malozemoff'
-__version__ = '0.9'
+__version__ = '0.0'
 
 libraries = [
     'gmp',
@@ -14,9 +14,8 @@ libraries = [
 ]
 compile_args = [
     '-fopenmp',
-    # '-O3',
+    '-O3',
     '-Wall',
-    '-g',
 ]
 
 if ATTACK:
@@ -54,9 +53,9 @@ setup(name=__name__,
       author=__author__,
       version=__version__,
       description='Cryptographic program obfuscation',
-      package_data={'circuits': ['*.circ']},
-      packages=['obf', 'circuits'],
+      packages=['obf'],
       ext_modules=[obfuscator, zobfuscator],
+      scripts=['obfuscator'],
       test_suite='t',
       classifiers=[
           'Topic :: Security :: Cryptography',

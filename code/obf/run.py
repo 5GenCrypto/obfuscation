@@ -1,5 +1,3 @@
-#!/usr/bin/env sage -python
-
 from __future__ import print_function
 
 from agis_bp import AGISBranchingProgram
@@ -101,7 +99,7 @@ def obf(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Run indistinguishability obfuscator.')
+        description='Cryptographic program obfuscator.')
     subparsers = parser.add_subparsers()
 
     parser_bp = subparsers.add_parser(
@@ -164,9 +162,3 @@ def main():
 
     args = parser.parse_args()
     args.func(args)
-
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        pass
