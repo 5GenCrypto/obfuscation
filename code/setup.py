@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-from setuptools import setup, Extension, find_packages
+from setuptools import setup, Extension
 
 ATTACK = 0
 
