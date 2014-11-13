@@ -8,12 +8,17 @@ from test import test_circuit
 
 import argparse, os, sys, time
 
-TESTDIR = 'circuits'
+__all__ = ['main']
+
+errorstr = '\x1b[31mError:\x1b[0m'
 
 def test_all(args, bpclass, obfclass, obfuscate):
-    for circuit in os.listdir(TESTDIR):
-        path = os.path.join(TESTDIR, circuit)
-        ext = '.acirc' if args.zimmerman else '.circ'
+    if not os.path.isdir(args.test_all):
+        print("%s '%s' is not a valid directory" % (errorstr, args.test_all))
+        sys.exit(1)
+    ext = '.acirc' if args.zimmerman else '.circ'
+    for circuit in os.listdir(args.test_all):
+        path = os.path.join(args.test_all, circuit)
         if os.path.isfile(path) and path.endswith(ext):
             test_circuit(path, bpclass, obfclass, obfuscate, args)
 
@@ -56,7 +61,7 @@ def obf(args):
 
     if args.test_circuit:
         if args.attack:
-            print("\x1b[31mError:\x1b[0m --attack flag cannot be run with --test-circuit flag")
+            print("%s --attack flag cannot be run with --test-circuit flag" % errorstr)
             sys.exit(1)
         test_circuit(args.test_circuit, bpclass, obfclass, True, args)
     elif args.test_all:
@@ -76,7 +81,7 @@ def obf(args):
             print("Obfuscation took: %f seconds" % (end - start))
             obf.cleanup()
         else:
-            print("\x1b[31mError:\x1b[0m One of --load-obf, --load-circuit, or --test-circuit must be used")
+            print("%s One of --load-obf, --load-circuit, or --test-circuit must be used" % errorstr)
             sys.exit(1)
 
         if args.attack:
@@ -85,7 +90,7 @@ def obf(args):
             try:
                 r = obf.attack(directory, args.secparam, args.nslots)
             except AttributeError:
-                print("\x1b[31mError:\x1b[0m --attack flag unavailable.  Make sure you compile with ATTACK = 1 in setup.py")
+                print("%s --attack flag unavailable.  Make sure you compile with ATTACK = 1 in setup.py" % errorstr)
                 sys.exit(1)
             print('g_1 extracted from attack: %d' % r)
         if args.eval:
@@ -108,9 +113,9 @@ def main():
                            action='store', help='load circuit from FILE')
     parser_bp.add_argument('--test-circuit', metavar='FILE', type=str,
                            action='store',
-                           help='test FILE circuit -> bp conversion')
-    parser_bp.add_argument('--test-all', action='store_true',
-                           help='test BP conversion of all circuits in circuit/ directory')
+                           help='test BP conversion for FILE')
+    parser_bp.add_argument('--test-all', metavar='DIR', nargs='?', const='circuits',
+                           help='test BP conversion for all circuits in DIR (default: %(const)s)')
     parser_bp.add_argument('--secparam', metavar='N', type=int, action='store',
                            default=24, help='security parameter (default: %(default)s)')
     parser_bp.add_argument('--obliviate', action='store_true',
@@ -139,8 +144,8 @@ def main():
     parser_obf.add_argument('--test-circuit', metavar='FILE', type=str,
                             action='store',
                             help='test circuit from FILE')
-    parser_obf.add_argument('--test-all', action='store_true',
-                            help='test obfuscation of all circuits in circuit/ directory')
+    parser_obf.add_argument('--test-all', metavar='DIR', nargs='?', const='circuits',
+                            help='test obfuscation for all circuits in DIR (default: %(const)s)')
     parser_obf.add_argument('--save', metavar='DIR', type=str, action='store',
                             help='save obfuscation to DIR')
     parser_obf.add_argument('--secparam', metavar='N', type=int, action='store',
