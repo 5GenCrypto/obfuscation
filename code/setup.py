@@ -2,8 +2,6 @@
 
 from setuptools import setup, Extension
 
-# ATTACK = 0
-
 __name__ = 'obfuscator'
 __author__ = 'Alex J. Malozemoff'
 __version__ = '0.0'
@@ -17,10 +15,6 @@ compile_args = [
     '-O3',
     '-Wall',
 ]
-
-# if ATTACK:
-#     libraries.append('fplll')
-#     compile_args.append('-DATTACK')
 
 zobfuscator = Extension(
     'obf._zobfuscator',
