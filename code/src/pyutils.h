@@ -4,9 +4,6 @@
 #include <python2.7/Python.h>
 #include <gmp.h>
 
-void
-state_destructor(PyObject *self);
-
 PyObject *
 mpz_to_py(const mpz_t in);
 

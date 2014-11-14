@@ -28,6 +28,7 @@ zobfuscator = Extension(
     extra_compile_args=compile_args,
     sources=[
         'src/circuit.cpp',
+        'src/clt_mlm.cpp',
         'src/_zobfuscator.cpp',
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
@@ -41,6 +42,7 @@ obfuscator = Extension(
     libraries=libraries,
     extra_compile_args=compile_args,
     sources=[
+        'src/clt_mlm.cpp',
         'src/_obfuscator.cpp',
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',

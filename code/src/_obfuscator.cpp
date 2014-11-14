@@ -1,10 +1,29 @@
 #include "utils.h"
 #include "pyutils.h"
+#include "clt_mlm.h"
 
 #include <omp.h>
 #ifdef ATTACK
 #include <fplll.h>
 #endif
+
+struct state {
+	struct clt_mlm_state mlm;
+	char *dir;
+};
+
+void
+state_destructor(PyObject *self)
+{
+    struct state *s;
+
+    s = (struct state *) PyCapsule_GetPointer(self, NULL);
+    if (s) {
+		clt_mlm_cleanup(&s->mlm);
+    }
+	free(s);
+}
+
 
 static int
 extract_indices(PyObject *py_list, int *idx1, int *idx2)
@@ -25,23 +44,23 @@ extract_indices(PyObject *py_list, int *idx1, int *idx2)
 }
 
 static int
-write_vector(struct state *s, mpz_t *vector, long size, char *name)
+write_vector(const char *dir, mpz_t *vector, long size, char *name)
 {
     char *fname;
     int fnamelen;
 
-    fnamelen = strlen(s->dir) + strlen(name) + 2;
+    fnamelen = strlen(dir) + strlen(name) + 2;
     fname = (char *) malloc(sizeof(char) * fnamelen);
     if (fname == NULL)
         return 1;
-    (void) snprintf(fname, fnamelen, "%s/%s", s->dir, name);
+    (void) snprintf(fname, fnamelen, "%s/%s", dir, name);
     (void) save_mpz_vector(fname, vector, size);
     free(fname);
     return 0;
 }
 
 static int
-write_layer(struct state *s, int inp, long idx, mpz_t *zero, mpz_t *one,
+write_layer(const char *dir, int inp, long idx, mpz_t *zero, mpz_t *one,
             long nrows, long ncols)
 {
     mpz_t tmp;
@@ -50,22 +69,22 @@ write_layer(struct state *s, int inp, long idx, mpz_t *zero, mpz_t *one,
 
     if (idx < 0)
         return 1;
-    fnamelen = strlen(s->dir) + sizeof idx + 7;
+    fnamelen = strlen(dir) + sizeof idx + 7;
     fname = (char *) malloc(sizeof(char) * fnamelen);
     if (fname == NULL)
         return 1;
     mpz_init_set_ui(tmp, inp);
-    (void) snprintf(fname, fnamelen, "%s/%ld.input", s->dir, idx);
+    (void) snprintf(fname, fnamelen, "%s/%ld.input", dir, idx);
     (void) save_mpz_scalar(fname, tmp);
-    (void) snprintf(fname, fnamelen, "%s/%ld.zero", s->dir, idx);
+    (void) snprintf(fname, fnamelen, "%s/%ld.zero", dir, idx);
     (void) save_mpz_vector(fname, zero, nrows * ncols);
-    (void) snprintf(fname, fnamelen, "%s/%ld.one", s->dir, idx);
+    (void) snprintf(fname, fnamelen, "%s/%ld.one", dir, idx);
     (void) save_mpz_vector(fname, one, nrows * ncols);
     mpz_set_ui(tmp, nrows);
-    (void) snprintf(fname, fnamelen, "%s/%ld.nrows", s->dir, idx);
+    (void) snprintf(fname, fnamelen, "%s/%ld.nrows", dir, idx);
     (void) save_mpz_scalar(fname, tmp);
     mpz_set_ui(tmp, ncols);
-    (void) snprintf(fname, fnamelen, "%s/%ld.ncols", s->dir, idx);
+    (void) snprintf(fname, fnamelen, "%s/%ld.ncols", dir, idx);
     (void) save_mpz_scalar(fname, tmp);
     free(fname);
     mpz_clear(tmp);
@@ -74,15 +93,13 @@ write_layer(struct state *s, int inp, long idx, mpz_t *zero, mpz_t *one,
 }
 
 static void
-encode(struct state *st, mpz_t out, const PyObject *in, const long item,
-       const long idx1, const long idx2)
+encode(struct clt_mlm_state *st, mpz_t out, const PyObject *in, long item,
+       long idx1, long idx2)
 {
     mpz_t r, tmp;
 
     mpz_inits(r, tmp, NULL);
-
     mpz_set_ui(out, 0);
-
     for (unsigned long i = 0; i < st->n; ++i) {
         mpz_genrandom(r, &st->rng, st->rho);
         mpz_mul(tmp, r, st->gs[i]);
@@ -121,18 +138,18 @@ obf_setup(PyObject *self, PyObject *args)
     s = (struct state *) malloc(sizeof(struct state));
     if (s == NULL)
         return NULL;
-    if (!PyArg_ParseTuple(args, "lllls", &s->secparam, &kappa, &size,
-                          &s->nzs, &s->dir)) {
+    if (!PyArg_ParseTuple(args, "lllls", &s->mlm.secparam, &kappa, &size,
+                          &s->mlm.nzs, &s->dir)) {
         free(s);
         return NULL;
     }
 
-    pows = (long *) malloc(sizeof(long) * s->nzs);
-    for (unsigned long i = 0; i < s->nzs; ++i) {
+    pows = (long *) malloc(sizeof(long) * s->mlm.nzs);
+    for (unsigned long i = 0; i < s->mlm.nzs; ++i) {
         pows[i] = 1L;
     }
 
-    (void) mlm_setup(s, pows, kappa, size);
+    (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, size, g_verbose);
 
 #ifdef ATTACK
     (void) gmp_fprintf(stderr, "g_1 in use: %Zd\n", s->gs[0]);
@@ -141,7 +158,7 @@ obf_setup(PyObject *self, PyObject *args)
     {
         PyObject *py_gs, *py_state;
 
-        py_gs = PyList_New(s->secparam);
+        py_gs = PyList_New(s->mlm.secparam);
         if (!py_gs)
             return NULL;
 
@@ -150,8 +167,8 @@ obf_setup(PyObject *self, PyObject *args)
         // Only convert the first secparam g_i values since we only need to fill in
         // the first secparam slots of the plaintext space.
         //
-        for (unsigned long i = 0; i < s->secparam; ++i) {
-            PyList_SetItem(py_gs, i, mpz_to_py(s->gs[i]));
+        for (unsigned long i = 0; i < s->mlm.secparam; ++i) {
+            PyList_SetItem(py_gs, i, mpz_to_py(s->mlm.gs[i]));
         }
 
         /* Encapsulate state as python object */
@@ -197,14 +214,14 @@ obf_encode_vectors(PyObject *self, PyObject *args)
 #pragma omp parallel for
     for (Py_ssize_t i = 0; i < length; ++i) {
         mpz_init(vector[i]);
-        encode(s, vector[i], py_vectors, i, idx1, idx2);
+        encode(&s->mlm, vector[i], py_vectors, i, idx1, idx2);
     }
     end = current_time();
     if (g_verbose)
         (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
                        length, end - start);
 
-    (void) write_vector(s, vector, length, name);
+    (void) write_vector(s->dir, vector, length, name);
 
     for (Py_ssize_t i = 0; i < length; ++i) {
         mpz_clear(vector[i]);
@@ -274,14 +291,14 @@ obf_encode_layers(PyObject *self, PyObject *args)
         }
 
         mpz_init(*val);
-        encode(s, *val, py_array, i, idx1, idx2);
+        encode(&s->mlm, *val, py_array, i, idx1, idx2);
     }
     end = current_time();
     if (g_verbose)
         (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
                        2 * nrows * ncols, end - start);
 
-    (void) write_layer(s, inp, idx, zero, one, nrows, ncols);
+    (void) write_layer(s->dir, inp, idx, zero, one, nrows, ncols);
 
     for (int i = 0; i < nrows * ncols; ++i) {
         mpz_clears(zero[i], one[i], NULL);
@@ -573,17 +590,7 @@ obf_cleanup(PyObject *self, PyObject *args)
     if (s == NULL)
         return NULL;
 
-    gmp_randclear(s->rng);
-    mpz_clears(s->q, s->pzt, NULL);
-    for (unsigned long i = 0; i < s->n; ++i) {
-        mpz_clears(s->gs[i], s->crt_coeffs[i], NULL);
-    }
-    free(s->gs);
-    free(s->crt_coeffs);
-    for (unsigned long i = 0; i < s->nzs; ++i) {
-        mpz_clear(s->zinvs[i]);
-    }
-    free(s->zinvs);
+	clt_mlm_cleanup(&s->mlm);
     free(s);
 
     Py_RETURN_NONE;

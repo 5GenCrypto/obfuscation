@@ -4,36 +4,6 @@
 
 #include <sys/resource.h>
 
-void
-state_destructor(PyObject *self)
-{
-    struct state *s;
-
-    s = (struct state *) PyCapsule_GetPointer(self, NULL);
-    if (s) {
-        if (s->gs) {
-            for (unsigned long i = 0; i < s->n; ++i) {
-                mpz_clear(s->gs[i]);
-            }
-            free(s->gs);
-        }
-        if (s->crt_coeffs) {
-            for (unsigned long i = 0; i < s->n; ++i) {
-                mpz_clear(s->crt_coeffs[i]);
-            }
-            free(s->crt_coeffs);
-        }
-        if (s->zinvs) {
-            for (unsigned long i = 0; i < s->nzs; ++i) {
-                mpz_clear(s->zinvs[i]);
-            }
-            free(s->zinvs);
-        }
-        gmp_randclear(s->rng);
-        mpz_clears(s->q, s->pzt, NULL);
-    }
-}
-
 PyObject *
 mpz_to_py(const mpz_t in)
 {
