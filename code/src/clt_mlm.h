@@ -24,7 +24,12 @@ clt_mlm_setup(struct clt_mlm_state *s, const char *dir, long *pows, long kappa,
 void
 clt_mlm_cleanup(struct clt_mlm_state *s);
 
+void
+clt_mlm_encode(struct clt_mlm_state *s, mpz_t out, size_t nins,
+			   const mpz_t *ins, unsigned int nzs, const int *indices,
+			   const int *pows);
+
 int
-is_zero(mpz_t c, mpz_t pzt, mpz_t q, long nu);
+clt_mlm_is_zero(mpz_t c, mpz_t pzt, mpz_t q, long nu);
 
 #endif

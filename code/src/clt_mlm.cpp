@@ -52,9 +52,9 @@ write_setup_params(const struct clt_mlm_state *s, const char *dir, long nu, long
 
 int
 clt_mlm_setup(struct clt_mlm_state *s, const char *dir, long *pows, long kappa,
-			  long size, int verbose)
+              long size, int verbose)
 {
-	long alpha, beta, eta, nu, rho_f;
+    long alpha, beta, eta, nu, rho_f;
     mpz_t *ps, *zs;
     double start, end;
 
@@ -215,7 +215,7 @@ clt_mlm_setup(struct clt_mlm_state *s, const char *dir, long *pows, long kappa,
 void
 clt_mlm_cleanup(struct clt_mlm_state *s)
 {
-	gmp_randclear(s->rng);
+    gmp_randclear(s->rng);
     mpz_clears(s->q, s->pzt, NULL);
     for (unsigned long i = 0; i < s->n; ++i) {
         mpz_clears(s->gs[i], s->crt_coeffs[i], NULL);
@@ -228,8 +228,36 @@ clt_mlm_cleanup(struct clt_mlm_state *s)
     free(s->zinvs);
 }
 
+void
+clt_mlm_encode(struct clt_mlm_state *s, mpz_t out, size_t nins,
+               const mpz_t *ins, unsigned int nzs, const int *indices,
+               const int *pows)
+{
+    mpz_t r, tmp;
+
+    mpz_inits(r, tmp, NULL);
+    mpz_set_ui(out, 0);
+    for (unsigned long i = 0; i < s->n; ++i) {
+        mpz_genrandom(r, &s->rng, s->rho);
+        mpz_mul(tmp, r, s->gs[i]);
+        if (i < nins)
+            mpz_add(tmp, tmp, ins[i]);
+        mpz_mul(tmp, tmp, s->crt_coeffs[i]);
+        mpz_add(out, out, tmp);
+    }
+    for (unsigned long i = 0; i < nzs; ++i) {
+        // Any index set to < 0 means we skip this one
+        if (indices[i] < 0)
+            continue;
+        mpz_powm_ui(tmp, s->zinvs[indices[i]], pows[i], s->q);
+        mpz_mul(out, out, tmp);
+        mpz_mod(out, out, s->q);
+    }
+    mpz_clears(r, tmp, NULL);
+}
+
 int
-is_zero(mpz_t c, mpz_t pzt, mpz_t q, long nu)
+clt_mlm_is_zero(mpz_t c, mpz_t pzt, mpz_t q, long nu)
 {
     mpz_t tmp;
     int ret;
