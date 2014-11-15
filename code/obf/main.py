@@ -74,7 +74,8 @@ def obf(args):
             directory = args.save if args.save \
                         else '%s.obf.%d' % (args.load_circuit, args.secparam)
             obf.obfuscate(args.load_circuit, args.secparam, directory,
-                          obliviate=args.obliviate, nslots=args.nslots)
+                          obliviate=args.obliviate, nslots=args.nslots,
+                          kappa=args.kappa)
             end = time.time()
             print("Obfuscation took: %f seconds" % (end - start))
             obf.cleanup()
@@ -133,6 +134,9 @@ def main():
                             help='attack obfuscation')
     parser_obf.add_argument('--eval', metavar='INPUT', type=str, action='store',
                             help='evaluate obfuscation on INPUT')
+    parser_obf.add_argument('--kappa', metavar='N', type=int,
+                            default=None, action='store',
+                            help='set kappa to N (for debugging)')
     parser_obf.add_argument('--load-obf', metavar='DIR', type=str,
                             action='store',
                             help='load obfuscation from DIR')

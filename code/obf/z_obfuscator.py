@@ -121,7 +121,7 @@ class ZObfuscator(obfuscator.Obfuscator):
         self.logger('Took: %f' % (end - start))
 
     def obfuscate(self, circname, secparam, directory, obliviate=False,
-                  nslots=None):
+                  nslots=None, kappa=None):
         self.logger("Obfuscating '%s'" % circname)
         start = time.time()
 
@@ -141,7 +141,9 @@ class ZObfuscator(obfuscator.Obfuscator):
 
         # XXX: what should kappa be set to!?  For now, we set kappa = nzs, but
         # it appears we can often get away with setting kappa < nzs.
-        kappa = nzs
+        # kappa = circ.ngates + circ.n_xins + 1
+        if not kappa:
+            kappa = nzs
 
         self._gen_mlm_params(secparam, kappa, nzs, pows, directory)
         self._obfuscate(circname, circ)
@@ -151,24 +153,17 @@ class ZObfuscator(obfuscator.Obfuscator):
             _zobf.max_mem_usage()
 
     def evaluate(self, directory, inp):
-        self.logger('Evaluating %s...' % inp)
-        start = time.time()
-        files = os.listdir(directory)
-        inputs = sorted(filter(lambda s: 'input' in s, files))
-        inp = inp[::-1]
-        circname = os.path.join(directory, 'circuit')
-        # Count number of y values
-        m = 0
-        with open(circname) as f:
-            for line in f:
-                if 'y' in line:
-                    m += 1
-        result = _zobf.evaluate(directory, circname, inp, len(inp), m)
-        end = time.time()
-        self.logger('Took: %f' % (end - start))
-        if self._verbose:
-            _zobf.max_mem_usage()
-        return result
+        def f(directory, inp, length):
+            inp = inp[::-1]
+            circname = os.path.join(directory, 'circuit')
+            # Count number of y values
+            m = 0
+            with open(circname) as f:
+                for line in f:
+                    if 'y' in line:
+                        m += 1
+            return _zobf.evaluate(directory, circname, inp, len(inp), m)
+        return self._evaluate(directory, inp, f, _zobf)
 
     def cleanup(self):
         _zobf.cleanup(self._state)

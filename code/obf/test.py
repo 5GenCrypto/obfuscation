@@ -25,7 +25,7 @@ def test_circuit(path, cclass, obfclass, obfuscate, args):
         directory = args.save if args.save \
                     else '%s.obf.%d' % (path, args.secparam)
         obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate,
-                      nslots=args.nslots)
+                      nslots=args.nslots, kappa=args.kappa)
         for k, v in testcases.items():
             r = obf.evaluate(directory, k)
             if r != v:

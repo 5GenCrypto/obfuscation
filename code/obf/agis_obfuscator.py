@@ -1,10 +1,8 @@
-from __future__ import print_function
-
 import _obfuscator as _obf
 from obfuscator import Obfuscator
 from agis_bp import AGISBranchingProgram
 
-import copy, os, time
+import os, time
 
 def to_long(lst):
     return [long(i) for i in lst]
@@ -87,7 +85,9 @@ class AGISObfuscator(Obfuscator):
             self.logger('Took: %f' % (end - start))
 
     def obfuscate(self, circuit, secparam, directory, obliviate=False,
-                  nslots=None):
+                  nslots=None, kappa=None):
+        start = time.time()
+
         self._remove_old(directory)
         if nslots is None:
             nslots = secparam
@@ -95,41 +95,29 @@ class AGISObfuscator(Obfuscator):
         # create a dummy branching program to determine parameters
         bp = AGISBranchingProgram(circuit, verbose=self._verbose,
                                   obliviate=obliviate)
-
         # add two to kappa due to the bookend vectors
-        kappa = len(bp) + 2
+        if not kappa:
+            kappa = len(bp) + 2
         # construct straddling sets, and add two to the number of Zs to take
         # bookend vectors into account
         nzs = bp.set_straddling_sets() + 2
         # width is the column/row-length of the matrices
         width = bp.size
 
-        start = time.time()
         primes = self._gen_mlm_params(secparam, kappa, width, nzs, directory)
         bps = self._construct_bps(AGISBranchingProgram, nslots, circuit,
                                   primes, obliviate)
         self._randomize(secparam, bps, primes)
         self._construct_bookend_vectors(bps, primes, nzs)
         self._obfuscate(bps, len(primes))
+
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))
         if self._verbose:
             _obf.max_mem_usage()
 
-    def _evaluate(self, directory, inp, f):
-        self.logger('Evaluating %s...' % inp)
-        start = time.time()
-        files = os.listdir(directory)
-        inputs = sorted(filter(lambda s: 'input' in s, files))
-        result = f(directory, inp, len(inputs))
-        end = time.time()
-        self.logger('Took: %f' % (end - start))
-        if self._verbose:
-            _obf.max_mem_usage()
-        return result
-
     def evaluate(self, directory, inp):
-        return self._evaluate(directory, inp, _obf.evaluate)
+        return self._evaluate(directory, inp, _obf.evaluate, _obf)
 
     def attack(self, directory, secparam, nslots):
         self.logger('Attacking...')
