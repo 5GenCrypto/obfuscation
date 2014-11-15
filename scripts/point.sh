@@ -34,7 +34,7 @@ for point in `seq $MIN $INC $MAX`
 do
     circuit="point-$point.circ"
     echo "* Running $circuit with security parameter $secparam"
-    $SAGE $CODE_DIR/obf/run.py obf \
+    $SAGE $CODE_DIR/obfuscator obf \
           --load-circuit $CIRCUIT_DIR/$circuit \
           --secparam $secparam \
           $SCHEME \
@@ -44,7 +44,7 @@ do
         | tee $dir/$circuit-$secparam-obf-size.log
     eval=`sed -n 1p $CIRCUIT_DIR/$circuit | awk '{ print $3 }'`
     echo $eval
-    $SAGE $CODE_DIR/obf/run.py obf \
+    $SAGE $CODE_DIR/obfuscator obf \
           --load-obf $CIRCUIT_DIR/$obf \
           --eval $eval \
           $SCHEME \

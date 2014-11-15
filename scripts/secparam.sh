@@ -18,6 +18,7 @@ then
 fi
 circuit=$1
 eval=`$PYTHON -c "print('0' * $2)"`
+scheme=''
 
 MIN=24
 INC=16
@@ -31,16 +32,18 @@ mkdir -p $dir
 for secparam in `seq $MIN $INC $MAX`
 do
     echo "* Running $circuit with security parameter $secparam"
-    $SAGE $CODE_DIR/obf/run.py obf \
+    $SAGE $CODE_DIR/obfuscator obf \
         --load-circuit $CIRCUIT_DIR/$circuit \
         --secparam $secparam \
+        $scheme \
         --verbose 2>&1 | tee $dir/$circuit-$secparam-obf-time.log
     obf=$circuit.obf.$secparam
     du --bytes $CIRCUIT_DIR/$obf/* \
         | tee $dir/$circuit-$secparam-obf-size.log
-    $SAGE $CODE_DIR/obf/run.py obf \
+    $SAGE $CODE_DIR/obfuscator obf \
         --load-obf $CIRCUIT_DIR/$obf \
         --eval $eval \
+        $scheme \
         --verbose 2>&1 | tee $dir/$circuit-$secparam-eval-time.log
     rm -rf $CIRCUIT_DIR/$circuit.obf.$secparam
 done
