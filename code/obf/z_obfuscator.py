@@ -2,10 +2,10 @@ from __future__ import print_function
 
 import _zobfuscator as _zobf
 from circuit import parse
-import obfuscator, utils
+from obfuscator import Obfuscator
 
 import networkx as nx
-import copy, math, os, time
+import os, time
 
 class Circuit(object):
     def __init__(self, fname, verbose=False):
@@ -59,14 +59,18 @@ class Circuit(object):
             else:
                 for p in v.iterkeys():
                     circ.node[k]['label'].extend(circ.node[p]['label'])
-        x_degs = [circ.node[circ.nodes()[-1]]['label'].count('x%d' % i) for i in xrange(n_xins)]
-        y_degs = [circ.node[circ.nodes()[-1]]['label'].count('y%d' % i) for i in xrange(n_yins)]
+        x_degs = [circ.node[circ.nodes()[-1]]['label'].count('x%d' % i)
+                  for i in xrange(n_xins)]
+        y_degs = [circ.node[circ.nodes()[-1]]['label'].count('y%d' % i)
+                  for i in xrange(n_yins)]
         return x_degs, sum(y_degs)
 
     def _parse(self, fname):
         g = nx.digraph.DiGraph()
-        self.circuit, self.info = parse(fname, [g], self._inp_gate, self._gate, keyed=True)
-        self.x_degs, self.y_deg = self._compute_degs(self.circuit, self.n_xins, self.n_yins)
+        self.circuit, self.info = parse(fname, [g], self._inp_gate, self._gate,
+                                        keyed=True)
+        self.x_degs, self.y_deg = self._compute_degs(self.circuit, self.n_xins,
+                                                     self.n_yins)
 
     def evaluate(self, x):
         # XXX: this is a massive hack
@@ -98,7 +102,7 @@ class Circuit(object):
         return g.node[idx]['value'] != 0
 
 
-class ZObfuscator(obfuscator.Obfuscator):
+class ZObfuscator(Obfuscator):
     def __init__(self, verbose=False):
         super(ZObfuscator, self).__init__(_zobf, verbose=verbose)
 

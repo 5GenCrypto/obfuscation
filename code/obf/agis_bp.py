@@ -1,4 +1,3 @@
-
 import networkx as nx
 from bp import AbstractBranchingProgram, Layer
 from circuit import parse, ParseException

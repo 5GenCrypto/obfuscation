@@ -24,7 +24,8 @@ class SZObfuscator(AGISObfuscator):
         nzs = bp.set_straddling_sets()
 
         primes = self._gen_mlm_params(secparam, kappa, 0, nzs, directory)
-        bps = self._construct_bps(SZBranchingProgram, nslots, circuit, primes, obliviate)
+        bps = self._construct_bps(SZBranchingProgram, nslots, circuit, primes,
+                                  obliviate)
         self._randomize(secparam, bps, primes)
         self._obfuscate(bps, len(primes))
 
