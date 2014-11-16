@@ -6,7 +6,8 @@
 #include <string.h>
 
 static int
-write_setup_params(const struct clt_mlm_state *s, const char *dir, long nu, long size)
+write_setup_params(const struct clt_mlm_state *s, const char *dir, long nu,
+                   long size)
 {
     char *fname;
     int len;
@@ -51,8 +52,8 @@ write_setup_params(const struct clt_mlm_state *s, const char *dir, long nu, long
 }
 
 int
-clt_mlm_setup(struct clt_mlm_state *s, const char *dir, long *pows, long kappa,
-              long size, int verbose)
+clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
+              long kappa, long size, int verbose)
 {
     long alpha, beta, eta, nu, rho_f;
     mpz_t *ps, *zs;
@@ -141,7 +142,6 @@ clt_mlm_setup(struct clt_mlm_state *s, const char *dir, long *pows, long kappa,
         mpz_mod(s->crt_coeffs[i], s->crt_coeffs[i], s->q);
         mpz_clear(q);
     }
-
     end = current_time();
     if (g_verbose)
         (void) fprintf(stderr, "  Generating CRT coefficients: %f\n",
@@ -209,7 +209,6 @@ clt_mlm_setup(struct clt_mlm_state *s, const char *dir, long *pows, long kappa,
     free(zs);
 
     return 0;
-
 }
 
 void
@@ -257,7 +256,7 @@ clt_mlm_encode(struct clt_mlm_state *s, mpz_t out, size_t nins,
 }
 
 int
-clt_mlm_is_zero(mpz_t c, mpz_t pzt, mpz_t q, long nu)
+clt_mlm_is_zero(const mpz_t c, const mpz_t pzt, const mpz_t q, long nu)
 {
     mpz_t tmp;
     int ret;

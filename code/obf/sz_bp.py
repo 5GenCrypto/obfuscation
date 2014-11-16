@@ -3,7 +3,6 @@ from __future__ import print_function
 from bp import AbstractBranchingProgram, Layer
 from circuit import ParseException
 from sage.all import matrix, MatrixSpace, ZZ
-import utils
 
 import random
 

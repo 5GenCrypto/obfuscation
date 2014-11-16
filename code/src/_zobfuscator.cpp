@@ -170,7 +170,8 @@ obf_encode_circuit(PyObject *self, PyObject *args)
         mpz_urandomm(elems[0], s->mlm.rng, s->nev);
         mpz_urandomm(elems[1], s->mlm.rng, s->nchk);
 
-        set_indices_pows(indices, pows, 3, 2 * i + 1, deg, 2 * n + i, 1, 3 * n + i, 1);
+        set_indices_pows(indices, pows, 3, 2 * i + 1, deg, 2 * n + i, 1,
+                         3 * n + i, 1);
         clt_mlm_encode(&s->mlm, out, 2, elems, 3, indices, pows);
         (void) snprintf(fname, fnamelen, "z_%d_0", i);
         (void) write_element(s->dir, out, fname);
@@ -197,6 +198,7 @@ obf_encode_circuit(PyObject *self, PyObject *args)
 
         mpz_clears(out, elems[0], elems[1], NULL);
     }
+
     set_indices_pows(indices, pows, 1, 4 * n, 1);
     for (int i = 0; i < m; ++i) {
         mpz_t out, elems[2];
@@ -212,6 +214,7 @@ obf_encode_circuit(PyObject *self, PyObject *args)
         (void) write_element(s->dir, out, fname);
         mpz_clears(out, elems[0], elems[1], NULL);
     }
+
     {
         mpz_t elems[2];
         mpz_init_set_ui(elems[0], 1);

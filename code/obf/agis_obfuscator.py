@@ -119,17 +119,5 @@ class AGISObfuscator(Obfuscator):
     def evaluate(self, directory, inp):
         return self._evaluate(directory, inp, _obf.evaluate, _obf)
 
-    def attack(self, directory, secparam, nslots):
-        self.logger('Attacking...')
-        start = time.time()
-        files = os.listdir(directory)
-        inputs = sorted(filter(lambda s: 'input' in s, files))
-        bplength = len(inputs)
-        kappa = bplength + 2 # add two due to bookend vectors
-        result = _obf.attack(directory, len(inputs), secparam, kappa, nslots)
-        end = time.time()
-        self.logger('Took: %f' % (end - start))
-        return result
-
     def cleanup(self):
         _obf.cleanup(self._state)
