@@ -261,7 +261,7 @@ obf_encode_layers(PyObject *self, PyObject *args)
         }
         clt_mlm_encode(&s->mlm, *val, s->mlm.secparam, elems, 2, indices, pows);
         for (unsigned long j = 0; j < s->mlm.secparam; ++j) {
-            mpz_clears(elems[j]);
+            mpz_clear(elems[j]);
         }
         free(elems);
     }
