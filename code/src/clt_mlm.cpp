@@ -6,7 +6,8 @@
 #include <string.h>
 
 static int
-write_setup_params(const struct clt_mlm_state *s, const char *dir, long nu, long size)
+write_setup_params(const struct clt_mlm_state *s, const char *dir, long nu,
+                   long size)
 {
     char *fname;
     int len;
@@ -51,8 +52,8 @@ write_setup_params(const struct clt_mlm_state *s, const char *dir, long nu, long
 }
 
 int
-clt_mlm_setup(struct clt_mlm_state *s, const char *dir, long *pows, long kappa,
-              long size, int verbose)
+clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
+              long kappa, long size, int verbose)
 {
     long alpha, beta, eta, nu, rho_f;
     mpz_t *ps, *zs;

@@ -118,12 +118,12 @@ obf_setup(PyObject *self, PyObject *args)
 
     (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, size, g_verbose);
 
+    /* Convert g_i values to python objects */
     {
         PyObject *py_gs, *py_state;
 
         py_gs = PyList_New(s->mlm.secparam);
 
-        /* Convert g_i values to python objects */
         //
         // Only convert the first secparam g_i values since we only need to fill in
         // the first secparam slots of the plaintext space.
@@ -182,7 +182,7 @@ obf_encode_vectors(PyObject *self, PyObject *args)
         }
         clt_mlm_encode(&s->mlm, vector[i], s->mlm.secparam, elems, 2, indices, pows);
         for (unsigned long j = 0; j < s->mlm.secparam; ++j) {
-            mpz_init(elems[j]);
+            mpz_clear(elems[j]);
         }
         free(elems);
     }
@@ -261,7 +261,7 @@ obf_encode_layers(PyObject *self, PyObject *args)
         }
         clt_mlm_encode(&s->mlm, *val, s->mlm.secparam, elems, 2, indices, pows);
         for (unsigned long j = 0; j < s->mlm.secparam; ++j) {
-            mpz_init(elems[j]);
+            mpz_clears(elems[j]);
         }
         free(elems);
     }
