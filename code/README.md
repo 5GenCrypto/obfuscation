@@ -19,14 +19,6 @@ The important part is at the bottom, where with any luck you should see the word
 "Pass" in green color.  If not, something is wrong; please e-mail the maintainer
 to resolve this.
 
-To install, run
-```
-sage setup.py build
-sage setup.py install
-```
-
-You can then run the program using `obfuscator`.
-
 To use the Sahai-Zhandry scheme, use the `--sahai-zhandry` flag.  To use the
 Zimmerman scheme, use the `--zimmerman` flag.  Using neither flag defaults to
 the Ananth et al. scheme.  See `--help` for other options.
