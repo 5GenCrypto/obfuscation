@@ -1,20 +1,17 @@
 # Implementation of Cryptographic Obfuscation
 
-To run, you'll need python (use 2.7.X), sage (use 6.1.1 or later), openmp
-(should come with g++ by default), libgmp (use 6.0.0 or later), and networkx
-(use 1.8.1 or later) installed.  The code has only been tested on Linux, but
-should run fine on OS X.  Good luck to you Windows users.
+To run, you'll need sage (use 6.1.1 or later), openmp (should come with g++ by
+default), and libgmp (use 6.0.0 or later).  The code has only been tested on
+Linux, but should run fine on OS X.  Good luck to you Windows users.
 
-To build, run (only works for python2.7)
-
+To test, run
 ```
-python setup.py test
+sage setup.py test
 ```
 
 If this succeeds, you should now be able to test it as follows:
-
 ```
-sage obf/run.py obf --test-circuit circuits/and.circ --secparam 8 --verbose
+./obfuscator obf --test-circuit circuits/and.circ --secparam 8 --verbose
 ```
 
 This should print out a bunch of stuff, and take no more than 5 seconds to run.
@@ -24,21 +21,4 @@ to resolve this.
 
 To use the Sahai-Zhandry scheme, use the `--sahai-zhandry` flag.  To use the
 Zimmerman scheme, use the `--zimmerman` flag.  Using neither flag defaults to
-the Ananth et al. scheme.
-
-There's code in the src/ directory which can be used to evaluate an existing
-obfuscation, and is written entirely in C/C++ (so you do not need sage or python
-installed).  <b>Note: this code is not up-to-date and may not work!</b> To use,
-run "make" within the src/ directory and then run
-
-```
-./evaluate <obfuscation-directory> <input-as-a-bitstring>
-```
-
-So, for example, if you have an obfuscation in the directory obfuscation/, and
-it takes 5-bit inputs, you can evaluate it on input 10101 as follows:
-
-```
-./evaluate obfuscation 10101
-```
-
+the Ananth et al. scheme.  See `--help` for other options.
