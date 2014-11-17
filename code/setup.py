@@ -2,10 +2,6 @@
 
 from setuptools import setup, Extension
 
-__name__ = 'obfuscator'
-__author__ = 'Alex J. Malozemoff'
-__version__ = '0.0'
-
 libraries = [
     'gmp',
     'gomp',
@@ -45,10 +41,13 @@ obfuscator = Extension(
     ]
 )
 
-setup(name=__name__,
-      author=__author__,
-      version=__version__,
-      description='Cryptographic program obfuscation',
+setup(name='obfuscator',
+      author='Alex J. Malozemoff',
+      author_email='amaloz@cs.umd.edu',
+      version='1.0alpha',
+      description='Implementation of cryptographic program obfuscation',
+      license='GPLv2',
+      url='https://amaloz.github.io/obfuscation',
       packages=['obf'],
       ext_modules=[obfuscator, zobfuscator],
       scripts=['obfuscator'],
