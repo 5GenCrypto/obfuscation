@@ -545,26 +545,6 @@ cleanup:
         return Py_BuildValue("i", iszero ? 0 : 1);
 }
 
-
-static PyObject *
-obf_cleanup(PyObject *self, PyObject *args)
-{
-    PyObject *py_state;
-    struct state *s;
-
-    if (!PyArg_ParseTuple(args, "O", &py_state))
-        return NULL;
-
-    s = (struct state *) PyCapsule_GetPointer(py_state, NULL);
-    if (s == NULL)
-        return NULL;
-
-    clt_mlm_cleanup(&s->mlm);
-    free(s);
-
-    Py_RETURN_NONE;
-}
-
 static PyMethodDef
 ObfMethods[] = {
     {"verbose", obf_verbose, METH_VARARGS,
@@ -577,8 +557,6 @@ ObfMethods[] = {
      "Encode a branching program layer in each slot."},
     {"max_mem_usage", obf_max_mem_usage, METH_VARARGS,
      "Print out the maximum memory usage."},
-    {"cleanup", obf_cleanup, METH_VARARGS,
-     "Clean up objects created during setup."},
     {"evaluate", obf_evaluate, METH_VARARGS,
      "evaluate the obfuscation."},
     {"sz_evaluate", obf_sz_evaluate, METH_VARARGS,
