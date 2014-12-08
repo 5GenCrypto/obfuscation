@@ -385,27 +385,6 @@ obf_evaluate(PyObject *self, PyObject *args)
     return Py_BuildValue("i", iszero ? 0 : 1);
 }
 
-static PyObject *
-obf_cleanup(PyObject *self, PyObject *args)
-{
-    PyObject *py_state;
-    struct state *s;
-
-    if (!PyArg_ParseTuple(args, "O", &py_state))
-        return NULL;
-
-    s = (struct state *) PyCapsule_GetPointer(py_state, NULL);
-    if (s == NULL)
-        return NULL;
-
-    clt_mlm_cleanup(&s->mlm);
-    mpz_clears(s->nev, s->nchk, NULL);
-    free(s);
-
-    Py_RETURN_NONE;
-}
-
-
 static PyMethodDef
 ObfMethods[] = {
     {"verbose", obf_verbose, METH_VARARGS,
@@ -418,9 +397,6 @@ ObfMethods[] = {
      "Evaluate circuit."},
     {"max_mem_usage", obf_max_mem_usage, METH_VARARGS,
      "Compute the maximum memory usage."},
-    {"cleanup", obf_cleanup, METH_VARARGS,
-     "Clean up objects created during setup."},
-
     {NULL, NULL, 0, NULL}
 };
 
