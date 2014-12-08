@@ -3,6 +3,7 @@ from __future__ import print_function
 from agis_bp import AGISBranchingProgram
 from sz_bp import SZBranchingProgram
 from test import test_circuit
+from circuit import ParseException
 
 import argparse, os, sys, time
 
@@ -28,17 +29,21 @@ def bp(args):
         cls = Circuit
     else:
         cls = AGISBranchingProgram
-    if args.test_circuit:
-        test_circuit(args.test_circuit, cls, None, False, args)
-    if args.test_all:
-        test_all(args, cls, None, False)
-    if args.load_circuit:
-        bp = cls(args.load_circuit, verbose=args.verbose)
-        if args.obliviate:
-            bp.obliviate()
-        if args.eval:
-            r = bp.evaluate(args.eval)
-            print('Output = %d' % r)
+    try:
+        if args.test_circuit:
+            test_circuit(args.test_circuit, cls, None, False, args)
+        elif args.test_all:
+            test_all(args, cls, None, False)
+        elif args.load_circuit:
+            bp = cls(args.load_circuit, verbose=args.verbose)
+            if args.obliviate:
+                bp.obliviate()
+            if args.eval:
+                r = bp.evaluate(args.eval)
+                print('Output = %d' % r)
+    except ParseException as e:
+        print('%s %s' % (errorstr, e))
+        sys.exit(1)
 
 def obf(args):
     from agis_obfuscator import AGISObfuscator
@@ -57,46 +62,38 @@ def obf(args):
         bpclass = AGISBranchingProgram
         obfclass = AGISObfuscator
 
-    if args.test_circuit:
-        if args.attack:
-            print("%s --attack flag cannot be run with --test-circuit flag" % errorstr)
-            sys.exit(1)
-        test_circuit(args.test_circuit, bpclass, obfclass, True, args)
-    elif args.test_all:
-        test_all(args, bpclass, obfclass, True)
-    else:
-        directory = None
-        if args.load_obf:
-            directory = args.load_obf
-        elif args.load_circuit:
-            start = time.time()
-            obf = obfclass(verbose=args.verbose)
-            directory = args.save if args.save \
-                        else '%s.obf.%d' % (args.load_circuit, args.secparam)
-            obf.obfuscate(args.load_circuit, args.secparam, directory,
-                          obliviate=args.obliviate, nslots=args.nslots,
-                          kappa=args.kappa)
-            end = time.time()
-            print("Obfuscation took: %f seconds" % (end - start))
-            obf.cleanup()
+    try:
+        if args.test_circuit:
+            test_circuit(args.test_circuit, bpclass, obfclass, True, args)
+        elif args.test_all:
+            test_all(args, bpclass, obfclass, True)
         else:
-            print("%s One of --load-obf, --load-circuit, or --test-circuit must be used" % errorstr)
-            sys.exit(1)
-
-        if args.attack:
-            assert directory
-            obf = obfclass(verbose=args.verbose)
-            try:
-                r = obf.attack(directory, args.secparam, args.nslots)
-            except AttributeError:
-                print("%s --attack flag unavailable.  Make sure you compile with ATTACK = 1 in setup.py" % errorstr)
+            directory = None
+            if args.load_obf:
+                directory = args.load_obf
+            elif args.load_circuit:
+                start = time.time()
+                obf = obfclass(verbose=args.verbose)
+                directory = args.save if args.save \
+                            else '%s.obf.%d' % (args.load_circuit, args.secparam)
+                obf.obfuscate(args.load_circuit, args.secparam, directory,
+                              obliviate=args.obliviate, nslots=args.nslots,
+                              kappa=args.kappa)
+                end = time.time()
+                print('Obfuscation took: %f seconds' % (end - start))
+            else:
+                print('%s One of --load-obf, --load-circuit, or '
+                      '--test-circuit must be used' % errorstr)
                 sys.exit(1)
-            print('g_1 extracted from attack: %d' % r)
-        if args.eval:
-            assert directory
-            obf = obfclass(verbose=args.verbose)
-            r = obf.evaluate(directory, args.eval)
-            print('Output = %d' % r)
+
+            if args.eval:
+                assert directory
+                obf = obfclass(verbose=args.verbose)
+                r = obf.evaluate(directory, args.eval)
+                print('Output = %d' % r)
+    except ParseException as e:
+        print('%s %s' % (errorstr, e))
+        sys.exit(1)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -130,8 +127,6 @@ def main():
     parser_obf = subparsers.add_parser(
         'obf',
         help='commands for obfuscating a circuit/branching program')
-    parser_obf.add_argument('--attack', action='store_true',
-                            help='attack obfuscation')
     parser_obf.add_argument('--eval', metavar='INPUT', type=str, action='store',
                             help='evaluate obfuscation on INPUT')
     parser_obf.add_argument('--kappa', metavar='N', type=int,
