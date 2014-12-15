@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import os, subprocess
 
-CMD = 'obfuscator'
+CMD = './obfuscator'
 CIRCUIT_PATH = 'circuits'
 
 yellow = '\x1b[33m'
