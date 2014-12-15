@@ -2,9 +2,9 @@
 
 from __future__ import print_function
 
-import os, subprocess
+import os, subprocess, sys
 
-CMD = './obfuscator'
+CMD = 'obfuscator'
 CIRCUIT_PATH = 'circuits'
 
 yellow = '\x1b[33m'
@@ -25,14 +25,14 @@ def run(lst):
     print('%s' % ' '.join(lst))
     return subprocess.call(lst)
 
-def test_circuits(cmd, scheme):
+def test_circuits(sage, scheme):
     print_test('Testing all circuits for scheme %s' % scheme)
-    lst = [cmd, "obf", "--test-all", CIRCUIT_PATH, "--secparam", "8"]
+    lst = [sage, CMD, "obf", "--test-all", CIRCUIT_PATH, "--secparam", "8"]
     if scheme != 'AGIS':
         lst.append(schemedict[scheme])
     return run(lst)
 
-def test_load(cmd, scheme):
+def test_load(sage, scheme):
     print_test('Testing load for scheme %s' % scheme)
     if scheme == 'Z':
         circuit = 'add.acirc'
@@ -41,33 +41,43 @@ def test_load(cmd, scheme):
         circuit = 'and.circ'
         eval = '00'
     path = os.path.join(CIRCUIT_PATH, circuit)
-    lst = [cmd, "obf", "--test-circuit", path, "--secparam", "8"]
+    lst = [sage, CMD, "obf", "--test-circuit", path, "--secparam", "8"]
     if scheme != 'AGIS':
         lst.append(schemedict[scheme])
     r = run(lst)
     if r:
         return r
-    lst = [cmd, "obf", "--load-obf", path + ".obf.8", "--eval", eval]
+    lst = [sage, CMD, "obf", "--load-obf", path + ".obf.8", "--eval", eval]
     if scheme != 'AGIS':
         lst.append(schemedict[scheme])
     return run(lst)
 
-def test(f, cmd, *args):
-    if f(cmd, *args):
+def test(f, sage, *args):
+    if f(sage, *args):
         print(failure_str)
     else:
         print(success_str)
 
-def test_all(cmd):
-    test(test_load, cmd, "AGIS")
-    test(test_load, cmd, "SZ")
-    test(test_load, cmd, "Z")
-    test(test_circuits, cmd, "AGIS")
-    test(test_circuits, cmd, "SZ")
-    test(test_circuits, cmd, "Z")
+def test_all(sage):
+    test(test_load, sage, "AGIS")
+    test(test_load, sage, "SZ")
+    test(test_load, sage, "Z")
+    test(test_circuits, sage, "AGIS")
+    test(test_circuits, sage, "SZ")
+    test(test_circuits, sage, "Z")
+
+def main():
+    if len(sys.argv) > 2:
+        print("Usage: %s [sage-path]" % sys.argv[0])
+        sys.exit(1)
+    if len(sys.argv) == 2:
+        sage = sys.argv[1]
+    else:
+        sage = 'sage'
+    test_all(sage)
 
 if __name__ == '__main__':
     try:
-        test_all(CMD)
+        main()
     except KeyboardInterrupt:
         pass
