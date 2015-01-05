@@ -103,8 +103,9 @@ class Circuit(object):
 
 
 class ZObfuscator(Obfuscator):
-    def __init__(self, verbose=False):
-        super(ZObfuscator, self).__init__(_zobf, verbose=verbose)
+    def __init__(self, verbose=False, nthreads=None):
+        super(ZObfuscator, self).__init__(_zobf, verbose=verbose,
+                                          nthreads=nthreads)
 
     def _gen_mlm_params(self, secparam, kappa, nzs, pows, directory):
         self.logger('Generating MLM parameters...')

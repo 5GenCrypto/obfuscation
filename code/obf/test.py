@@ -2,22 +2,21 @@ from __future__ import print_function
 
 from circuit import ParseException
 from sage.all import random_prime
+import utils
 
 __all__ = ['test_circuit']
 
-failstr = '\x1b[31mFail\x1b[0m'
-parseerrstr = '\x1b[33mParse Error:\x1b[0m'
+failstr = utils.clr_error('Fail')
 
 def test_obfuscation(path, cls, testcases, args):
     success = True
-    obf = cls(verbose=args.verbose)
+    obf = cls(verbose=args.verbose, nthreads=args.nthreads)
     directory = args.save if args.save \
                 else '%s.obf.%d' % (path, args.secparam)
     obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate,
                   nslots=args.nslots, kappa=args.kappa)
     for k, v in testcases.items():
-        r = obf.evaluate(directory, k)
-        if r != v:
+        if obf.evaluate(directory, k) != v:
             print('%s (%s != %d) ' % (failstr, k, v))
             success = False
     return success
@@ -32,7 +31,7 @@ def test_bp(path, cls, testcases, args):
             c = cls(path, verbose=args.verbose, obliviate=args.obliviate)
             c.randomize(prime)
     except ParseException as e:
-        print('%s %s' % (parseerrstr, e))
+        print('%s %s' % (utils.clr_warn('Parse Error:'), e))
         return False
     for k, v in testcases.items():
         if c.evaluate(k) != v:
@@ -61,5 +60,5 @@ def test_circuit(path, cclass, obfclass, obfuscate, args):
     else:
         success = test_bp(path, cclass, testcases, args)
     if success:
-        print('\x1b[32mPass\x1b[0m')
+        print(utils.clr_ok('Pass'))
     return success

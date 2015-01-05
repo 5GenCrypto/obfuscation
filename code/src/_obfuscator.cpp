@@ -98,15 +98,15 @@ write_layer(const char *dir, int inp, long idx, mpz_t *zero, mpz_t *one,
 PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
-    long kappa, size;
+    long kappa, size, nthreads;
     struct state *s = NULL;
     long *pows = NULL;
 
     s = (struct state *) malloc(sizeof(struct state));
     if (s == NULL)
         return NULL;
-    if (!PyArg_ParseTuple(args, "lllls", &s->mlm.secparam, &kappa, &size,
-                          &s->mlm.nzs, &s->dir)) {
+    if (!PyArg_ParseTuple(args, "llllsl", &s->mlm.secparam, &kappa, &size,
+                          &s->mlm.nzs, &s->dir, &nthreads)) {
         free(s);
         return NULL;
     }
@@ -115,6 +115,8 @@ obf_setup(PyObject *self, PyObject *args)
     for (unsigned long i = 0; i < s->mlm.nzs; ++i) {
         pows[i] = 1L;
     }
+
+    (void) omp_set_num_threads(nthreads);
 
     (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, size, g_verbose);
 

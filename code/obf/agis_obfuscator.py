@@ -15,15 +15,17 @@ def pad(array, length, bplength):
         return array
 
 class AGISObfuscator(Obfuscator):
-    def __init__(self, verbose=False):
-        super(AGISObfuscator, self).__init__(_obf, verbose=verbose)
+    def __init__(self, verbose=False, nthreads=None):
+        super(AGISObfuscator, self).__init__(_obf, verbose=verbose,
+                                             nthreads=nthreads)
 
     def _gen_mlm_params(self, secparam, kappa, width, nzs, directory):
         self.logger('Generating MLM parameters...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        self._state, primes = _obf.setup(secparam, kappa, width, nzs, directory)
+        self._state, primes = _obf.setup(secparam, kappa, width, nzs, directory,
+                                         self._nthreads)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         return primes

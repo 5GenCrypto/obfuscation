@@ -2,10 +2,11 @@ import utils
 import os, time
 
 class Obfuscator(object):
-    def __init__(self, obf, verbose=False):
+    def __init__(self, obf, verbose=False, nthreads=None):
         self._state = None
         self._verbose = verbose
         obf.verbose(self._verbose)
+        self._nthreads = nthreads
         self.logger = utils.make_logger(self._verbose)
 
     def _remove_old(self, directory):

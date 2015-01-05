@@ -5,8 +5,8 @@ from sz_bp import SZBranchingProgram
 import time
 
 class SZObfuscator(AGISObfuscator):
-    def __init__(self, verbose=False):
-        super(SZObfuscator, self).__init__(verbose=verbose)
+    def __init__(self, verbose=False, nthreads=None):
+        super(SZObfuscator, self).__init__(verbose=verbose, nthreads=nthreads)
 
     def obfuscate(self, circuit, secparam, directory, obliviate=False,
                   nslots=None, kappa=None):

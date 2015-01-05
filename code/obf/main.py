@@ -6,10 +6,11 @@ from test import test_circuit
 from circuit import ParseException
 
 import argparse, os, sys, time
+import utils
 
 __all__ = ['main']
 
-errorstr = '\x1b[31mError:\x1b[0m'
+errorstr = utils.clr_error('Error:')
 
 def test_all(args, bpclass, obfclass, obfuscate):
     if not os.path.isdir(args.test_all):
@@ -73,7 +74,7 @@ def obf(args):
                 directory = args.load_obf
             elif args.load_circuit:
                 start = time.time()
-                obf = obfclass(verbose=args.verbose)
+                obf = obfclass(verbose=args.verbose, nthreads=args.nthreads)
                 directory = args.save if args.save \
                             else '%s.obf.%d' % (args.load_circuit, args.secparam)
                 obf.obfuscate(args.load_circuit, args.secparam, directory,
@@ -88,7 +89,7 @@ def obf(args):
 
             if args.eval:
                 assert directory
-                obf = obfclass(verbose=args.verbose)
+                obf = obfclass(verbose=args.verbose, nthreads=args.nthreads)
                 r = obf.evaluate(directory, args.eval)
                 print('Output = %d' % r)
     except ParseException as e:
@@ -100,62 +101,89 @@ def main():
         description='Cryptographic program obfuscator.')
     subparsers = parser.add_subparsers()
 
+    try:
+        nthreads = os.sysconf('SC_NPROCESSORS_ONLN')
+    except ValueError:
+        print(utils.clr_warn('Warning: Unable to count number of cores, defaulting to 1'))
+        nthreads = 1
+    secparam = 24
+
     parser_bp = subparsers.add_parser(
         'bp',
         help='commands for circuit -> branching program conversion')
-    parser_bp.add_argument('--eval', metavar='INPUT', type=str, action='store',
+    parser_bp.add_argument('--eval',
+                           metavar='INPUT', action='store', type=str,
                            help='evaluate branching program on INPUT')
-    parser_bp.add_argument('--load-circuit', metavar='FILE', type=str,
-                           action='store', help='load circuit from FILE')
-    parser_bp.add_argument('--test-circuit', metavar='FILE', type=str,
-                           action='store',
+    parser_bp.add_argument('--load-circuit',
+                           metavar='FILE', action='store', type=str,
+                           help='load circuit from FILE')
+    parser_bp.add_argument('--test-circuit',
+                           metavar='FILE', action='store', type=str,
                            help='test BP conversion for FILE')
-    parser_bp.add_argument('--test-all', metavar='DIR', nargs='?', const='circuits',
+    parser_bp.add_argument('--test-all',
+                           metavar='DIR', nargs='?', const='circuits/',
                            help='test BP conversion for all circuits in DIR (default: %(const)s)')
-    parser_bp.add_argument('--secparam', metavar='N', type=int, action='store',
-                           default=24, help='security parameter (default: %(default)s)')
-    parser_bp.add_argument('--obliviate', action='store_true',
+    parser_bp.add_argument('--secparam',
+                           metavar='N', action='store', type=int, default=secparam,
+                           help='security parameter (default: %(default)s)')
+    parser_bp.add_argument('--obliviate',
+                           action='store_true',
                            help='obliviate the branching program')
-    parser_bp.add_argument('-v', '--verbose', action='store_true',
+    parser_bp.add_argument('-v', '--verbose',
+                           action='store_true',
                            help='be verbose')
-    parser_bp.add_argument('-s', '--sahai-zhandry', action='store_true',
+    parser_bp.add_argument('-s', '--sahai-zhandry',
+                           action='store_true',
                            help='use the Sahai/Zhandry construction')
-    parser_bp.add_argument('-z', '--zimmerman', action='store_true',
+    parser_bp.add_argument('-z', '--zimmerman',
+                           action='store_true',
                            help='use the Zimmerman construction')
     parser_bp.set_defaults(func=bp)
 
     parser_obf = subparsers.add_parser(
         'obf',
         help='commands for obfuscating a circuit/branching program')
-    parser_obf.add_argument('--eval', metavar='INPUT', type=str, action='store',
+    parser_obf.add_argument('--eval',
+                            metavar='INPUT', action='store', type=str,
                             help='evaluate obfuscation on INPUT')
-    parser_obf.add_argument('--kappa', metavar='N', type=int,
-                            default=None, action='store',
+    parser_obf.add_argument('--kappa',
+                            metavar='N', action='store', type=int, default=None,
                             help='set kappa to N (for debugging)')
-    parser_obf.add_argument('--load-obf', metavar='DIR', type=str,
-                            action='store',
+    parser_obf.add_argument('--load-obf',
+                            metavar='DIR', action='store', type=str,
                             help='load obfuscation from DIR')
-    parser_obf.add_argument('--load-circuit', metavar='FILE', type=str,
-                            action='store',
+    parser_obf.add_argument('--load-circuit',
+                            metavar='FILE', action='store', type=str,
                             help='load circuit from FILE and obfuscate')
-    parser_obf.add_argument('--test-circuit', metavar='FILE', type=str,
-                            action='store',
+    parser_obf.add_argument('--test-circuit',
+                            metavar='FILE', action='store', type=str,
                             help='test circuit from FILE')
-    parser_obf.add_argument('--test-all', metavar='DIR', nargs='?', const='circuits',
+    parser_obf.add_argument('--test-all',
+                            metavar='DIR', nargs='?', const='circuits/',
                             help='test obfuscation for all circuits in DIR (default: %(const)s)')
-    parser_obf.add_argument('--save', metavar='DIR', type=str, action='store',
+    parser_obf.add_argument('--save',
+                            metavar='DIR', action='store', type=str,
                             help='save obfuscation to DIR')
-    parser_obf.add_argument('--secparam', metavar='N', type=int, action='store',
-                            default=24, help='security parameter (default: %(default)s)')
-    parser_obf.add_argument('--obliviate', action='store_true',
+    parser_obf.add_argument('--secparam',
+                            metavar='N', action='store', type=int,
+                            default=secparam, help='security parameter (default: %(default)s)')
+    parser_obf.add_argument('--obliviate',
+                            action='store_true',
                             help='obliviate the branching program')
-    parser_obf.add_argument('--nslots', metavar='N', type=int, action='store',
-                            default=None, help='number of slots to fill (default: security parameter)')
-    parser_obf.add_argument('-v', '--verbose', action='store_true', 
+    parser_obf.add_argument('--nthreads',
+                            metavar='N', action='store', type=int, default=nthreads,
+                            help='number of threads to use (default: %(default)s)')
+    parser_obf.add_argument('--nslots',
+                            metavar='N', action='store', type=int, default=secparam,
+                            help='number of slots to fill (default: %(default)s)')
+    parser_obf.add_argument('-v', '--verbose',
+                            action='store_true', 
                             help='be verbose')
-    parser_obf.add_argument('-s', '--sahai-zhandry', action='store_true',
+    parser_obf.add_argument('-s', '--sahai-zhandry',
+                            action='store_true',
                             help='use the Sahai/Zhandry construction')
-    parser_obf.add_argument('-z', '--zimmerman', action='store_true',
+    parser_obf.add_argument('-z', '--zimmerman',
+                            action='store_true',
                             help='use the Zimmerman construction')
     parser_obf.set_defaults(func=obf)
 
