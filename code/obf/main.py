@@ -1,7 +1,5 @@
 from __future__ import print_function
 
-from agis_bp import AGISBranchingProgram
-from sz_bp import SZBranchingProgram
 from test import test_circuit
 from circuit import ParseException
 
@@ -22,14 +20,27 @@ def test_all(args, bpclass, obfclass, obfuscate):
         if os.path.isfile(path) and path.endswith(ext):
             test_circuit(path, bpclass, obfclass, obfuscate, args)
 
+def check_args(args):
+    num_set = int(args.ananth_etal) + int(args.sahai_zhandry) + int(args.zimmerman)
+    if num_set > 1:
+        print('%s Only one of --ananth-etal, --sahai-zhandry, --zimmerman can be set' % errorstr)
+        sys.exit(1)
+    if num_set == 0:
+        args.ananth_etal = True
+
 def bp(args):
+    check_args(args)
+
+    if args.ananth_etal:
+        from agis_bp import AGISBranchingProgram
+        cls = AGISBranchingProgram
     if args.sahai_zhandry:
+        from sz_bp import SZBranchingProgram
         cls = SZBranchingProgram
-    elif args.zimmerman:
+    if args.zimmerman:
         from z_obfuscator import Circuit
         cls = Circuit
-    else:
-        cls = AGISBranchingProgram
+
     try:
         if args.test_circuit:
             test_circuit(args.test_circuit, cls, None, False, args)
@@ -47,21 +58,22 @@ def bp(args):
         sys.exit(1)
 
 def obf(args):
-    from agis_obfuscator import AGISObfuscator
-    from sz_obfuscator import SZObfuscator
-    from z_obfuscator import ZObfuscator
-    if args.nslots is None:
-        args.nslots = args.secparam
+    check_args(args)
 
-    if args.sahai_zhandry:
-        bpclass = SZBranchingProgram
-        obfclass = SZObfuscator
-    elif args.zimmerman:
-        bpclass = None
-        obfclass = ZObfuscator
-    else:
+    if args.ananth_etal:
+        from agis_bp import AGISBranchingProgram
+        from agis_obfuscator import AGISObfuscator
         bpclass = AGISBranchingProgram
         obfclass = AGISObfuscator
+    if args.sahai_zhandry:
+        from sz_bp import SZBranchingProgram
+        from sz_obfuscator import SZObfuscator
+        bpclass = SZBranchingProgram
+        obfclass = SZObfuscator
+    if args.zimmerman:
+        from z_obfuscator import ZObfuscator
+        bpclass = None
+        obfclass = ZObfuscator
 
     try:
         if args.test_circuit:
@@ -132,6 +144,9 @@ def main():
     parser_bp.add_argument('-v', '--verbose',
                            action='store_true',
                            help='be verbose')
+    parser_bp.add_argument('-a', '--ananth-etal',
+                            action='store_true',
+                            help='use the Ananth et al. construction (default)')
     parser_bp.add_argument('-s', '--sahai-zhandry',
                            action='store_true',
                            help='use the Sahai/Zhandry construction')
@@ -179,6 +194,9 @@ def main():
     parser_obf.add_argument('-v', '--verbose',
                             action='store_true', 
                             help='be verbose')
+    parser_obf.add_argument('-a', '--ananth-etal',
+                            action='store_true',
+                            help='use the Ananth et al. construction (default)')
     parser_obf.add_argument('-s', '--sahai-zhandry',
                             action='store_true',
                             help='use the Sahai/Zhandry construction')
