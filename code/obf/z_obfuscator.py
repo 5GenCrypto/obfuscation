@@ -112,7 +112,8 @@ class ZObfuscator(Obfuscator):
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        self._state = _zobf.setup(secparam, kappa, nzs, pows, directory)
+        self._state = _zobf.setup(secparam, kappa, nzs, pows, directory,
+                                  self._nthreads)
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
@@ -158,7 +159,7 @@ class ZObfuscator(Obfuscator):
             _zobf.max_mem_usage()
 
     def evaluate(self, directory, inp):
-        def f(directory, inp, length):
+        def f(directory, inp, length, nthreads):
             inp = inp[::-1]
             circname = os.path.join(directory, 'circuit')
             # Count number of y values
@@ -167,7 +168,7 @@ class ZObfuscator(Obfuscator):
                 for line in f:
                     if 'y' in line:
                         m += 1
-            return _zobf.evaluate(directory, circname, inp, len(inp), m)
+            return _zobf.evaluate(directory, circname, inp, len(inp), m, nthreads)
         return self._evaluate(directory, inp, f, _zobf)
 
     def cleanup(self):

@@ -26,7 +26,7 @@ class Obfuscator(object):
         start = time.time()
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        result = f(directory, inp, len(inputs))
+        result = f(directory, inp, len(inputs), self._nthreads)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         if self._verbose:

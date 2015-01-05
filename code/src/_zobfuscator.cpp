@@ -3,6 +3,8 @@
 #include "pyutils.h"
 #include "clt_mlm.h"
 
+#include <omp.h>
+
 struct state {
     struct clt_mlm_state mlm;
     char *dir;
@@ -53,7 +55,7 @@ set_indices_pows(int *indices, int *pows, unsigned int num, ...)
 static PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
-    long kappa;
+    long kappa, nthreads;
     PyObject *py_pows;
     long *pows;
     struct state *s;
@@ -61,8 +63,8 @@ obf_setup(PyObject *self, PyObject *args)
     s = (struct state *) malloc(sizeof(struct state));
     if (s == NULL)
         return NULL;
-    if (!PyArg_ParseTuple(args, "lllOs", &s->mlm.secparam, &kappa, &s->mlm.nzs,
-                          &py_pows, &s->dir)) {
+    if (!PyArg_ParseTuple(args, "lllOsl", &s->mlm.secparam, &kappa, &s->mlm.nzs,
+                          &py_pows, &s->dir, &nthreads)) {
         free(s);
         return NULL;
     }
@@ -71,6 +73,8 @@ obf_setup(PyObject *self, PyObject *args)
     for (size_t i = 0; i < s->mlm.nzs; ++i) {
         pows[i] = PyLong_AsLong(PyList_GET_ITEM(py_pows, i));
     }
+
+    (void) omp_set_num_threads(nthreads);
 
     (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, 0, g_verbose);
     mpz_init_set(s->nev, s->mlm.gs[0]);
@@ -277,13 +281,14 @@ static PyObject *
 obf_evaluate(PyObject *self, PyObject *args)
 {
     char *circuit, *dir, *input, *fname;
-    long n, m;
+    long n, m, nthreads;
     int fnamelen;
     int iszero;
     mpz_t c_1, c_2, q, z, w;
     mpz_t *xs, *xones, *ys, *yones;
 
-    if (!PyArg_ParseTuple(args, "sssll", &dir, &circuit, &input, &n, &m))
+    if (!PyArg_ParseTuple(args, "ssslll", &dir, &circuit, &input, &n, &m,
+                          &nthreads))
         return NULL;
     fnamelen = strlen(dir) + sizeof(int) + 5;
     fname = (char *) malloc(sizeof(char) * fnamelen);
@@ -314,6 +319,8 @@ obf_evaluate(PyObject *self, PyObject *args)
             return NULL;
         }
     }
+
+    (void) omp_set_num_threads(nthreads);
 
     // Load in appropriate input
     for (int i = 0; i < n; ++i) {

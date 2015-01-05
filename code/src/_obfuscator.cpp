@@ -294,11 +294,11 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
 
     mpz_t tmp, q;
     mpz_t *result = NULL;
-    long bplen, nrows, ncols = -1, nrows_prev = -1;
+    long bplen, nrows, ncols = -1, nrows_prev = -1, nthreads;
     int err = 0;
     double start, end;
 
-    if (!PyArg_ParseTuple(args, "ssl", &dir, &input, &bplen))
+    if (!PyArg_ParseTuple(args, "ssll", &dir, &input, &bplen, &nthreads))
         return NULL;
 
     fnamelen = strlen(dir) + sizeof bplen + 7;
@@ -312,6 +312,8 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
     // Load q
     (void) snprintf(fname, fnamelen, "%s/q", dir);
     (void) load_mpz_scalar(fname, q);
+
+    (void) omp_set_num_threads(nthreads);
 
     for (int layer = 0; layer < bplen; ++layer) {
         unsigned int input_idx;
@@ -426,11 +428,11 @@ obf_evaluate(PyObject *self, PyObject *args)
     int iszero = -1;
     mpz_t *comp, *s, *t;
     mpz_t tmp, q;
-    long bplen, size;
+    long bplen, size, nthreads;
     int err = 0;
     double start, end;
 
-    if (!PyArg_ParseTuple(args, "ssl", &dir, &input, &bplen))
+    if (!PyArg_ParseTuple(args, "ssll", &dir, &input, &bplen, &nthreads))
         return NULL;
     fnamelen = strlen(dir) + sizeof bplen + 7;
     fname = (char *) malloc(sizeof(char) * fnamelen);
@@ -461,6 +463,9 @@ obf_evaluate(PyObject *self, PyObject *args)
     for (int i = 0; i < size * size; ++i) {
         mpz_init(comp[i]);
     }
+
+    (void) omp_set_num_threads(nthreads);
+
     for (int layer = 0; layer < bplen; ++layer) {
         unsigned int input_idx;
 
