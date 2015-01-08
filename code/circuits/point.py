@@ -52,8 +52,8 @@ def arithmetic_point(bitlength):
 
 def binary_point(bitlength):
     with open('point-%d.circ' % bitlength, 'w') as f:
-        # f.write(': nins %d\n' % bitlength)
-        # f.write(': depth %d\n' % (int(log(bitlength, 2) + 2)))
+        f.write(': nins %d\n' % bitlength)
+        f.write(': depth %d\n' % (int(log(bitlength, 2) + 2)))
         secret = random_bitstring(bitlength)
         f.write('# TEST %s 1\n' % secret)
         for _ in xrange(5):
