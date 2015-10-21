@@ -41,5 +41,5 @@ the hidden point.  The following table lists the available/broken challenges.
 
 Challenge | Link | Approach | Date Broken | Broken By
 --------- | ---- | -------- | ----------- | ---------
-14-bit point function; 60-bit security parameter | [Link](https://www.dropbox.com/s/85d03o0ny3b1c0c/point-14.circ.obf.60.zip) (23.96 GB) | AGIS | 18 Oct 2014 | Daniel J. Bernstein, Andreas Huelsing, Tanja Lange, Ruben Niederhagen
+14-bit point function; 60-bit security parameter | Unavailable (23.96 GB) | AGIS | 18 Oct 2014 | Daniel J. Bernstein, Andreas Huelsing, Tanja Lange, Ruben Niederhagen
 
