@@ -1,10 +1,14 @@
 #include "utils.h"
 #include "pyutils.h"
 #include "clt_mlm.h"
+#include "thpool_fns.h"
+
+#include "C-Thread-Pool/thpool.h"
 
 #include <omp.h>
 
 struct state {
+    threadpool thpool;
     struct clt_mlm_state mlm;
     char *dir;
 };
@@ -17,6 +21,7 @@ state_destructor(PyObject *self)
     s = (struct state *) PyCapsule_GetPointer(self, NULL);
     if (s) {
         clt_mlm_cleanup(&s->mlm);
+        thpool_destroy(s->thpool);
     }
     free(s);
 }
@@ -116,7 +121,8 @@ obf_setup(PyObject *self, PyObject *args)
         pows[i] = 1L;
     }
 
-    (void) omp_set_num_threads(nthreads);
+    s->thpool = thpool_init(nthreads);
+    // (void) omp_set_num_threads(nthreads);
 
     (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, size, g_verbose);
 
@@ -127,8 +133,8 @@ obf_setup(PyObject *self, PyObject *args)
         py_gs = PyList_New(s->mlm.secparam);
 
         //
-        // Only convert the first secparam g_i values since we only need to fill in
-        // the first secparam slots of the plaintext space.
+        // Only convert the first secparam g_i values since we only need to fill
+        // in the first secparam slots of the plaintext space.
         //
         for (unsigned long i = 0; i < s->mlm.secparam; ++i) {
             PyList_SetItem(py_gs, i, mpz_to_py(s->mlm.gs[i]));
@@ -169,25 +175,54 @@ obf_encode_vectors(PyObject *self, PyObject *args)
     // length of the first vector
     length = PyList_GET_SIZE(PyList_GET_ITEM(py_vectors, 0));
     vector = (mpz_t *) malloc(sizeof(mpz_t) * length);
+    for (ssize_t i = 0; i < length; ++i) {
+        mpz_init(vector[i]);
+    }
 
     (void) extract_indices(py_list, &indices[0], &indices[1]);
 
-#pragma omp parallel for
-    for (ssize_t i = 0; i < length; ++i) {
-        mpz_t *elems;
-        mpz_init(vector[i]);
-        elems = (mpz_t *) malloc(sizeof(mpz_t) * s->mlm.secparam);
-        for (unsigned long j = 0; j < s->mlm.secparam; ++j) {
-            mpz_init(elems[j]);
-            py_to_mpz(elems[j],
-                      PyList_GET_ITEM(PyList_GET_ITEM(py_vectors, j), i));
+    {
+        struct mlm_encode_vector_elem_state state;
+
+        state.mlm = &s->mlm;
+        state.py_vectors = py_vectors;
+        state.indices = indices;
+        state.pows = pows;
+        
+        for (ssize_t i = 0; i < length; ++i) {
+            struct mlm_encode_vector_elem_args *args;
+
+            args = (struct mlm_encode_vector_elem_args *)
+                malloc(sizeof(struct mlm_encode_vector_elem_args));
+            args->i = i;
+            args->elem = &vector[i];
+            args->s = &state;
+            // thpool_encode_vector_elem(&args);
+            thpool_add_work(s->thpool, thpool_encode_vector_elem,
+                            (void *) args);
+            // thpool_wait(s->thpool);
         }
-        clt_mlm_encode(&s->mlm, vector[i], s->mlm.secparam, elems, 2, indices, pows);
-        for (unsigned long j = 0; j < s->mlm.secparam; ++j) {
-            mpz_clear(elems[j]);
-        }
-        free(elems);
+
+        thpool_wait(s->thpool);
     }
+
+// #pragma omp parallel for
+//     for (ssize_t i = 0; i < length; ++i) {
+//         mpz_t *elems;
+//         mpz_init(vector[i]);
+//         elems = (mpz_t *) malloc(sizeof(mpz_t) * s->mlm.secparam);
+//         for (unsigned long j = 0; j < s->mlm.secparam; ++j) {
+//             mpz_init(elems[j]);
+//             py_to_mpz(elems[j],
+//                       PyList_GET_ITEM(PyList_GET_ITEM(py_vectors, j), i));
+//         }
+//         clt_mlm_encode(&s->mlm, vector[i], s->mlm.secparam, elems, 2, indices, pows);
+//         for (unsigned long j = 0; j < s->mlm.secparam; ++j) {
+//             mpz_clear(elems[j]);
+//         }
+//         free(elems);
+//     }
+
     (void) write_vector(s->dir, vector, length, name);
     for (ssize_t i = 0; i < length; ++i) {
         mpz_clear(vector[i]);

@@ -23,7 +23,9 @@ zobfuscator = Extension(
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
         'src/pyutils.cpp',
+        'src/thpool_fns.cpp',
         'src/utils.cpp',
+        'src/C-Thread-Pool/thpool.c'
     ]
 )
 
@@ -37,14 +39,16 @@ obfuscator = Extension(
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
         'src/pyutils.cpp',
+        'src/thpool_fns.cpp',
         'src/utils.cpp',
+        'src/C-Thread-Pool/thpool.c'
     ]
 )
 
 setup(name='obfuscator',
       author='Alex J. Malozemoff',
       author_email='amaloz@cs.umd.edu',
-      version='1.0alpha',
+      version='1.0a0',
       description='Implementation of cryptographic program obfuscation',
       license='GPLv2',
       url='https://amaloz.github.io/obfuscation',

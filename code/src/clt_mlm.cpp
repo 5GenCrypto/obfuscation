@@ -111,15 +111,18 @@ clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
         mpz_nextprime(ps[i], p_unif);
         mpz_urandomb(p_unif, s->rng, alpha);
         mpz_nextprime(s->gs[i], p_unif);
-#pragma omp critical
-        {
-            //
-            // This step is very expensive, and unfortunately it blocks the
-            // parallelism of generating the primes.
-            //
-            mpz_mul(s->q, s->q, ps[i]);
-        }
+// #pragma omp critical
+//         {
+//             //
+//             // This step is very expensive, and unfortunately it blocks the
+//             // parallelism of generating the primes.
+//             //
+//             mpz_mul(s->q, s->q, ps[i]);
+//         }
         mpz_clear(p_unif);
+    }
+    for (unsigned long i = 0; i < s->n; ++i) {
+        mpz_mul(s->q, s->q, ps[i]);
     }
     end = current_time();
     if (g_verbose)
@@ -233,7 +236,6 @@ clt_mlm_encode(struct clt_mlm_state *s, mpz_t out, size_t nins,
                const int *pows)
 {
     mpz_t r, tmp;
-
     mpz_inits(r, tmp, NULL);
     mpz_set_ui(out, 0);
     for (unsigned long i = 0; i < s->n; ++i) {
