@@ -140,8 +140,8 @@ obf_encode_vectors(PyObject *self, PyObject *args)
         wv_s->length = length;
         wv_s->start = start;
 
-        (void) thpool_add_class(s->thpool, name, length, thpool_write_vector,
-                                wv_s);
+        (void) thpool_add_tag(s->thpool, name, length, thpool_write_vector,
+                              wv_s);
         
         for (ssize_t i = 0; i < length; ++i) {
             mpz_t *elems;
@@ -223,8 +223,8 @@ obf_encode_layers(PyObject *self, PyObject *args)
         wl_s->ncols = ncols;
         wl_s->start = start;
 
-        (void) thpool_add_class(s->thpool, idx_s, 2 * nrows * ncols,
-                                thpool_write_layer, wl_s);
+        (void) thpool_add_tag(s->thpool, idx_s, 2 * nrows * ncols,
+                              thpool_write_layer, wl_s);
 
         for (Py_ssize_t ctr = 0; ctr < 2 * nrows * ncols; ++ctr) {
             mpz_t *elems;

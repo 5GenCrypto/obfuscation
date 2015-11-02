@@ -26,7 +26,7 @@ zobfuscator = Extension(
         'src/pyutils.cpp',
         'src/thpool_fns.cpp',
         'src/utils.cpp',
-        'src/C-Thread-Pool/thpool.c'
+        'src/C-Thread-Pool/thpool.cpp'
     ]
 )
 
@@ -42,7 +42,7 @@ obfuscator = Extension(
         'src/pyutils.cpp',
         'src/thpool_fns.cpp',
         'src/utils.cpp',
-        'src/C-Thread-Pool/thpool.c'
+        'src/C-Thread-Pool/thpool.cpp'
     ]
 )
 
