@@ -8,8 +8,9 @@ libraries = [
 ]
 compile_args = [
     '-fopenmp',
-    '-O3',
+    # '-O3',
     '-Wall',
+    '-g',
 ]
 
 zobfuscator = Extension(

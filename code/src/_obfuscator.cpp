@@ -45,21 +45,21 @@ extract_indices(PyObject *py_list, int *idx1, int *idx2)
     return 0;
 }
 
-static int
-write_vector(const char *dir, mpz_t *vector, long size, char *name)
-{
-    char *fname;
-    int fnamelen;
+// static int
+// write_vector(const char *dir, mpz_t *vector, long size, char *name)
+// {
+//     char *fname;
+//     int fnamelen;
 
-    fnamelen = strlen(dir) + strlen(name) + 2;
-    fname = (char *) malloc(sizeof(char) * fnamelen);
-    if (fname == NULL)
-        return 1;
-    (void) snprintf(fname, fnamelen, "%s/%s", dir, name);
-    (void) save_mpz_vector(fname, vector, size);
-    free(fname);
-    return 0;
-}
+//     fnamelen = strlen(dir) + strlen(name) + 2;
+//     fname = (char *) malloc(sizeof(char) * fnamelen);
+//     if (fname == NULL)
+//         return 1;
+//     (void) snprintf(fname, fnamelen, "%s/%s", dir, name);
+//     (void) save_mpz_vector(fname, vector, size);
+//     free(fname);
+//     return 0;
+// }
 
 static int
 write_layer(const char *dir, int inp, long idx, mpz_t *zero, mpz_t *one,
@@ -155,11 +155,9 @@ obf_encode_vectors(PyObject *self, PyObject *args)
 {
     PyObject *py_state, *py_vectors, *py_list;
     char *name;
-    int indices[2];
-    int pows[] = {1, 1};
     mpz_t *vector;
     ssize_t length;
-    double start, end;
+    double start;
     struct state *s;
 
     if (!PyArg_ParseTuple(args, "OOOs", &py_state, &py_vectors, &py_list, &name))
@@ -174,65 +172,59 @@ obf_encode_vectors(PyObject *self, PyObject *args)
     // We assume that all vectors have the same length, and thus just grab the
     // length of the first vector
     length = PyList_GET_SIZE(PyList_GET_ITEM(py_vectors, 0));
-    vector = (mpz_t *) malloc(sizeof(mpz_t) * length);
+    vector = (mpz_t *) calloc(length, sizeof(mpz_t));
     for (ssize_t i = 0; i < length; ++i) {
         mpz_init(vector[i]);
     }
 
-    (void) extract_indices(py_list, &indices[0], &indices[1]);
-
     {
-        struct mlm_encode_vector_elem_state state;
+        struct mlm_encode_vector_elem_state *state;
+        struct write_vector_s *wv_s;
 
-        state.mlm = &s->mlm;
-        state.py_vectors = py_vectors;
-        state.indices = indices;
-        state.pows = pows;
+        state = (struct mlm_encode_vector_elem_state *)
+            malloc(sizeof(struct mlm_encode_vector_elem_state));
+
+        state->mlm = &s->mlm;
+        state->indices = (int *) calloc(2, sizeof(int));
+        (void) extract_indices(py_list, &state->indices[0], &state->indices[1]);
+        state->pows = (int *) calloc(2, sizeof(int));
+        state->pows[0] = 1;
+        state->pows[1] = 1;
+
+        wv_s = (struct write_vector_s *) malloc(sizeof(write_vector_s));
+        wv_s->dir = (char *) calloc(strlen(s->dir) + 1, sizeof(char));
+        (void) strcpy(wv_s->dir, s->dir);
+        wv_s->name = (char *) calloc(strlen(name) + 1, sizeof(char));
+        (void) strcpy(wv_s->name, name);
+        wv_s->vector = vector;
+        wv_s->length = length;
+        wv_s->start = start;
+        wv_s->state = state;
+
+        (void) thpool_add_class(s->thpool, name, length, thpool_write_vector,
+                                wv_s);
         
         for (ssize_t i = 0; i < length; ++i) {
-            struct mlm_encode_vector_elem_args *args;
+            mpz_t *elems;
+            struct mlm_encode_vector_elem_s *args;
 
-            args = (struct mlm_encode_vector_elem_args *)
-                malloc(sizeof(struct mlm_encode_vector_elem_args));
-            args->i = i;
-            args->elem = &vector[i];
-            args->s = &state;
-            // thpool_encode_vector_elem(&args);
+            elems = (mpz_t *) calloc(s->mlm.secparam, sizeof(mpz_t));
+            for (unsigned long j = 0; j < s->mlm.secparam; ++j) {
+                mpz_init(elems[j]);
+                py_to_mpz(elems[j],
+                          PyList_GET_ITEM(PyList_GET_ITEM(py_vectors, j), i));
+            }
+            
+            args = (struct mlm_encode_vector_elem_s *)
+                malloc(sizeof(struct mlm_encode_vector_elem_s));
+            args->out = &vector[i];
+            args->elems = elems;
+            args->s = state;
+
             thpool_add_work(s->thpool, thpool_encode_vector_elem,
-                            (void *) args);
-            // thpool_wait(s->thpool);
+                            (void *) args, name);
         }
-
-        thpool_wait(s->thpool);
     }
-
-// #pragma omp parallel for
-//     for (ssize_t i = 0; i < length; ++i) {
-//         mpz_t *elems;
-//         mpz_init(vector[i]);
-//         elems = (mpz_t *) malloc(sizeof(mpz_t) * s->mlm.secparam);
-//         for (unsigned long j = 0; j < s->mlm.secparam; ++j) {
-//             mpz_init(elems[j]);
-//             py_to_mpz(elems[j],
-//                       PyList_GET_ITEM(PyList_GET_ITEM(py_vectors, j), i));
-//         }
-//         clt_mlm_encode(&s->mlm, vector[i], s->mlm.secparam, elems, 2, indices, pows);
-//         for (unsigned long j = 0; j < s->mlm.secparam; ++j) {
-//             mpz_clear(elems[j]);
-//         }
-//         free(elems);
-//     }
-
-    (void) write_vector(s->dir, vector, length, name);
-    for (ssize_t i = 0; i < length; ++i) {
-        mpz_clear(vector[i]);
-    }
-    free(vector);
-
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
-                       length, end - start);
 
     Py_RETURN_NONE;
 }
@@ -587,6 +579,24 @@ cleanup:
         return Py_BuildValue("i", iszero ? 0 : 1);
 }
 
+static PyObject *
+obf_wait(PyObject *self, PyObject *args)
+{
+    PyObject *py_state;
+    struct state *s;
+
+    if (!PyArg_ParseTuple(args, "O", &py_state))
+        return NULL;
+
+    s = (struct state *) PyCapsule_GetPointer(py_state, NULL);
+    if (s == NULL)
+        return NULL;
+
+    thpool_wait(s->thpool);
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef
 ObfMethods[] = {
     {"verbose", obf_verbose, METH_VARARGS,
@@ -600,9 +610,11 @@ ObfMethods[] = {
     {"max_mem_usage", obf_max_mem_usage, METH_VARARGS,
      "Print out the maximum memory usage."},
     {"evaluate", obf_evaluate, METH_VARARGS,
-     "evaluate the obfuscation."},
+     "Evaluate the obfuscation."},
     {"sz_evaluate", obf_sz_evaluate, METH_VARARGS,
-     "evaluate the obfuscation."},
+     "Evaluate the obfuscation."},
+    {"wait", obf_wait, METH_VARARGS,
+     "Wait for threadpool to empty."},
     {NULL, NULL, 0, NULL}
 };
 

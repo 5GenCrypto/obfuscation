@@ -58,6 +58,7 @@ class AGISObfuscator(Obfuscator):
         ss, ts = compute_vectors()
         _obf.encode_vectors(self._state, ss, [sidx], 's_enc')
         _obf.encode_vectors(self._state, ts, [tidx], 't_enc')
+        _obf.wait(self._state)
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
