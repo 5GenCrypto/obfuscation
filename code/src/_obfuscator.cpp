@@ -73,7 +73,7 @@ obf_setup(PyObject *self, PyObject *args)
     }
 
     s->thpool = thpool_init(nthreads);
-    // (void) omp_set_num_threads(nthreads);
+    (void) omp_set_num_threads(nthreads);
 
     (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, size, g_verbose);
 
@@ -156,9 +156,11 @@ obf_encode_vectors(PyObject *self, PyObject *args)
             
             args = (struct mlm_encode_elem_s *)
                 malloc(sizeof(struct mlm_encode_elem_s));
-            args->out = &vector[i];
-            args->elems = elems;
             args->mlm = &s->mlm;
+            args->out = &vector[i];
+            args->nins = s->mlm.secparam;
+            args->ins = elems;
+            args->nzs = 2;
             args->indices = (int *) calloc(2, sizeof(int));
             (void) extract_indices(py_list, &args->indices[0], &args->indices[1]);
             args->pows = (int *) calloc(2, sizeof(int));
@@ -255,9 +257,11 @@ obf_encode_layers(PyObject *self, PyObject *args)
 
             args = (struct mlm_encode_elem_s *)
                 malloc(sizeof(struct mlm_encode_elem_s));
-            args->out = val;
-            args->elems = elems;
             args->mlm = &s->mlm;
+            args->out = val;
+            args->nins = s->mlm.secparam;
+            args->ins = elems;
+            args->nzs = 2;
             args->indices = (int *) calloc(2, sizeof(int));
             args->indices[0] = indices[0];
             args->indices[1] = indices[1];

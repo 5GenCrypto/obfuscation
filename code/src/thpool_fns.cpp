@@ -10,15 +10,14 @@ thpool_encode_elem(void *vargs)
     struct mlm_encode_elem_s *args =
         (struct mlm_encode_elem_s *) vargs;
 
-    clt_mlm_encode(args->mlm, *args->out,
-                   args->mlm->secparam, args->elems, 2, args->indices,
-                   args->pows);
-    for (unsigned long j = 0; j < args->mlm->secparam; ++j) {
-        mpz_clear(args->elems[j]);
+    clt_mlm_encode(args->mlm, *args->out, args->nins, args->ins, args->nzs,
+                   args->indices, args->pows);
+    for (unsigned long j = 0; j < args->nins; ++j) {
+        mpz_clear(args->ins[j]);
     }
     free(args->indices);
     free(args->pows);
-    free(args->elems);
+    free(args->ins);
     free(args);
 
     return NULL;
@@ -116,6 +115,32 @@ thpool_write_layer(void *vargs)
         (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
                        2 * args->nrows * args->ncols, end - args->start);
 
+
+    return NULL;
+}
+
+static int
+write_element(const char *dir, mpz_t elem, const char *name)
+{
+    char *fname;
+    int fnamelen;
+
+    fnamelen = strlen(dir) + strlen(name) + 2;
+    fname = (char *) malloc(sizeof(char) * fnamelen);
+    if (fname == NULL)
+        return 1;
+    (void) snprintf(fname, fnamelen, "%s/%s", dir, name);
+    (void) save_mpz_scalar(fname, elem);
+    free(fname);
+    return 0;
+}
+
+void *
+thpool_write_element(void *vargs)
+{
+    struct write_element_s *args = (struct write_element_s *) vargs;
+
+    (void) write_element(args->dir, *args->elem, args->name);
 
     return NULL;
 }

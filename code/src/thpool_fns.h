@@ -6,9 +6,11 @@
 #include "clt_mlm.h"
 
 struct mlm_encode_elem_s {
-    mpz_t *out;
-    mpz_t *elems;
     struct clt_mlm_state *mlm;
+    mpz_t *out;
+    size_t nins;
+    mpz_t *ins;
+    unsigned int nzs;
     int *indices;
     int *pows;
 };
@@ -41,5 +43,13 @@ struct write_layer_s {
 void *
 thpool_write_layer(void *vargs);
 
+struct write_element_s {
+    char *dir;
+    mpz_t *elem;
+    char *name;
+};
+
+void *
+thpool_write_element(void *vargs);
 
 #endif

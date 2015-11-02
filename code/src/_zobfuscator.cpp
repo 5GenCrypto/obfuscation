@@ -2,10 +2,14 @@
 #include "utils.h"
 #include "pyutils.h"
 #include "clt_mlm.h"
+#include "thpool_fns.h"
+
+#include "C-Thread-Pool/thpool.h"
 
 #include <omp.h>
 
 struct state {
+    threadpool thpool;
     struct clt_mlm_state mlm;
     char *dir;
     mpz_t nchk;
@@ -20,6 +24,7 @@ state_destructor(PyObject *self)
     s = (struct state *) PyCapsule_GetPointer(self, NULL);
     if (s) {
         clt_mlm_cleanup(&s->mlm);
+        thpool_destroy(s->thpool);
         mpz_clears(s->nev, s->nchk, NULL);
     }
 }
@@ -40,17 +45,17 @@ write_element(const char *dir, mpz_t elem, const char *name)
     return 0;
 }
 
-static void
-set_indices_pows(int *indices, int *pows, unsigned int num, ...)
-{
-    va_list elems;
+// static void
+// set_indices_pows(int *indices, int *pows, unsigned int num, ...)
+// {
+//     va_list elems;
 
-    va_start(elems, num);
-    for (unsigned int i = 0; i < num; ++i) {
-        indices[i] = va_arg(elems, int);
-        pows[i] = va_arg(elems, int);
-    }
-}
+//     va_start(elems, num);
+//     for (unsigned int i = 0; i < num; ++i) {
+//         indices[i] = va_arg(elems, int);
+//         pows[i] = va_arg(elems, int);
+//     }
+// }
 
 static PyObject *
 obf_setup(PyObject *self, PyObject *args)
@@ -74,6 +79,7 @@ obf_setup(PyObject *self, PyObject *args)
         pows[i] = PyLong_AsLong(PyList_GET_ITEM(py_pows, i));
     }
 
+    s->thpool = thpool_init(nthreads);
     (void) omp_set_num_threads(nthreads);
 
     (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, 0, g_verbose);
@@ -89,6 +95,55 @@ obf_setup(PyObject *self, PyObject *args)
     }
 }
 
+static void
+create_work(struct state *s, const char *str, int i,
+            const mpz_t elem0, const mpz_t elem1, unsigned int num, ...)
+{
+    va_list vals;
+
+    struct write_element_s *we_s;
+    struct mlm_encode_elem_s *args;
+    mpz_t *out, *elems;
+
+    out = (mpz_t *) malloc(sizeof(mpz_t));
+    elems = (mpz_t *) calloc(2, sizeof(mpz_t));
+    mpz_inits(*out, elems[0], elems[1], NULL);    
+    mpz_set(elems[0], elem0);
+    mpz_set(elems[1], elem1);
+
+    we_s = (struct write_element_s *) malloc(sizeof(write_element_s));
+    we_s->dir = (char *) calloc(strlen(s->dir) + 1, sizeof(char));
+    (void) strcpy(we_s->dir, s->dir);
+    we_s->elem = out;
+    we_s->name = (char *) calloc(sizeof(int) + 10, sizeof(char));
+    if (i >= 0) {
+        (void) sprintf(we_s->name, str, i);
+    } else {
+        (void) strcpy(we_s->name, str);
+    }
+    (void) thpool_add_tag(s->thpool, we_s->name, 1, thpool_write_element, we_s);
+
+    args = (struct mlm_encode_elem_s *)
+        malloc(sizeof(struct mlm_encode_elem_s));
+    args->mlm = &s->mlm;
+    args->out = out;
+    args->nins = 2;
+    args->ins = elems;
+    args->nzs = num;
+    args->indices = (int *) calloc(num, sizeof(int));
+    args->pows = (int *) calloc(num, sizeof(int));
+
+    va_start(vals, num);
+    for (unsigned int i = 0; i < num; ++i) {
+        args->indices[i] = va_arg(vals, int);
+        args->pows[i] = va_arg(vals, int);
+    }
+
+    (void) thpool_add_work(s->thpool, thpool_encode_elem, (void *) args,
+                           we_s->name);
+    // thpool_wait(s->thpool);
+}
+
 static PyObject *
 obf_encode_circuit(PyObject *self, PyObject *args)
 {
@@ -96,10 +151,8 @@ obf_encode_circuit(PyObject *self, PyObject *args)
     mpz_t tmp, c_star;
     mpz_t *alphas, *betas;
     int n, m, ydeg;
-    int *indices, *pows;
-    char *circuit, *fname;
-    int fnamelen = sizeof(int) + 5;
-    int idx_set_size;
+    char *circuit;
+    mpz_t zero, one;
     struct state *s;
 
     if (!PyArg_ParseTuple(args, "OsOOiii", &py_state, &circuit, &py_ys,
@@ -108,11 +161,10 @@ obf_encode_circuit(PyObject *self, PyObject *args)
     s = (struct state *) PyCapsule_GetPointer(py_state, NULL);
     if (s == NULL)
         return NULL;
-    fname = (char *) malloc(sizeof(char) * fnamelen);
-    if (fname == NULL)
-        return NULL;
 
-    mpz_inits(c_star, tmp, NULL);
+    mpz_inits(c_star, tmp, zero, one, NULL);
+    mpz_set_ui(zero, 0);
+    mpz_set_ui(one, 1);
 
     alphas = (mpz_t *) malloc(sizeof(mpz_t) * n);
     for (int i = 0; i < n; ++i) {
@@ -125,108 +177,56 @@ obf_encode_circuit(PyObject *self, PyObject *args)
         mpz_urandomm(betas[i], s->mlm.rng, s->nchk);
     }
 
-    // The index set is laid out as follows:
-    //   - The first 2 * n entries contain X_i,0 and X_i,1
-    //   - The next n entries contain Z_i
-    //   - The next n entries contain W_i
-    //   - The final entry contains Y
-    idx_set_size = 4 * n + 1;
-
-    indices = (int *) malloc(sizeof(int) * idx_set_size);
-    pows = (int *) malloc(sizeof(int) * idx_set_size);
-
     for (int i = 0; i < n; ++i) {
-        mpz_t out, elems[2];
+        mpz_t elems[2];
         int deg;
 
-        mpz_inits(out, elems[0], elems[1], NULL);
+        mpz_inits(elems[0], elems[1], NULL);
 
         deg = PyLong_AsLong(PyList_GET_ITEM(py_xdegs, i));
 
-        set_indices_pows(indices, pows, 1, 2 * i, 1);
-        mpz_set_ui(elems[0], 0);
-        mpz_set(elems[1], alphas[i]);
-        clt_mlm_encode(&s->mlm, out, 2, elems, 1, indices, pows);
-        (void) snprintf(fname, fnamelen, "x_%d_0", i);
-        (void) write_element(s->dir, out, fname);
-
-        set_indices_pows(indices, pows, 1, 2 * i, 1);
-        mpz_set_ui(elems[0], 1);
-        mpz_set_ui(elems[1], 1);
-        clt_mlm_encode(&s->mlm, out, 2, elems, 1, indices, pows);
-        (void) snprintf(fname, fnamelen, "u_%d_0", i);
-        (void) write_element(s->dir, out, fname);
-
-        set_indices_pows(indices, pows, 1, 2 * i + 1, 1);
-        mpz_set_ui(elems[0], 1);
-        mpz_set(elems[1], alphas[i]);
-        clt_mlm_encode(&s->mlm, out, 2, elems, 1, indices, pows);
-        (void) snprintf(fname, fnamelen, "x_%d_1", i);
-        (void) write_element(s->dir, out, fname);
-
-        set_indices_pows(indices, pows, 1, 2 * i + 1, 1);
-        mpz_set_ui(elems[0], 1);
-        mpz_set_ui(elems[1], 1);
-        clt_mlm_encode(&s->mlm, out, 2, elems, 1, indices, pows);
-        (void) snprintf(fname, fnamelen, "u_%d_1", i);
-        (void) write_element(s->dir, out, fname);
+        create_work(s, "x_\%d_0", i, zero, alphas[i],
+                    1, 2 * i, 1);
+        create_work(s, "x_\%d_1", i, one, alphas[i],
+                    1, 2 * i + 1, 1);
+        create_work(s, "u_\%d_0", i, one, one,
+                    1, 2 * i, 1);
+        create_work(s, "u_\%d_1", i, one, one,
+                    1, 2 * i + 1, 1);
 
         mpz_urandomm(elems[0], s->mlm.rng, s->nev);
         mpz_urandomm(elems[1], s->mlm.rng, s->nchk);
 
-        set_indices_pows(indices, pows, 3, 2 * i + 1, deg, 2 * n + i, 1,
-                         3 * n + i, 1);
-        clt_mlm_encode(&s->mlm, out, 2, elems, 3, indices, pows);
-        (void) snprintf(fname, fnamelen, "z_%d_0", i);
-        (void) write_element(s->dir, out, fname);
-
-        set_indices_pows(indices, pows, 1, 3 * n + i, 1);
-        mpz_set_ui(elems[0], 0);
-        clt_mlm_encode(&s->mlm, out, 2, elems, 1, indices, pows);
-        (void) snprintf(fname, fnamelen, "w_%d_0", i);
-        (void) write_element(s->dir, out, fname);
+        create_work(s, "z_\%d_0", i, elems[0], elems[1],
+                    3, 2 * i + 1, deg, 2 * n + i, 1, 3 * n + i, 1);
+        create_work(s, "w_\%d_0", i, zero, elems[1],
+                    1, 3 * n + i, 1);
 
         mpz_urandomm(elems[0], s->mlm.rng, s->nev);
         mpz_urandomm(elems[1], s->mlm.rng, s->nchk);
 
-        set_indices_pows(indices, pows, 3, 2 * i, deg, 2 * n + i, 1, 3 * n + i, 1);
-        clt_mlm_encode(&s->mlm, out, 2, elems, 3, indices, pows);
-        (void) snprintf(fname, fnamelen, "z_%d_1", i);
-        (void) write_element(s->dir, out, fname);
+        create_work(s, "z_\%d_1", i, elems[0], elems[1],
+                    3, 2 * i, deg, 2 * n + i, 1, 3 * n + i, 1);
+        create_work(s, "w_\%d_1", i, zero, elems[1], 1, 3 * n + i, 1);
 
-        set_indices_pows(indices, pows, 1, 3 * n + i, 1);
-        mpz_set_ui(elems[0], 0);
-        clt_mlm_encode(&s->mlm, out, 2, elems, 1, indices, pows);
-        (void) snprintf(fname, fnamelen, "w_%d_1", i);
-        (void) write_element(s->dir, out, fname);
-
-        mpz_clears(out, elems[0], elems[1], NULL);
+        mpz_clears(elems[0], elems[1], NULL);
     }
 
-    set_indices_pows(indices, pows, 1, 4 * n, 1);
     for (int i = 0; i < m; ++i) {
-        mpz_t out, elems[2];
-        mpz_inits(out, elems[0], elems[1], NULL);
+        mpz_t elems[2];
+        mpz_inits(elems[0], elems[1], NULL);
 
         py_to_mpz(elems[0], PyList_GET_ITEM(py_ys, i));
         if (mpz_sgn(elems[0]) == -1) {
             mpz_mod(elems[0], elems[0], s->nev);
         }
         mpz_set(elems[1], betas[i]);
-        clt_mlm_encode(&s->mlm, out, 2, elems, 1, indices, pows);
-        (void) snprintf(fname, fnamelen, "y_%d", i);
-        (void) write_element(s->dir, out, fname);
-        mpz_clears(out, elems[0], elems[1], NULL);
-    }
+        create_work(s, "y_\%d", i, elems[0], elems[1], 1, 4 * n, 1);
 
-    {
-        mpz_t elems[2];
-        mpz_init_set_ui(elems[0], 1);
-        mpz_init_set_ui(elems[1], 1);
-        clt_mlm_encode(&s->mlm, tmp, 2, elems, 1, indices, pows);
-        (void) write_element(s->dir, tmp, "v");
         mpz_clears(elems[0], elems[1], NULL);
     }
+
+    create_work(s, "v", -1, one, one, 1, 4 * n, 1);
 
     {
         struct circuit *c;
@@ -245,12 +245,30 @@ obf_encode_circuit(PyObject *self, PyObject *args)
         circ_cleanup(c);
     }
 
+    // Last element to encode, so don't need to parallelize
     {
         mpz_t elems[2];
+        int idx_set_size;
+        int *indices, *pows;
+
+        mpz_init_set_ui(elems[0], 0);
+        mpz_init_set(elems[1], c_star);
+
+        // The index set is laid out as follows:
+        //   - The first 2 * n entries contain X_i,0 and X_i,1
+        //   - The next n entries contain Z_i
+        //   - The next n entries contain W_i
+        //   - The final entry contains Y
+        idx_set_size = 4 * n + 1;
+
+        indices = (int *) malloc(sizeof(int) * idx_set_size);
+        pows = (int *) malloc(sizeof(int) * idx_set_size);
+        
         // The C* encoding contains everything but the W_i symbols.
         // Here we calculate the appropriate indices and powers.
         for (int i = 0; i < n; ++i) {
             int deg;
+
             deg = PyLong_AsLong(PyList_GET_ITEM(py_xdegs, i));
             // X_i,0^deg(x_i)
             indices[2 * i] = 2 * i;
@@ -266,13 +284,17 @@ obf_encode_circuit(PyObject *self, PyObject *args)
         indices[3 * n] = 4 * n;
         pows[3 * n] = ydeg;
         // Encode against these indices/powers
-        mpz_init_set_ui(elems[0], 0);
-        mpz_init_set(elems[1], c_star);
         clt_mlm_encode(&s->mlm, tmp, 2, elems, 3 * n + 1, indices, pows);
+
+        mpz_clears(elems[0], elems[1], NULL);
+        free(indices);
+        free(pows);
     }
     (void) write_element(s->dir, tmp, "c_star");
 
     mpz_clears(c_star, tmp, NULL);
+
+    thpool_wait(s->thpool);
     
     Py_RETURN_NONE;
 }
