@@ -53,13 +53,10 @@ class AGISObfuscator(Obfuscator):
             self.logger('  Computing bookend vectors: %f' % (end - start))
             return ss, ts
         self.logger('Constructing bookend vectors...')
-        # start = time.time()
         sidx, tidx = nzs - 2, nzs - 1
         ss, ts = compute_vectors()
         _obf.encode_vectors(self._state, ss, [sidx], 's_enc')
         _obf.encode_vectors(self._state, ts, [tidx], 't_enc')
-        # end = time.time()
-        # self.logger('Took: %f' % (end - start))
 
     def _randomize(self, secparam, bps, primes):
         self.logger('Randomizing BPs...')
@@ -73,7 +70,6 @@ class AGISObfuscator(Obfuscator):
     def _obfuscate(self, bps, length):
         for i in xrange(len(bps[0])):
             self.logger('Obfuscating layer...')
-            # start = time.time()
             bplength = len(bps[0][i].zero.transpose().list())
             zeros = pad([to_long(bp[i].zero.transpose().list()) for bp in bps],
                         length, bplength)
@@ -83,8 +79,6 @@ class AGISObfuscator(Obfuscator):
             ncols = bps[0][i].zero.ncols()
             _obf.encode_layers(self._state, i, nrows, ncols, bps[0][i].inp,
                                zeros, ones, bps[0][i].zeroset, bps[0][i].oneset)
-            # end = time.time()
-            # self.logger('Took: %f' % (end - start))
 
     def obfuscate(self, circuit, secparam, directory, obliviate=False,
                   nslots=None, kappa=None):
@@ -113,9 +107,9 @@ class AGISObfuscator(Obfuscator):
         self._construct_bookend_vectors(bps, primes, nzs)
         self._obfuscate(bps, len(primes))
 
+        _obf.wait(self._state)
         if self._verbose:
             _obf.max_mem_usage()
-        _obf.wait(self._state)
 
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))

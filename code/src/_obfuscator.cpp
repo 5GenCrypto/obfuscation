@@ -1,9 +1,8 @@
 #include "utils.h"
 #include "pyutils.h"
 #include "clt_mlm.h"
+#include "thpool.h"
 #include "thpool_fns.h"
-
-#include "C-Thread-Pool/thpool.h"
 
 #include <omp.h>
 

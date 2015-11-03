@@ -29,9 +29,9 @@ class SZObfuscator(AGISObfuscator):
         self._randomize(secparam, bps, primes)
         self._obfuscate(bps, len(primes))
 
+        _obf.wait(self._state)
         if self._verbose:
             _obf.max_mem_usage()
-        _obf.wait(self._state)
 
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))

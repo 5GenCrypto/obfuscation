@@ -8,9 +8,8 @@ libraries = [
 ]
 compile_args = [
     '-fopenmp',
-    # '-O3',
+    '-O3',
     '-Wall',
-    '-g',
 ]
 
 zobfuscator = Extension(
@@ -24,9 +23,9 @@ zobfuscator = Extension(
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
         'src/pyutils.cpp',
+        'src/thpool.cpp',
         'src/thpool_fns.cpp',
         'src/utils.cpp',
-        'src/C-Thread-Pool/thpool.cpp'
     ]
 )
 
@@ -40,9 +39,9 @@ obfuscator = Extension(
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
         'src/pyutils.cpp',
+        'src/thpool.cpp',
         'src/thpool_fns.cpp',
         'src/utils.cpp',
-        'src/C-Thread-Pool/thpool.cpp'
     ]
 )
 
