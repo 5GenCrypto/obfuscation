@@ -5,7 +5,6 @@
 #include "thpool.h"
 #include "thpool_fns.h"
 
-
 #include <omp.h>
 
 struct state {
@@ -45,22 +44,10 @@ write_element(const char *dir, mpz_t elem, const char *name)
     return 0;
 }
 
-// static void
-// set_indices_pows(int *indices, int *pows, unsigned int num, ...)
-// {
-//     va_list elems;
-
-//     va_start(elems, num);
-//     for (unsigned int i = 0; i < num; ++i) {
-//         indices[i] = va_arg(elems, int);
-//         pows[i] = va_arg(elems, int);
-//     }
-// }
-
 static PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
-    long kappa, nthreads;
+    long kappa, nthreads, ncores;
     PyObject *py_pows;
     long *pows;
     struct state *s;
@@ -68,8 +55,8 @@ obf_setup(PyObject *self, PyObject *args)
     s = (struct state *) malloc(sizeof(struct state));
     if (s == NULL)
         return NULL;
-    if (!PyArg_ParseTuple(args, "lllOsl", &s->mlm.secparam, &kappa, &s->mlm.nzs,
-                          &py_pows, &s->dir, &nthreads)) {
+    if (!PyArg_ParseTuple(args, "lllOsll", &s->mlm.secparam, &kappa, &s->mlm.nzs,
+                          &py_pows, &s->dir, &nthreads, &ncores)) {
         free(s);
         return NULL;
     }
@@ -80,7 +67,12 @@ obf_setup(PyObject *self, PyObject *args)
     }
 
     s->thpool = thpool_init(nthreads);
-    (void) omp_set_num_threads(nthreads);
+    (void) omp_set_num_threads(ncores);
+
+    if (g_verbose) {
+        fprintf(stderr, "  # Threads: %ld\n", nthreads);
+        fprintf(stderr, "  # Cores: %ld\n", ncores);
+    }
 
     (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, 0, g_verbose);
     mpz_init_set(s->nev, s->mlm.gs[0]);
@@ -141,7 +133,6 @@ create_work(struct state *s, const char *str, int i,
 
     (void) thpool_add_work(s->thpool, thpool_encode_elem, (void *) args,
                            we_s->name);
-    // thpool_wait(s->thpool);
 }
 
 static PyObject *

@@ -15,9 +15,9 @@ def pad(array, length, bplength):
         return array
 
 class AGISObfuscator(Obfuscator):
-    def __init__(self, verbose=False, nthreads=None):
+    def __init__(self, verbose=False, nthreads=None, ncores=None):
         super(AGISObfuscator, self).__init__(_obf, verbose=verbose,
-                                             nthreads=nthreads)
+                                             nthreads=nthreads, ncores=ncores)
 
     def _gen_mlm_params(self, secparam, kappa, width, nzs, directory):
         self.logger('Generating MLM parameters...')
@@ -25,7 +25,7 @@ class AGISObfuscator(Obfuscator):
         if not os.path.exists(directory):
             os.mkdir(directory)
         self._state, primes = _obf.setup(secparam, kappa, width, nzs, directory,
-                                         self._nthreads)
+                                         self._nthreads, self._ncores)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         return primes

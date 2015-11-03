@@ -2,11 +2,12 @@ import utils
 import os, time
 
 class Obfuscator(object):
-    def __init__(self, obf, verbose=False, nthreads=None):
+    def __init__(self, obf, verbose=False, nthreads=None, ncores=None):
         self._state = None
         self._verbose = verbose
         obf.verbose(self._verbose)
         self._nthreads = nthreads
+        self._ncores = ncores
         self.logger = utils.make_logger(self._verbose)
 
     def _remove_old(self, directory):
@@ -26,7 +27,7 @@ class Obfuscator(object):
         start = time.time()
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        result = f(directory, inp, len(inputs), self._nthreads)
+        result = f(directory, inp, len(inputs), self._ncores)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         if self._verbose:

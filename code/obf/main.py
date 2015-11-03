@@ -86,7 +86,8 @@ def obf(args):
                 directory = args.load_obf
             elif args.load_circuit:
                 start = time.time()
-                obf = obfclass(verbose=args.verbose, nthreads=args.nthreads)
+                obf = obfclass(verbose=args.verbose, nthreads=args.nthreads,
+                               ncores=args.ncores)
                 directory = args.save if args.save \
                             else '%s.obf.%d' % (args.load_circuit, args.secparam)
                 obf.obfuscate(args.load_circuit, args.secparam, directory,
@@ -101,7 +102,8 @@ def obf(args):
 
             if args.eval:
                 assert directory
-                obf = obfclass(verbose=args.verbose, nthreads=args.nthreads)
+                obf = obfclass(verbose=args.verbose, nthreads=args.nthreads,
+                               ncores=args.ncores)
                 r = obf.evaluate(directory, args.eval)
                 print('Output = %d' % r)
     except ParseException as e:
@@ -114,10 +116,11 @@ def main():
     subparsers = parser.add_subparsers()
 
     try:
-        nthreads = os.sysconf('SC_NPROCESSORS_ONLN')
+        ncores = os.sysconf('SC_NPROCESSORS_ONLN')
     except ValueError:
         print(utils.clr_warn('Warning: Unable to count number of cores, defaulting to 1'))
-        nthreads = 1
+        ncores = 1
+    nthreads = ncores
     secparam = 24
 
     parser_bp = subparsers.add_parser(
@@ -187,7 +190,10 @@ def main():
                             help='obliviate the branching program')
     parser_obf.add_argument('--nthreads',
                             metavar='N', action='store', type=int, default=nthreads,
-                            help='number of threads to use (default: %(default)s)')
+                            help='number of threads to use in threadpool (default: %(default)s)')
+    parser_obf.add_argument('--ncores',
+                            metavar='N', action='store', type=int, default=ncores,
+                            help='number of cores to use for OpenMP (default: %(default)s)')
     parser_obf.add_argument('--nslots',
                             metavar='N', action='store', type=int, default=secparam,
                             help='number of slots to fill (default: %(default)s)')

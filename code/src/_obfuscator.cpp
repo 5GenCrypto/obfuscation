@@ -53,15 +53,15 @@ extract_indices(PyObject *py_list, int *idx1, int *idx2)
 static PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
-    long kappa, size, nthreads;
+    long kappa, size, nthreads, ncores;
     struct state *s = NULL;
     long *pows = NULL;
 
     s = (struct state *) malloc(sizeof(struct state));
     if (s == NULL)
         return NULL;
-    if (!PyArg_ParseTuple(args, "llllsl", &s->mlm.secparam, &kappa, &size,
-                          &s->mlm.nzs, &s->dir, &nthreads)) {
+    if (!PyArg_ParseTuple(args, "llllsll", &s->mlm.secparam, &kappa, &size,
+                          &s->mlm.nzs, &s->dir, &nthreads, &ncores)) {
         free(s);
         return NULL;
     }
@@ -72,7 +72,12 @@ obf_setup(PyObject *self, PyObject *args)
     }
 
     s->thpool = thpool_init(nthreads);
-    (void) omp_set_num_threads(nthreads);
+    (void) omp_set_num_threads(ncores);
+
+    if (g_verbose) {
+        fprintf(stderr, "  # Threads: %ld\n", nthreads);
+        fprintf(stderr, "  # Cores: %ld\n", ncores);
+    }
 
     (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, size, g_verbose);
 
