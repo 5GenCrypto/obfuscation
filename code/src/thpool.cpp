@@ -191,11 +191,12 @@ thpool_init(int num_threads)
 	for (int n = 0; n < num_threads; n++) {
 		thread_init(thpool_p, &thpool_p->threads[n], n);
 		if (THPOOL_DEBUG)
-			printf("THPOOL_DEBUG: Created thread %d in pool \n", n);
+			printf("THPOOL_DEBUG: Created thread %d in pool\n", n);
 	}
 	
 	/* Wait for threads to initialize */
-	while (thpool_p->num_threads_alive != num_threads) {}
+	while (thpool_p->num_threads_alive != num_threads)
+        ;
 
 	return thpool_p;
 }
@@ -218,7 +219,6 @@ thpool_add_tag(thpool_ *thpool_p, char *tag, int length,
             return -1;
         }
     }
-
     fprintf(stderr, "thpool_add_tag(): tag list full!\n");
     assert(0);
     return -1;
@@ -228,7 +228,6 @@ thpool_add_tag(thpool_ *thpool_p, char *tag, int length,
 static int
 tag_decrement(thpool_ *thpool_p, char *tag)
 {
-
     for (int i = 0; i < thpool_p->tlist->num; ++i) {
         struct tag *t = &thpool_p->tlist->tags[i];
         if (strcmp(t->name, tag) == 0) {
@@ -492,18 +491,19 @@ thread_destroy (thread* thread_p)
 
 
 /* Initialize queue */
-static int jobqueue_init(thpool_* thpool_p){
-	
-	thpool_p->jobqueue_p = (struct jobqueue*)malloc(sizeof(struct jobqueue));
-	if (thpool_p->jobqueue_p == NULL){
+static int
+jobqueue_init(thpool_* thpool_p)
+{
+	thpool_p->jobqueue_p = (struct jobqueue*) malloc(sizeof(struct jobqueue));
+	if (thpool_p->jobqueue_p == NULL) {
 		return -1;
 	}
 	thpool_p->jobqueue_p->len = 0;
 	thpool_p->jobqueue_p->front = NULL;
 	thpool_p->jobqueue_p->rear  = NULL;
 
-	thpool_p->jobqueue_p->has_jobs = (struct bsem*)malloc(sizeof(struct bsem));
-	if (thpool_p->jobqueue_p->has_jobs == NULL){
+	thpool_p->jobqueue_p->has_jobs = (struct bsem*) malloc(sizeof(struct bsem));
+	if (thpool_p->jobqueue_p->has_jobs == NULL) {
 		return -1;
 	}
 
@@ -515,9 +515,10 @@ static int jobqueue_init(thpool_* thpool_p){
 
 
 /* Clear the queue */
-static void jobqueue_clear(thpool_* thpool_p){
-
-	while(thpool_p->jobqueue_p->len){
+static void
+jobqueue_clear(thpool_* thpool_p)
+{
+	while (thpool_p->jobqueue_p->len) {
 		free(jobqueue_pull(thpool_p));
 	}
 
@@ -525,7 +526,6 @@ static void jobqueue_clear(thpool_* thpool_p){
 	thpool_p->jobqueue_p->rear  = NULL;
 	bsem_reset(thpool_p->jobqueue_p->has_jobs);
 	thpool_p->jobqueue_p->len = 0;
-
 }
 
 
@@ -533,20 +533,21 @@ static void jobqueue_clear(thpool_* thpool_p){
  *
  * Notice: Caller MUST hold a mutex
  */
-static void jobqueue_push(thpool_* thpool_p, struct job* newjob){
-
+static void
+jobqueue_push(thpool_* thpool_p, struct job* newjob)
+{
 	newjob->prev = NULL;
 
-	switch(thpool_p->jobqueue_p->len){
+	switch (thpool_p->jobqueue_p->len) {
 
-		case 0:  /* if no jobs in queue */
-					thpool_p->jobqueue_p->front = newjob;
-					thpool_p->jobqueue_p->rear  = newjob;
-					break;
+    case 0:  /* if no jobs in queue */
+        thpool_p->jobqueue_p->front = newjob;
+        thpool_p->jobqueue_p->rear  = newjob;
+        break;
 
-		default: /* if jobs in queue */
-					thpool_p->jobqueue_p->rear->prev = newjob;
-					thpool_p->jobqueue_p->rear = newjob;
+    default: /* if jobs in queue */
+        thpool_p->jobqueue_p->rear->prev = newjob;
+        thpool_p->jobqueue_p->rear = newjob;
 					
 	}
 	thpool_p->jobqueue_p->len++;
@@ -589,7 +590,9 @@ jobqueue_pull(thpool_ *thpool_p)
 
 
 /* Free all queue resources back to the system */
-static void jobqueue_destroy(thpool_* thpool_p){
+static void
+jobqueue_destroy(thpool_* thpool_p)
+{
 	jobqueue_clear(thpool_p);
 	free(thpool_p->jobqueue_p->has_jobs);
 }
@@ -599,7 +602,9 @@ static void jobqueue_destroy(thpool_* thpool_p){
 
 
 /* Init semaphore to 1 or 0 */
-static void bsem_init(bsem *bsem_p, int value) {
+static void
+bsem_init(bsem *bsem_p, int value)
+{
 	if (value < 0 || value > 1) {
 		fprintf(stderr, "bsem_init(): Binary semaphore can take only values 1 or 0");
 		exit(1);
@@ -611,13 +616,17 @@ static void bsem_init(bsem *bsem_p, int value) {
 
 
 /* Reset semaphore to 0 */
-static void bsem_reset(bsem *bsem_p) {
+static void
+bsem_reset(bsem *bsem_p)
+{
 	bsem_init(bsem_p, 0);
 }
 
 
 /* Post to at least one thread */
-static void bsem_post(bsem *bsem_p) {
+static void
+bsem_post(bsem *bsem_p)
+{
 	pthread_mutex_lock(&bsem_p->mutex);
 	bsem_p->v = 1;
 	pthread_cond_signal(&bsem_p->cond);
@@ -626,7 +635,9 @@ static void bsem_post(bsem *bsem_p) {
 
 
 /* Post to all threads */
-static void bsem_post_all(bsem *bsem_p) {
+static void
+bsem_post_all(bsem *bsem_p)
+{
 	pthread_mutex_lock(&bsem_p->mutex);
 	bsem_p->v = 1;
 	pthread_cond_broadcast(&bsem_p->cond);
@@ -635,7 +646,9 @@ static void bsem_post_all(bsem *bsem_p) {
 
 
 /* Wait on semaphore until semaphore has value 0 */
-static void bsem_wait(bsem* bsem_p) {
+static void
+bsem_wait(bsem* bsem_p)
+{
 	pthread_mutex_lock(&bsem_p->mutex);
 	while (bsem_p->v != 1) {
 		pthread_cond_wait(&bsem_p->cond, &bsem_p->mutex);
