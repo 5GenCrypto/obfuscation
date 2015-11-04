@@ -71,7 +71,6 @@ obf_setup(PyObject *self, PyObject *args)
         pows[i] = 1L;
     }
 
-    s->thpool = thpool_init(nthreads);
     (void) omp_set_num_threads(ncores);
 
     if (g_verbose) {
@@ -80,6 +79,8 @@ obf_setup(PyObject *self, PyObject *args)
     }
 
     (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, size, g_verbose);
+
+    s->thpool = thpool_init(nthreads);
 
     /* Convert g_i values to python objects */
     {

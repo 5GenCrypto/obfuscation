@@ -11,6 +11,7 @@ compile_args = [
     '-O3',
     '-Wall',
     '-pthread',
+    '-DTHPOOL_DEBUG',
 ]
 
 zobfuscator = Extension(
