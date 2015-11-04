@@ -10,6 +10,7 @@ compile_args = [
     '-fopenmp',
     '-O3',
     '-Wall',
+    '-pthread',
 ]
 
 zobfuscator = Extension(
