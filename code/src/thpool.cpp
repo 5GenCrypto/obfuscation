@@ -19,6 +19,7 @@
 #include <time.h> 
 
 #include "thpool.h"
+#include "utils.h"
 
 #ifdef THPOOL_DEBUG
 #define THPOOL_DEBUG 1
@@ -462,10 +463,19 @@ thread_do(void *arg)
         pthread_mutex_unlock(&thpool_p->jobqueue_p->rwmutex);
 
         if (job_p) {
+            // double start, end;
+            // start = current_time();
+            // if (THPOOL_DEBUG)
+            //     printf("THPOOL_DEBUG: start %f\n", start);
             job_p->function(job_p->arg);
             tag_decrement(thpool_p, job_p->tag);
             free(job_p->tag);
             free(job_p);
+            // end = current_time();
+            // if (THPOOL_DEBUG)
+            //     printf("THPOOL_DEBUG: end   %f\n", end);
+            // if (THPOOL_DEBUG)
+            //     printf("THPOOL_DEBUG: diff  %f\n", end - start);
         }
 			
         pthread_mutex_lock(&thpool_p->thcount_lock);
@@ -583,7 +593,7 @@ jobqueue_pull(thpool_ *thpool_p)
         thpool_p->jobqueue_p->front = job_p->prev;
         thpool_p->jobqueue_p->len--;
         /* more than one job in queue -> post it */
-        bsem_post_all(thpool_p->jobqueue_p->has_jobs);
+        bsem_post(thpool_p->jobqueue_p->has_jobs);
 	}
 	
 	return job_p;

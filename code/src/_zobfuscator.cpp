@@ -23,7 +23,7 @@ state_destructor(PyObject *self)
     s = (struct state *) PyCapsule_GetPointer(self, NULL);
     if (s) {
         clt_mlm_cleanup(&s->mlm);
-        thpool_destroy(s->thpool);
+        // thpool_destroy(s->thpool);
         mpz_clears(s->nev, s->nchk, NULL);
     }
 }

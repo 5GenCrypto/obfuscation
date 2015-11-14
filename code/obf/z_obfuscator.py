@@ -103,9 +103,9 @@ class Circuit(object):
 
 
 class ZObfuscator(Obfuscator):
-    def __init__(self, verbose=False, nthreads=None):
+    def __init__(self, verbose=False, nthreads=None, ncores=None):
         super(ZObfuscator, self).__init__(_zobf, verbose=verbose,
-                                          nthreads=nthreads)
+                                          nthreads=nthreads, ncores=ncores)
 
     def _gen_mlm_params(self, secparam, kappa, nzs, pows, directory):
         self.logger('Generating MLM parameters...')
@@ -113,7 +113,7 @@ class ZObfuscator(Obfuscator):
         if not os.path.exists(directory):
             os.mkdir(directory)
         self._state = _zobf.setup(secparam, kappa, nzs, pows, directory,
-                                  self._nthreads)
+                                  self._nthreads, self._nthreads)
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
