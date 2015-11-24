@@ -5,6 +5,7 @@
 
 enum GATE_TYPE {
     ADD,
+    SUB,
     INPUT_X,
     INPUT_Y,
     MUL,
@@ -156,6 +157,9 @@ circ_parse(const char *circname)
             if (strcmp(gtype, "ADD") == 0) {
                 gate_init(&circ->gates[num], ADD, &circ->gates[left],
                           &circ->gates[right]);
+            } else if (strcmp(gtype, "SUB") == 0) {
+                gate_init(&circ->gates[num], SUB, &circ->gates[left],
+                          &circ->gates[right]);
             } else if (strcmp(gtype, "MUL") == 0) {
                 gate_init(&circ->gates[num], MUL, &circ->gates[left],
                           &circ->gates[right]);
@@ -243,6 +247,10 @@ circ_evaluate(const struct circuit *circ, const mpz_t *alphas,
             mpz_add(gate->value, gate->left->value, gate->right->value);
             mpz_mod(gate->value, gate->value, q);
             break;
+        case SUB:
+            mpz_sub(gate->value, gate->left->value, gate->right->value);
+            mpz_mod(gate->value, gate->value, q);
+            break;
         case INPUT_X:
             mpz_set(gate->value, alphas[n_xins++]);
             break;
@@ -280,6 +288,23 @@ add(mpz_t out, mpz_t out_one, const mpz_t x, const mpz_t x_one, const mpz_t y,
 }
 
 static void
+sub(mpz_t out, mpz_t out_one, const mpz_t x, const mpz_t x_one, const mpz_t y,
+    const mpz_t y_one, const mpz_t q)
+{
+    mpz_t a, b;
+    mpz_inits(a, b, NULL);
+
+    mpz_mul(a, x, y_one);
+    mpz_mul(b, x_one, y);
+    mpz_sub(out, a, b);
+    mpz_sub(out, out, q);
+
+    mpz_mul(out_one, x_one, y_one);
+    mpz_mod(out_one, out_one, q);
+    mpz_clears(a, b, NULL);
+}
+
+static void
 multiply(mpz_t out, mpz_t out_one, const mpz_t x, const mpz_t x_one,
          const mpz_t y, const mpz_t y_one, const mpz_t q)
 {
@@ -302,6 +327,11 @@ circ_evaluate_encoding(const struct circuit *circ, const mpz_t *xs,
         switch (gate->type) {
         case ADD:
             add(gate->value, gate->one_value, gate->left->value,
+                gate->left->one_value, gate->right->value,
+                gate->right->one_value, q);
+            break;
+        case SUB:
+            sub(gate->value, gate->one_value, gate->left->value,
                 gate->left->one_value, gate->right->value,
                 gate->right->one_value, q);
             break;
