@@ -55,7 +55,7 @@ int
 clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
               long kappa, long size, int verbose)
 {
-    long alpha, beta, eta, nu, rho_f;
+    long alpha, beta, eta, rho_f;
     mpz_t *ps, *zs;
     double start, end;
 
@@ -65,7 +65,7 @@ clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
     s->rho = s->secparam;
     rho_f = kappa * (s->rho + alpha + 2);
     eta = rho_f + alpha + 2 * beta + s->secparam + 8;
-    nu = eta - beta - rho_f - s->secparam + 3;
+    s->nu = eta - beta - rho_f - s->secparam - 3;
     s->n = (int) (eta * log2((float) s->secparam));
 
     if (verbose) {
@@ -74,7 +74,7 @@ clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
         fprintf(stderr, "  Alpha: %ld\n", alpha);
         fprintf(stderr, "  Beta: %ld\n", beta);
         fprintf(stderr, "  Eta: %ld\n", eta);
-        fprintf(stderr, "  Nu: %ld\n", nu);
+        fprintf(stderr, "  Nu: %ld\n", s->nu);
         fprintf(stderr, "  Rho: %ld\n", s->rho);
         fprintf(stderr, "  Rho_f: %ld\n", rho_f);
         fprintf(stderr, "  N: %ld\n", s->n);
@@ -192,7 +192,8 @@ clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
     if (g_verbose)
         (void) fprintf(stderr, "  Generating pzt: %f\n", end - start);
 
-    (void) write_setup_params(s, dir, nu, size);
+    if (dir)
+        (void) write_setup_params(s, dir, s->nu, size);
 
     for (unsigned long i = 0; i < s->n; ++i) {
         mpz_clear(ps[i]);

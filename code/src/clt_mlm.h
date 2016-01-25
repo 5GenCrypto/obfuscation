@@ -9,6 +9,7 @@ struct clt_mlm_state {
     unsigned long n;
     unsigned long nzs;
     unsigned long rho;
+    unsigned long nu;
     mpz_t q;
     mpz_t pzt;
     mpz_t *gs;

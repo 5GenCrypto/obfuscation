@@ -297,7 +297,7 @@ sub(mpz_t out, mpz_t out_one, const mpz_t x, const mpz_t x_one, const mpz_t y,
     mpz_mul(a, x, y_one);
     mpz_mul(b, x_one, y);
     mpz_sub(out, a, b);
-    mpz_sub(out, out, q);
+    mpz_mod(out, out, q);
 
     mpz_mul(out_one, x_one, y_one);
     mpz_mod(out_one, out_one, q);
