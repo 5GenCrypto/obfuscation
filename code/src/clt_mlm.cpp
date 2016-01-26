@@ -253,12 +253,16 @@ clt_mlm_encode(struct clt_mlm_state *s, mpz_t out, size_t nins,
 int
 clt_mlm_is_zero(const mpz_t c, const mpz_t pzt, const mpz_t q, long nu)
 {
-    mpz_t tmp;
+    mpz_t tmp, q_;
     int ret;
 
-    mpz_init(tmp);
+    mpz_inits(tmp, q_, NULL);
     mpz_mul(tmp, c, pzt);
     mpz_mod(tmp, tmp, q);
+    // mpz_cmp(x,y) positive if x > y. zero if x = y, neg if x < y.
+    mpz_cdiv_q_ui(q_, q, 2);
+    if (mpz_cmp(tmp, q_) > 0)
+        mpz_sub(tmp, tmp, q);
     ret = (mpz_sizeinbase(tmp, 2) < (mpz_sizeinbase(q, 2) - nu)) ? 1 : 0;
     mpz_clear(tmp);
 
