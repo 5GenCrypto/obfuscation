@@ -55,7 +55,7 @@ obf_setup(PyObject *self, PyObject *args)
 {
     long kappa, size, nthreads, ncores;
     struct state *s = NULL;
-    long *pows = NULL;
+    int *pows = NULL;
 
     s = (struct state *) malloc(sizeof(struct state));
     if (s == NULL)
@@ -66,9 +66,9 @@ obf_setup(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    pows = (long *) malloc(sizeof(long) * s->mlm.nzs);
+    pows = (int *) malloc(sizeof(int) * s->mlm.nzs);
     for (unsigned long i = 0; i < s->mlm.nzs; ++i) {
-        pows[i] = 1L;
+        pows[i] = 1;
     }
 
     (void) omp_set_num_threads(ncores);

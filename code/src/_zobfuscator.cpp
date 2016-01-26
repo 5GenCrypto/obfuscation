@@ -49,7 +49,7 @@ obf_setup(PyObject *self, PyObject *args)
 {
     long kappa, nthreads, ncores;
     PyObject *py_pows;
-    long *pows;
+    int *pows;
     struct state *s;
 
     s = (struct state *) malloc(sizeof(struct state));
@@ -61,9 +61,9 @@ obf_setup(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    pows = (long *) malloc(sizeof(long) * s->mlm.nzs);
+    pows = (int *) malloc(sizeof(int) * s->mlm.nzs);
     for (size_t i = 0; i < s->mlm.nzs; ++i) {
-        pows[i] = PyLong_AsLong(PyList_GET_ITEM(py_pows, i));
+        pows[i] = (int)PyLong_AsLong(PyList_GET_ITEM(py_pows, i));
     }
 
     s->thpool = thpool_init(nthreads);
