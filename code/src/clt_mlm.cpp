@@ -243,7 +243,7 @@ clt_mlm_encode(struct clt_mlm_state *s, mpz_t out, size_t nins,
         // Any index set to < 0 means we skip this one
         if (indices[i] < 0)
             continue;
-        mpz_powm_ui(tmp, s->zinvs[i], pows[i], s->q);
+        mpz_powm_ui(tmp, s->zinvs[indices[i]], pows[i], s->q);
         mpz_mul(out, out, tmp);
         mpz_mod(out, out, s->q);
     }

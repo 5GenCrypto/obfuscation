@@ -58,7 +58,7 @@ int main()
     // zero by zero addition test
     int ix [nzs];
     for (ulong i = 0; i < nzs; i++) {
-        ix[i] = 1;
+        ix[i] = i;
     }
     mpz_t x0, x1, xp;
     mpz_inits(x0, x1, xp, NULL);
@@ -104,11 +104,11 @@ int main()
     int ix1 [nzs];
     for (ulong i = 0; i < nzs; i++) {
         if (i < nzs / 2) {
-            ix0[i] = 1;
+            ix0[i] = i;
             ix1[i] = -1;
         } else {
             ix0[i] = -1;
-            ix1[i] = 1;
+            ix1[i] = i;
         }
     }
     clt_mlm_encode(&mmap, x0, 1, x   , nzs, ix0, pows);
