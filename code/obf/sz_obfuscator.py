@@ -5,8 +5,9 @@ from sz_bp import SZBranchingProgram
 import time
 
 class SZObfuscator(AGISObfuscator):
-    def __init__(self, verbose=False, nthreads=None):
-        super(SZObfuscator, self).__init__(verbose=verbose, nthreads=nthreads)
+    def __init__(self, verbose=False, nthreads=None, ncores=None):
+        super(SZObfuscator, self).__init__(verbose=verbose, nthreads=nthreads,
+                                           ncores=ncores)
 
     def obfuscate(self, circuit, secparam, directory, obliviate=False,
                   nslots=None, kappa=None):
@@ -29,10 +30,12 @@ class SZObfuscator(AGISObfuscator):
         self._randomize(secparam, bps, primes)
         self._obfuscate(bps, len(primes))
 
-        end = time.time()
-        self.logger('Obfuscation took: %f' % (end - start))
+        _obf.wait(self._state)
         if self._verbose:
             _obf.max_mem_usage()
+
+        end = time.time()
+        self.logger('Obfuscation took: %f' % (end - start))
 
     def evaluate(self, directory, inp):
         return self._evaluate(directory, inp, _obf.sz_evaluate, _obf)

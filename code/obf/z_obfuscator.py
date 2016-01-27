@@ -37,12 +37,17 @@ class Circuit(object):
             g.add_node(num, gate='ADD', label=[])
             g.add_edge(x, num)
             g.add_edge(y, num)
+        def _sub_gate(num, x, y):
+            g.add_node(num, gate='SUB', label=[])
+            g.add_edge(x, num)
+            g.add_edge(y, num)
         def _mul_gate(num, x, y):
             g.add_node(num, gate='MUL', label=[])
             g.add_edge(x, num)
             g.add_edge(y, num)
         gates = {
             'ADD': _add_gate,
+            'SUB': _sub_gate,
             'MUL': _mul_gate,
         }
         gates[gate](num, *inputs)
@@ -83,7 +88,7 @@ class Circuit(object):
                     g.add_node(node, value=int(x[node]))
                 else:
                     g.add_node(node, value=int(g.node[node]['value']))
-            elif g.node[node]['gate'] in ('ADD', 'MUL'):
+            elif g.node[node]['gate'] in ('ADD', 'MUL', 'SUB'):
                 keys = g.pred[node].keys()
                 if len(keys) == 1:
                     idx1 = idx2 = keys[0]
@@ -93,6 +98,8 @@ class Circuit(object):
                     idx2 = g.pred[node].keys()[1]
                 if g.node[node]['gate'] == 'ADD':
                     value = g.node[idx1]['value'] + g.node[idx2]['value']
+                elif g.node[node]['gate'] == 'SUB':
+                    value = g.node[idx1]['value'] - g.node[idx2]['value']
                 elif g.node[node]['gate'] == 'MUL':
                     value = g.node[idx1]['value'] * g.node[idx2]['value']
                 g.add_node(node, value=value)
@@ -103,9 +110,9 @@ class Circuit(object):
 
 
 class ZObfuscator(Obfuscator):
-    def __init__(self, verbose=False, nthreads=None):
+    def __init__(self, verbose=False, nthreads=None, ncores=None):
         super(ZObfuscator, self).__init__(_zobf, verbose=verbose,
-                                          nthreads=nthreads)
+                                          nthreads=nthreads, ncores=ncores)
 
     def _gen_mlm_params(self, secparam, kappa, nzs, pows, directory):
         self.logger('Generating MLM parameters...')
@@ -113,7 +120,7 @@ class ZObfuscator(Obfuscator):
         if not os.path.exists(directory):
             os.mkdir(directory)
         self._state = _zobf.setup(secparam, kappa, nzs, pows, directory,
-                                  self._nthreads)
+                                  self._nthreads, self._nthreads)
         end = time.time()
         self.logger('Took: %f' % (end - start))
 

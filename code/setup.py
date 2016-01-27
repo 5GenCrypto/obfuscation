@@ -10,6 +10,8 @@ compile_args = [
     '-fopenmp',
     '-O3',
     '-Wall',
+    '-pthread',
+    # '-DTHPOOL_DEBUG',
 ]
 
 zobfuscator = Extension(
@@ -23,6 +25,8 @@ zobfuscator = Extension(
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
         'src/pyutils.cpp',
+        'src/thpool.cpp',
+        'src/thpool_fns.cpp',
         'src/utils.cpp',
     ]
 )
@@ -37,6 +41,8 @@ obfuscator = Extension(
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
         'src/pyutils.cpp',
+        'src/thpool.cpp',
+        'src/thpool_fns.cpp',
         'src/utils.cpp',
     ]
 )
@@ -44,7 +50,7 @@ obfuscator = Extension(
 setup(name='obfuscator',
       author='Alex J. Malozemoff',
       author_email='amaloz@cs.umd.edu',
-      version='1.0alpha',
+      version='1.0a0',
       description='Implementation of cryptographic program obfuscation',
       license='GPLv2',
       url='https://amaloz.github.io/obfuscation',

@@ -52,10 +52,10 @@ write_setup_params(const struct clt_mlm_state *s, const char *dir, long nu,
 }
 
 int
-clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
+clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const int *pows,
               long kappa, long size, int verbose)
 {
-    long alpha, beta, eta, nu, rho_f;
+    long alpha, beta, eta, rho_f;
     mpz_t *ps, *zs;
     double start, end;
 
@@ -65,7 +65,7 @@ clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
     s->rho = s->secparam;
     rho_f = kappa * (s->rho + alpha + 2);
     eta = rho_f + alpha + 2 * beta + s->secparam + 8;
-    nu = eta - beta - rho_f - s->secparam + 3;
+    s->nu = eta - beta - rho_f - s->secparam - 3;
     s->n = (int) (eta * log2((float) s->secparam));
 
     if (verbose) {
@@ -74,7 +74,7 @@ clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
         fprintf(stderr, "  Alpha: %ld\n", alpha);
         fprintf(stderr, "  Beta: %ld\n", beta);
         fprintf(stderr, "  Eta: %ld\n", eta);
-        fprintf(stderr, "  Nu: %ld\n", nu);
+        fprintf(stderr, "  Nu: %ld\n", s->nu);
         fprintf(stderr, "  Rho: %ld\n", s->rho);
         fprintf(stderr, "  Rho_f: %ld\n", rho_f);
         fprintf(stderr, "  N: %ld\n", s->n);
@@ -111,15 +111,10 @@ clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
         mpz_nextprime(ps[i], p_unif);
         mpz_urandomb(p_unif, s->rng, alpha);
         mpz_nextprime(s->gs[i], p_unif);
-#pragma omp critical
-        {
-            //
-            // This step is very expensive, and unfortunately it blocks the
-            // parallelism of generating the primes.
-            //
-            mpz_mul(s->q, s->q, ps[i]);
-        }
         mpz_clear(p_unif);
+    }
+    for (unsigned long i = 0; i < s->n; ++i) {
+        mpz_mul(s->q, s->q, ps[i]);
     }
     end = current_time();
     if (g_verbose)
@@ -197,7 +192,8 @@ clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
     if (g_verbose)
         (void) fprintf(stderr, "  Generating pzt: %f\n", end - start);
 
-    (void) write_setup_params(s, dir, nu, size);
+    if (dir)
+        (void) write_setup_params(s, dir, s->nu, size);
 
     for (unsigned long i = 0; i < s->n; ++i) {
         mpz_clear(ps[i]);
@@ -233,7 +229,6 @@ clt_mlm_encode(struct clt_mlm_state *s, mpz_t out, size_t nins,
                const int *pows)
 {
     mpz_t r, tmp;
-
     mpz_inits(r, tmp, NULL);
     mpz_set_ui(out, 0);
     for (unsigned long i = 0; i < s->n; ++i) {
@@ -258,14 +253,17 @@ clt_mlm_encode(struct clt_mlm_state *s, mpz_t out, size_t nins,
 int
 clt_mlm_is_zero(const mpz_t c, const mpz_t pzt, const mpz_t q, long nu)
 {
-    mpz_t tmp;
+    mpz_t tmp, q_;
     int ret;
 
-    mpz_init(tmp);
+    mpz_inits(tmp, q_, NULL);
     mpz_mul(tmp, c, pzt);
     mpz_mod(tmp, tmp, q);
+    mpz_cdiv_q_ui(q_, q, 2);
+    if (mpz_cmp(tmp, q_) > 0)
+        mpz_sub(tmp, tmp, q);
     ret = (mpz_sizeinbase(tmp, 2) < (mpz_sizeinbase(q, 2) - nu)) ? 1 : 0;
-    mpz_clear(tmp);
+    mpz_clears(tmp, q_, NULL);
 
     return ret;
 }

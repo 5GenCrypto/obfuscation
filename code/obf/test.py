@@ -10,7 +10,7 @@ failstr = utils.clr_error('Fail')
 
 def test_obfuscation(path, cls, testcases, args):
     success = True
-    obf = cls(verbose=args.verbose, nthreads=args.nthreads)
+    obf = cls(verbose=args.verbose, nthreads=args.nthreads, ncores=args.ncores)
     directory = args.save if args.save \
                 else '%s.obf.%d' % (path, args.secparam)
     obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate,

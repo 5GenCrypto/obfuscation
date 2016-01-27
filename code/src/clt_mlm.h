@@ -9,6 +9,7 @@ struct clt_mlm_state {
     unsigned long n;
     unsigned long nzs;
     unsigned long rho;
+    unsigned long nu;
     mpz_t q;
     mpz_t pzt;
     mpz_t *gs;
@@ -18,7 +19,7 @@ struct clt_mlm_state {
 
 
 int
-clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const long *pows,
+clt_mlm_setup(struct clt_mlm_state *s, const char *dir, const int *pows,
               long kappa, long size, int verbose);
 
 void
