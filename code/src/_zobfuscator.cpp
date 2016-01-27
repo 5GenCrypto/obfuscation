@@ -63,7 +63,7 @@ obf_setup(PyObject *self, PyObject *args)
 
     pows = (int *) malloc(sizeof(int) * s->mlm.nzs);
     for (size_t i = 0; i < s->mlm.nzs; ++i) {
-        pows[i] = (int)PyLong_AsLong(PyList_GET_ITEM(py_pows, i));
+        pows[i] = (int) PyLong_AsLong(PyList_GET_ITEM(py_pows, i));
     }
 
     s->thpool = thpool_init(nthreads);
