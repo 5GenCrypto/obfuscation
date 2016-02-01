@@ -152,11 +152,12 @@ class ZObfuscator(Obfuscator):
         pows.append(circ.y_deg)
         assert(len(pows) == nzs)
 
-        # XXX: what should kappa be set to!?  For now, we set kappa = nzs, but
-        # it appears we can often get away with setting kappa < nzs.
-        # kappa = circ.ngates + circ.n_xins + 1
         if not kappa:
-            kappa = nzs
+            if 'depth' in circ.info:
+                kappa = circ.info['depth']
+            else:
+                # better to calculate the depth here, but this is a shortcut
+                kappa = nzs
 
         self._gen_mlm_params(secparam, kappa, nzs, pows, directory)
         self._obfuscate(circname, circ)
