@@ -41,7 +41,7 @@ def test_load(sage, scheme):
         circuit = 'and.circ'
         eval = '00'
     path = os.path.join(CIRCUIT_PATH, circuit)
-    lst = [sage, CMD, "obf", "--test-circuit", path, "--secparam", "8"]
+    lst = [sage, CMD, "obf", "--test", path, "--secparam", "8"]
     if scheme != 'AGIS':
         lst.append(schemedict[scheme])
     r = run(lst)

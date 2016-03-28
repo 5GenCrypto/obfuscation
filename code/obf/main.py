@@ -10,6 +10,19 @@ __all__ = ['main']
 
 errorstr = utils.clr_error('Error:')
 
+def is_formula(fname, args):
+    ext = os.path.splitext(fname)[1]
+    if ext in ('.circ', '.acirc'):
+        return True
+    elif ext == '.json':
+        if not args.sahai_zhandry:
+            print("%s loading BPs only works with --sahai-zhandry" % errorstr)
+            sys.exit(1)
+        return False
+    else:
+        print("%s unknown extension '%s'" % (errorstr, ext))
+        sys.exit(1)
+
 def test_all(args, bpclass, obfclass, obfuscate):
     if not os.path.isdir(args.test_all):
         print("%s '%s' is not a valid directory" % (errorstr, args.test_all))
@@ -49,14 +62,10 @@ def bp(args):
             test_file(args.test_circuit, cls, None, False, args)
         elif args.test_all:
             test_all(args, cls, None, False)
-        elif args.load_circuit or args.load_bp:
-            if args.load_bp:
-                if not args.sahai_zhandry:
-                    print("%s --load-bp only works with --sahai-zhandry" % errorstr)
-                    sys.exit(1)
-                bp = cls(args.load_bp, verbose=args.verbose, formula=False)
-            else:
-                bp = cls(args.load_circuit, verbose=args.verbose)
+        elif args.load:
+            formula = is_formula(args.load, args)
+            ext = os.path.splitext(args.load)[1]
+            bp = cls(args.load, verbose=args.verbose, formula=formula)
             if args.print:
                 print(bp)
             if args.obliviate:
@@ -90,42 +99,30 @@ def obf(args):
         obfclass = ZObfuscator
 
     try:
-        if args.test_circuit:
-            test_file(args.test_circuit, bpclass, obfclass, True, args)
-        elif args.test_bp:
-            if not args.sahai_zhandry:
-                print('%s --test-bp must be used with --sahai-zhandry' % errorstr)
-                sys.exit(1)
-            test_file(args.test_bp, bpclass, obfclass, True, args, formula=False)
+        if args.test:
+            formula = is_formula(args.test, args)
+            test_file(args.test, bpclass, obfclass, True, args, formula=formula)
         elif args.test_all:
             test_all(args, bpclass, obfclass, True)
         else:
             directory = None
             if args.load_obf:
                 directory = args.load_obf
-            elif args.load_circuit or args.load_bp:
-                if not args.sahai_zhandry:
-                    print('%s --load-bp must be used with --sahai-zhandry' % errorstr)
-                    sys.exit(1)
-                if args.load_circuit:
-                    fname = args.load_circuit
-                    formula = True
-                else:
-                    fname = args.load_bp
-                    formula = False
+            elif args.load:
+                formula = is_formula(args.load, args)
                 start = time.time()
                 obf = obfclass(verbose=args.verbose, nthreads=args.nthreads,
                                ncores=args.ncores)
                 directory = args.save if args.save \
-                            else '%s.obf.%d' % (fname, args.secparam)
-                obf.obfuscate(fname, args.secparam, directory,
+                            else '%s.obf.%d' % (args.load, args.secparam)
+                obf.obfuscate(args.load, args.secparam, directory,
                               obliviate=args.obliviate, nslots=args.nslots,
                               kappa=args.kappa, formula=formula)
                 end = time.time()
                 print('Obfuscation took: %f seconds' % (end - start))
             else:
-                print('%s One of --load-obf, --load-circuit, or '
-                      '--test-circuit must be used' % errorstr)
+                print('%s One of --load-obf, --load, or '
+                      '--test must be used' % errorstr)
                 sys.exit(1)
 
             if args.eval:
@@ -157,15 +154,15 @@ def main():
     parser_bp.add_argument('--eval',
                            metavar='INPUT', action='store', type=str,
                            help='evaluate branching program on INPUT')
-    parser_bp.add_argument('--load-circuit',
+    parser_bp.add_argument('--load',
                            metavar='FILE', action='store', type=str,
-                           help='load circuit from FILE')
+                           help='load circuit or branching program from FILE')
     parser_bp.add_argument('--test-circuit',
                            metavar='FILE', action='store', type=str,
-                           help='test BP conversion for FILE')
+                           help='test branching program conversion for FILE')
     parser_bp.add_argument('--test-all',
                            metavar='DIR', nargs='?', const='circuits/',
-                           help='test BP conversion for all circuits in DIR (default: %(const)s)')
+                           help='test branching program conversion for all circuits in DIR (default: %(const)s)')
     parser_bp.add_argument('--secparam',
                            metavar='N', action='store', type=int, default=secparam,
                            help='security parameter (default: %(default)s)')
@@ -175,9 +172,6 @@ def main():
     parser_bp.add_argument('--print',
                            action='store_true',
                            help='print branching program to stdout')
-    parser_bp.add_argument('--load-bp',
-                           metavar='FILE', action='store', type=str,
-                           help='load BP from FILE')
     parser_bp.add_argument('-v', '--verbose',
                            action='store_true',
                            help='be verbose')
@@ -204,18 +198,12 @@ def main():
     parser_obf.add_argument('--load-obf',
                             metavar='DIR', action='store', type=str,
                             help='load obfuscation from DIR')
-    parser_obf.add_argument('--load-circuit',
-                            metavar='FILE', action='store', type=str,
-                            help='load circuit from FILE and obfuscate')
-    parser_obf.add_argument('--load-bp',
+    parser_obf.add_argument('--load',
                            metavar='FILE', action='store', type=str,
-                           help='load BP from FILE')
-    parser_obf.add_argument('--test-circuit',
+                           help='load circuit or branching program from FILE')
+    parser_obf.add_argument('--test',
                             metavar='FILE', action='store', type=str,
-                            help='test circuit from FILE')
-    parser_obf.add_argument('--test-bp',
-                            metavar='FILE', action='store', type=str,
-                            help='test BP from FILE')
+                            help='test circuit or branching program from FILE')
     parser_obf.add_argument('--test-all',
                             metavar='DIR', nargs='?', const='circuits/',
                             help='test obfuscation for all circuits in DIR (default: %(const)s)')
