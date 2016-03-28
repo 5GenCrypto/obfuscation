@@ -117,7 +117,7 @@ def obf(args):
                 obf = obfclass(verbose=args.verbose, nthreads=args.nthreads,
                                ncores=args.ncores)
                 directory = args.save if args.save \
-                            else '%s.obf.%d' % (args.load_circuit, args.secparam)
+                            else '%s.obf.%d' % (fname, args.secparam)
                 obf.obfuscate(fname, args.secparam, directory,
                               obliviate=args.obliviate, nslots=args.nslots,
                               kappa=args.kappa, formula=formula)
