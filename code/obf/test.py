@@ -8,13 +8,13 @@ __all__ = ['test_circuit']
 
 failstr = utils.clr_error('Fail')
 
-def test_obfuscation(path, cls, testcases, args):
+def test_obfuscation(path, cls, testcases, args, formula=True):
     success = True
     obf = cls(verbose=args.verbose, nthreads=args.nthreads, ncores=args.ncores)
     directory = args.save if args.save \
                 else '%s.obf.%d' % (path, args.secparam)
     obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate,
-                  nslots=args.nslots, kappa=args.kappa)
+                  nslots=args.nslots, kappa=args.kappa, formula=formula)
     for k, v in testcases.items():
         if obf.evaluate(directory, k) != v:
             print('%s (%s != %d) ' % (failstr, k, v))
@@ -39,7 +39,7 @@ def test_bp(path, cls, testcases, args):
             success = False
     return success
 
-def test_circuit(path, cclass, obfclass, obfuscate, args):
+def test_file(path, cclass, obfclass, obfuscate, args, formula=True):
     testcases = {}
     print('Testing %s: ' % path, end='')
     if args.verbose:
@@ -56,7 +56,8 @@ def test_circuit(path, cclass, obfclass, obfuscate, args):
         print('no test cases')
         return
     if obfuscate:
-        success = test_obfuscation(path, obfclass, testcases, args)
+        success = test_obfuscation(path, obfclass, testcases, args,
+                                   formula=formula)
     else:
         success = test_bp(path, cclass, testcases, args)
     if success:

@@ -134,7 +134,7 @@ class ZObfuscator(Obfuscator):
         self.logger('Took: %f' % (end - start))
 
     def obfuscate(self, circname, secparam, directory, obliviate=False,
-                  nslots=None, kappa=None):
+                  nslots=None, kappa=None, **kwargs):
         self.logger("Obfuscating '%s'" % circname)
         start = time.time()
 

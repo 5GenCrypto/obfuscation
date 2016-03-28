@@ -4,7 +4,7 @@ from bp import AbstractBranchingProgram, Layer
 from circuit import ParseException
 from sage.all import matrix, MatrixSpace, ZZ
 
-import random
+import json, random, sys
 
 def transpose(bps):
     bps.reverse()
@@ -35,9 +35,12 @@ def mult_right(bps, m):
     bps[-1] = bps[-1].mult_right(m)
 
 class SZBranchingProgram(AbstractBranchingProgram):
-    def __init__(self, fname, verbose=False, obliviate=False):
+    def __init__(self, fname, verbose=False, obliviate=False, formula=True):
         super(SZBranchingProgram, self).__init__(verbose=verbose)
-        self.bp = self._load_formula(fname)
+        if formula:
+            self.bp = self._load_formula(fname)
+        else:
+            self.bp = self._load_bp(fname)
 
     def obliviate(self):
         assert self.ninputs and self.depth
@@ -50,6 +53,22 @@ class SZBranchingProgram(AbstractBranchingProgram):
                 else:
                     newbp.append(Layer(i, self.zero, self.zero))
         self.bp = newbp
+
+    def _load_bp(self, fname):
+        bp = []
+        try:
+            with open(fname) as f:
+                for line in f:
+                    if line.startswith('#'):
+                        continue
+                    for step in json.loads(line)['steps']:
+                        # subtract one to have offset start at 0
+                        bp.append(Layer(int(step['position']) - 1,
+                                        matrix(step['0']), matrix(step['1'])))
+                    return bp
+        except IOError as e:
+            print(e)
+            sys.exit(1)
 
     def _load_formula(self, fname):
         def _new_gate(num):

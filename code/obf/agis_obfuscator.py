@@ -30,12 +30,14 @@ class AGISObfuscator(Obfuscator):
         self.logger('Took: %f' % (end - start))
         return primes
 
-    def _construct_bps(self, bpclass, nslots, circuit, primes, obliviate):
+    def _construct_bps(self, bpclass, nslots, fname, primes, obliviate,
+                       formula=True):
         self.logger('Constructing %d BP...' % nslots)
         start = time.time()
         bps = []
         for _, prime in zip(xrange(nslots), primes):
-            bp = bpclass(circuit, verbose=self._verbose, obliviate=obliviate)
+            bp = bpclass(fname, verbose=self._verbose, obliviate=obliviate,
+                         formula=formula)
             bp.set_straddling_sets()
             bps.append(bp)
         end = time.time()
@@ -80,8 +82,8 @@ class AGISObfuscator(Obfuscator):
             _obf.encode_layers(self._state, i, nrows, ncols, bps[0][i].inp,
                                zeros, ones, bps[0][i].zeroset, bps[0][i].oneset)
 
-    def obfuscate(self, circuit, secparam, directory, obliviate=False,
-                  nslots=None, kappa=None):
+    def obfuscate(self, fname, secparam, directory, obliviate=False,
+                  nslots=None, kappa=None, formula=True):
         start = time.time()
 
         self._remove_old(directory)
@@ -89,7 +91,7 @@ class AGISObfuscator(Obfuscator):
             nslots = secparam
 
         # create a dummy branching program to determine parameters
-        bp = AGISBranchingProgram(circuit, verbose=self._verbose,
+        bp = AGISBranchingProgram(fname, verbose=self._verbose,
                                   obliviate=obliviate)
         # add two to kappa due to the bookend vectors
         if not kappa:
@@ -101,7 +103,7 @@ class AGISObfuscator(Obfuscator):
         width = bp.size
 
         primes = self._gen_mlm_params(secparam, kappa, width, nzs, directory)
-        bps = self._construct_bps(AGISBranchingProgram, nslots, circuit,
+        bps = self._construct_bps(AGISBranchingProgram, nslots, fname,
                                   primes, obliviate)
         self._randomize(secparam, bps, primes)
         self._construct_bookend_vectors(bps, primes, nzs)

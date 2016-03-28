@@ -24,6 +24,7 @@
 build/
 obfuscator.egg-info/
 *circ.obf*
+*json.obf*
 evaluate
 tags
 test_mlm

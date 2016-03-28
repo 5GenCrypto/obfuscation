@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from test import test_circuit
+from test import test_file
 from circuit import ParseException
 
 import argparse, os, sys, time
@@ -18,7 +18,10 @@ def test_all(args, bpclass, obfclass, obfuscate):
     for circuit in os.listdir(args.test_all):
         path = os.path.join(args.test_all, circuit)
         if os.path.isfile(path) and path.endswith(ext):
-            test_circuit(path, bpclass, obfclass, obfuscate, args)
+            test_file(path, bpclass, obfclass, obfuscate, args)
+        if os.path.isfile(path) and path.endswith('.json') \
+           and args.sahai_zhandry:
+            test_file(path, bpclass, obfclass, obfuscate, args, formula=False)
 
 def check_args(args):
     num_set = int(args.ananth_etal) + int(args.sahai_zhandry) + int(args.zimmerman)
@@ -43,16 +46,27 @@ def bp(args):
 
     try:
         if args.test_circuit:
-            test_circuit(args.test_circuit, cls, None, False, args)
+            test_file(args.test_circuit, cls, None, False, args)
         elif args.test_all:
             test_all(args, cls, None, False)
-        elif args.load_circuit:
-            bp = cls(args.load_circuit, verbose=args.verbose)
+        elif args.load_circuit or args.load_bp:
+            if args.load_bp:
+                if not args.sahai_zhandry:
+                    print("%s --load-bp only works with --sahai-zhandry" % errorstr)
+                    sys.exit(1)
+                bp = cls(args.load_bp, verbose=args.verbose, formula=False)
+            else:
+                bp = cls(args.load_circuit, verbose=args.verbose)
+            if args.print:
+                print(bp)
             if args.obliviate:
                 bp.obliviate()
             if args.eval:
                 r = bp.evaluate(args.eval)
                 print('Output = %d' % r)
+        elif args.load_bp:
+            cls = SZBranchingProgram
+            
     except ParseException as e:
         print('%s %s' % (errorstr, e))
         sys.exit(1)
@@ -77,22 +91,36 @@ def obf(args):
 
     try:
         if args.test_circuit:
-            test_circuit(args.test_circuit, bpclass, obfclass, True, args)
+            test_file(args.test_circuit, bpclass, obfclass, True, args)
+        elif args.test_bp:
+            if not args.sahai_zhandry:
+                print('%s --test-bp must be used with --sahai-zhandry' % errorstr)
+                sys.exit(1)
+            test_file(args.test_bp, bpclass, obfclass, True, args, formula=False)
         elif args.test_all:
             test_all(args, bpclass, obfclass, True)
         else:
             directory = None
             if args.load_obf:
                 directory = args.load_obf
-            elif args.load_circuit:
+            elif args.load_circuit or args.load_bp:
+                if not args.sahai_zhandry:
+                    print('%s --load-bp must be used with --sahai-zhandry' % errorstr)
+                    sys.exit(1)
+                if args.load_circuit:
+                    fname = args.load_circuit
+                    formula = True
+                else:
+                    fname = args.load_bp
+                    formula = False
                 start = time.time()
                 obf = obfclass(verbose=args.verbose, nthreads=args.nthreads,
                                ncores=args.ncores)
                 directory = args.save if args.save \
                             else '%s.obf.%d' % (args.load_circuit, args.secparam)
-                obf.obfuscate(args.load_circuit, args.secparam, directory,
+                obf.obfuscate(fname, args.secparam, directory,
                               obliviate=args.obliviate, nslots=args.nslots,
-                              kappa=args.kappa)
+                              kappa=args.kappa, formula=formula)
                 end = time.time()
                 print('Obfuscation took: %f seconds' % (end - start))
             else:
@@ -144,6 +172,12 @@ def main():
     parser_bp.add_argument('--obliviate',
                            action='store_true',
                            help='obliviate the branching program')
+    parser_bp.add_argument('--print',
+                           action='store_true',
+                           help='print branching program to stdout')
+    parser_bp.add_argument('--load-bp',
+                           metavar='FILE', action='store', type=str,
+                           help='load BP from FILE')
     parser_bp.add_argument('-v', '--verbose',
                            action='store_true',
                            help='be verbose')
@@ -173,9 +207,15 @@ def main():
     parser_obf.add_argument('--load-circuit',
                             metavar='FILE', action='store', type=str,
                             help='load circuit from FILE and obfuscate')
+    parser_obf.add_argument('--load-bp',
+                           metavar='FILE', action='store', type=str,
+                           help='load BP from FILE')
     parser_obf.add_argument('--test-circuit',
                             metavar='FILE', action='store', type=str,
                             help='test circuit from FILE')
+    parser_obf.add_argument('--test-bp',
+                            metavar='FILE', action='store', type=str,
+                            help='test BP from FILE')
     parser_obf.add_argument('--test-all',
                             metavar='DIR', nargs='?', const='circuits/',
                             help='test obfuscation for all circuits in DIR (default: %(const)s)')

@@ -9,8 +9,8 @@ class SZObfuscator(AGISObfuscator):
         super(SZObfuscator, self).__init__(verbose=verbose, nthreads=nthreads,
                                            ncores=ncores)
 
-    def obfuscate(self, circuit, secparam, directory, obliviate=False,
-                  nslots=None, kappa=None):
+    def obfuscate(self, fname, secparam, directory, obliviate=False,
+                  nslots=None, kappa=None, formula=True):
         start = time.time()
 
         self._remove_old(directory)
@@ -18,15 +18,15 @@ class SZObfuscator(AGISObfuscator):
             nslots = secparam
 
         # create a dummy branching program to determine parameters
-        bp = SZBranchingProgram(circuit, verbose=self._verbose,
-                                obliviate=obliviate)
+        bp = SZBranchingProgram(fname, verbose=self._verbose,
+                                obliviate=obliviate, formula=formula)
         if not kappa:
             kappa = len(bp)
         nzs = bp.set_straddling_sets()
 
         primes = self._gen_mlm_params(secparam, kappa, 0, nzs, directory)
-        bps = self._construct_bps(SZBranchingProgram, nslots, circuit, primes,
-                                  obliviate)
+        bps = self._construct_bps(SZBranchingProgram, nslots, fname, primes,
+                                  obliviate, formula=formula)
         self._randomize(secparam, bps, primes)
         self._obfuscate(bps, len(primes))
 

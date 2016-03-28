@@ -63,7 +63,7 @@ def contract(g, a, b, name):
 
 
 class AGISBranchingProgram(AbstractBranchingProgram):
-    def __init__(self, fname, verbose=False, obliviate=False):
+    def __init__(self, fname, verbose=False, obliviate=False, **kwargs):
         super(AGISBranchingProgram, self).__init__(verbose=verbose)
         self.graph = self._load_formula(fname)
         if obliviate:
