@@ -21,7 +21,8 @@ class SZObfuscator(AGISObfuscator):
         bp = SZBranchingProgram(fname, verbose=self._verbose,
                                 obliviate=obliviate, formula=formula)
         if not kappa:
-            kappa = len(bp)
+            # there are len(bp) matrices, so need len(bp) - 1 multiplications
+            kappa = len(bp) - 1
         nzs = bp.set_straddling_sets()
 
         primes = self._gen_mlm_params(secparam, kappa, 0, nzs, directory)
