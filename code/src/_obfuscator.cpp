@@ -1,14 +1,14 @@
 #include "utils.h"
 #include "pyutils.h"
-#include "clt_mlm.h"
 #include "thpool.h"
 #include "thpool_fns.h"
-
+#include <clt13.h>
 #include <omp.h>
 
 struct state {
     threadpool thpool;
-    struct clt_mlm_state mlm;
+    unsigned long secparam;
+    clt_state mlm;
     char *dir;
 };
 
@@ -19,29 +19,10 @@ state_destructor(PyObject *self)
 
     s = (struct state *) PyCapsule_GetPointer(self, NULL);
     if (s) {
-        clt_mlm_cleanup(&s->mlm);
+        clt_state_clear(&s->mlm);
         thpool_destroy(s->thpool);
     }
     free(s);
-}
-
-
-static int
-extract_indices(PyObject *py_list, int *idx1, int *idx2)
-{
-    *idx1 = -1;
-    *idx2 = -1;
-    switch (PyList_GET_SIZE(py_list)) {
-    case 2:
-        *idx2 = PyLong_AsLong(PyList_GET_ITEM(py_list, 1));
-        /* fallthrough */
-    case 1:
-        *idx1 = PyLong_AsLong(PyList_GET_ITEM(py_list, 0));
-        break;
-    default:
-        return 1;
-    }
-    return 0;
 }
 
 //
@@ -60,7 +41,7 @@ obf_setup(PyObject *self, PyObject *args)
     s = (struct state *) malloc(sizeof(struct state));
     if (s == NULL)
         return NULL;
-    if (!PyArg_ParseTuple(args, "llllsll", &s->mlm.secparam, &kappa, &size,
+    if (!PyArg_ParseTuple(args, "llllsll", &s->secparam, &kappa, &size,
                           &s->mlm.nzs, &s->dir, &nthreads, &ncores)) {
         free(s);
         return NULL;
@@ -78,7 +59,29 @@ obf_setup(PyObject *self, PyObject *args)
         fprintf(stderr, "  # Cores: %ld\n", ncores);
     }
 
-    (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, size, g_verbose);
+    clt_state_init(&s->mlm, kappa, s->secparam, s->mlm.nzs, pows);
+    // Write public parameters to disk
+    {
+        clt_pp pp;
+        clt_pp_init(&pp, &s->mlm);
+        clt_pp_save(&pp, s->dir);
+        clt_pp_clear(&pp);
+        // Needed for AGIS obfuscator
+        if (size > 0) {
+            char *fname;
+            mpz_t tmp;
+            int len;
+
+            mpz_init(tmp);
+            mpz_set_ui(tmp, size);
+            len = strlen(s->dir) + 6;
+            fname = (char *) calloc(len, sizeof(char));
+            (void) snprintf(fname, len, "%s/size", s->dir);
+            (void) save_mpz_scalar(fname, tmp);
+            free(fname);
+            mpz_clear(tmp);
+        }
+    }
 
     s->thpool = thpool_init(nthreads);
 
@@ -86,13 +89,13 @@ obf_setup(PyObject *self, PyObject *args)
     {
         PyObject *py_gs, *py_state;
 
-        py_gs = PyList_New(s->mlm.secparam);
+        py_gs = PyList_New(s->secparam);
 
         //
         // Only convert the first secparam g_i values since we only need to fill
         // in the first secparam slots of the plaintext space.
         //
-        for (unsigned long i = 0; i < s->mlm.secparam; ++i) {
+        for (unsigned long i = 0; i < s->secparam; ++i) {
             PyList_SetItem(py_gs, i, mpz_to_py(s->mlm.gs[i]));
         }
 
@@ -109,14 +112,15 @@ obf_setup(PyObject *self, PyObject *args)
 static PyObject *
 obf_encode_vectors(PyObject *self, PyObject *args)
 {
-    PyObject *py_state, *py_vectors, *py_list;
+    PyObject *py_state, *py_vectors;
+    long index;
     char *name;
     mpz_t *vector;
     ssize_t length;
     double start;
     struct state *s;
 
-    if (!PyArg_ParseTuple(args, "OOOs", &py_state, &py_vectors, &py_list, &name))
+    if (!PyArg_ParseTuple(args, "OOls", &py_state, &py_vectors, &index, &name))
         return NULL;
 
     s = (struct state *) PyCapsule_GetPointer(py_state, NULL);
@@ -152,8 +156,8 @@ obf_encode_vectors(PyObject *self, PyObject *args)
             mpz_t *elems;
             struct mlm_encode_elem_s *args;
 
-            elems = (mpz_t *) calloc(s->mlm.secparam, sizeof(mpz_t));
-            for (unsigned long j = 0; j < s->mlm.secparam; ++j) {
+            elems = (mpz_t *) calloc(s->secparam, sizeof(mpz_t));
+            for (unsigned long j = 0; j < s->secparam; ++j) {
                 mpz_init(elems[j]);
                 py_to_mpz(elems[j],
                           PyList_GET_ITEM(PyList_GET_ITEM(py_vectors, j), i));
@@ -161,16 +165,17 @@ obf_encode_vectors(PyObject *self, PyObject *args)
             
             args = (struct mlm_encode_elem_s *)
                 malloc(sizeof(struct mlm_encode_elem_s));
-            args->mlm = &s->mlm;
             args->out = &vector[i];
-            args->nins = s->mlm.secparam;
+            args->mlm = &s->mlm;
+            args->nins = s->mlm.nzs;
             args->ins = elems;
-            args->nzs = 2;
-            args->indices = (int *) calloc(2, sizeof(int));
-            (void) extract_indices(py_list, &args->indices[0], &args->indices[1]);
-            args->pows = (int *) calloc(2, sizeof(int));
-            args->pows[0] = 1;
-            args->pows[1] = 1;
+            args->pows = (int *) calloc(args->nins, sizeof(int));
+            args->pows[index] = 1;
+
+            for (unsigned long i = 0; i < args->nins; ++i) {
+                printf("%d ", args->pows[i]);
+            }
+            printf("\n");
 
             thpool_add_work(s->thpool, thpool_encode_elem, (void *) args, name);
         }
@@ -186,17 +191,16 @@ static PyObject *
 obf_encode_layers(PyObject *self, PyObject *args)
 {
     PyObject *py_zero_ms, *py_one_ms;
-    PyObject *py_zero_set, *py_one_set;
     PyObject *py_state;
-    int zero_indices[2], one_indices[2];
+    long zero_index, one_index;
     long inp, idx, nrows, ncols;
     mpz_t *zero, *one;
     char idx_s[10];
     double start;
     struct state *s;
 
-    if (!PyArg_ParseTuple(args, "OllllOOOO", &py_state, &idx, &nrows, &ncols,
-                          &inp, &py_zero_ms, &py_one_ms, &py_zero_set, &py_one_set))
+    if (!PyArg_ParseTuple(args, "OllllOOll", &py_state, &idx, &nrows, &ncols,
+                          &inp, &py_zero_ms, &py_one_ms, &zero_index, &one_index))
         return NULL;
 
     s = (struct state *) PyCapsule_GetPointer(py_state, NULL);
@@ -206,9 +210,6 @@ obf_encode_layers(PyObject *self, PyObject *args)
     start = current_time();
 
     (void) snprintf(idx_s, 10, "%ld", idx);
-
-    (void) extract_indices(py_zero_set, &zero_indices[0], &zero_indices[1]);
-    (void) extract_indices(py_one_set, &one_indices[0], &one_indices[1]);
 
     zero = (mpz_t *) malloc(sizeof(mpz_t) * nrows * ncols);
     one = (mpz_t *) malloc(sizeof(mpz_t) * nrows * ncols);
@@ -236,7 +237,7 @@ obf_encode_layers(PyObject *self, PyObject *args)
         for (Py_ssize_t ctr = 0; ctr < 2 * nrows * ncols; ++ctr) {
             mpz_t *elems;
             PyObject *py_array;
-            int *indices;
+            int index;
             mpz_t *val;
             size_t i;
             struct mlm_encode_elem_s *args;
@@ -245,16 +246,16 @@ obf_encode_layers(PyObject *self, PyObject *args)
                 i = ctr;
                 val = &zero[i];
                 py_array = py_zero_ms;
-                indices = (int *) &zero_indices;
+                index = zero_index;
             } else {
                 i = ctr - nrows * ncols;
                 val = &one[i];
                 py_array = py_one_ms;
-                indices = (int *) &one_indices;
+                index = one_index;
             }
 
-            elems = (mpz_t *) malloc(sizeof(mpz_t) * s->mlm.secparam);
-            for (unsigned long j = 0; j < s->mlm.secparam; ++j) {
+            elems = (mpz_t *) malloc(sizeof(mpz_t) * s->secparam);
+            for (unsigned long j = 0; j < s->secparam; ++j) {
                 mpz_init(elems[j]);
                 py_to_mpz(elems[j],
                           PyList_GET_ITEM(PyList_GET_ITEM(py_array, j), i));
@@ -262,17 +263,17 @@ obf_encode_layers(PyObject *self, PyObject *args)
 
             args = (struct mlm_encode_elem_s *)
                 malloc(sizeof(struct mlm_encode_elem_s));
-            args->mlm = &s->mlm;
             args->out = val;
-            args->nins = s->mlm.secparam;
+            args->mlm = &s->mlm;
+            args->nins = s->mlm.nzs;
             args->ins = elems;
-            args->nzs = 2;
-            args->indices = (int *) calloc(2, sizeof(int));
-            args->indices[0] = indices[0];
-            args->indices[1] = indices[1];
-            args->pows = (int *) calloc(2, sizeof(int));
-            args->pows[0] = 1;
-            args->pows[1] = 1;
+            args->pows = (int *) calloc(args->nins, sizeof(int));
+            args->pows[index] = 1;
+
+            for (unsigned long i = 0; i < args->nins; ++i) {
+                printf("%d ", args->pows[i]);
+            }
+            printf("\n");
 
             thpool_add_work(s->thpool, thpool_encode_elem, (void *) args, idx_s);
         }
@@ -288,9 +289,10 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
     char *input = NULL;
     char *fname = NULL;
     int fnamelen;
+    clt_pp pp;
     int iszero = -1;
 
-    mpz_t tmp, q;
+    mpz_t tmp;
     mpz_t *result = NULL;
     long bplen, nrows, ncols = -1, nrows_prev = -1, nthreads;
     int err = 0;
@@ -305,13 +307,13 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
     if (fname == NULL)
         return NULL;
 
-    mpz_inits(tmp, q, NULL);
+    mpz_inits(tmp, NULL);
 
-    // Load q
-    (void) snprintf(fname, fnamelen, "%s/q", dir);
-    (void) load_mpz_scalar(fname, q);
+    clt_pp_read(&pp, dir);
 
     (void) omp_set_num_threads(nthreads);
+
+    int nmults = 0;
 
     for (int layer = 0; layer < bplen; ++layer) {
         unsigned int input_idx;
@@ -354,7 +356,6 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
                 mpz_init(result[i]);
             }
             (void) load_mpz_vector(fname, result, nrows * ncols);
-            mpz_set(tmp, result[0]);
             nrows_prev = nrows;
         } else {
             left = result;
@@ -367,7 +368,8 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
             for (int i = 0; i < nrows_prev * ncols; ++i) {
                 mpz_init(result[i]);
             }
-            mult_mats(result, left, right, q, nrows_prev, nrows, ncols);
+            mult_mats(result, left, right, pp.x0, nrows_prev, nrows, ncols);
+            nmults++;
             for (int i = 0; i < nrows_prev * nrows; ++i) {
                 mpz_clear(left[i]);
             }
@@ -384,17 +386,11 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
                            end - start);
     }
 
-    if (!err) {
-        mpz_t pzt, nu;
+    printf("%d\n", nmults);
 
+    if (!err) {
         start = current_time();
-        mpz_inits(pzt, nu, NULL);
-        (void) snprintf(fname, fnamelen, "%s/pzt", dir);
-        (void) load_mpz_scalar(fname, pzt);
-        (void) snprintf(fname, fnamelen, "%s/nu", dir);
-        (void) load_mpz_scalar(fname, nu);
-        iszero = clt_mlm_is_zero(result[1], pzt, q, mpz_get_ui(nu));
-        mpz_clears(pzt, nu, NULL);
+        iszero = clt_is_zero(&pp, result[1]);
         end = current_time();
         if (g_verbose)
             (void) fprintf(stderr, "  Zero test: %f\n", end - start);
@@ -405,7 +401,8 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
     }
     free(result);
 
-    mpz_clears(tmp, q, NULL);
+    clt_pp_clear(&pp);
+    mpz_clears(tmp, NULL);
 
     if (fname)
         free(fname);
@@ -424,8 +421,9 @@ obf_evaluate(PyObject *self, PyObject *args)
     char *fname = NULL;
     int fnamelen;
     int iszero = -1;
+    clt_pp pp;
     mpz_t *comp, *s, *t;
-    mpz_t tmp, q;
+    mpz_t tmp;
     long bplen, size, nthreads;
     int err = 0;
     double start, end;
@@ -437,16 +435,13 @@ obf_evaluate(PyObject *self, PyObject *args)
     if (fname == NULL)
         return NULL;
 
-    mpz_inits(tmp, q, NULL);
+    mpz_inits(tmp, NULL);
+    clt_pp_read(&pp, dir);
 
     // Get the size of the matrices
     (void) snprintf(fname, fnamelen, "%s/size", dir);
     (void) load_mpz_scalar(fname, tmp);
     size = mpz_get_ui(tmp);
-
-    // Load q
-    (void) snprintf(fname, fnamelen, "%s/q", dir);
-    (void) load_mpz_scalar(fname, q);
 
     comp = (mpz_t *) malloc(sizeof(mpz_t) * size * size);
     s = (mpz_t *) malloc(sizeof(mpz_t) * size);
@@ -496,7 +491,7 @@ obf_evaluate(PyObject *self, PyObject *args)
             (void) snprintf(fname, fnamelen, "%s/s_enc", dir);
             (void) load_mpz_vector(fname, s, size);
         }
-        mult_vect_by_mat(s, comp, q, size, t);
+        mult_vect_by_mat(s, comp, pp.x0, size, t);
         end = current_time();
         if (g_verbose)
             (void) fprintf(stderr, " Multiplying matrices: %f\n",
@@ -507,7 +502,7 @@ obf_evaluate(PyObject *self, PyObject *args)
         start = current_time();
         (void) snprintf(fname, fnamelen, "%s/t_enc", dir);
         (void) load_mpz_vector(fname, t, size);
-        mult_vect_by_vect(tmp, s, t, q, size);
+        mult_vect_by_vect(tmp, s, t, pp.x0, size);
         end = current_time();
         if (g_verbose)
             (void) fprintf(stderr, " Multiplying vectors: %f\n",
@@ -515,19 +510,13 @@ obf_evaluate(PyObject *self, PyObject *args)
 
         start = current_time();
         {
-            mpz_t pzt, nu;
-            mpz_inits(pzt, nu, NULL);
-            (void) snprintf(fname, fnamelen, "%s/pzt", dir);
-            (void) load_mpz_scalar(fname, pzt);
-            (void) snprintf(fname, fnamelen, "%s/nu", dir);
-            (void) load_mpz_scalar(fname, nu);
-            iszero = clt_mlm_is_zero(tmp, pzt, q, mpz_get_ui(nu));
-            mpz_clears(pzt, nu, NULL);
+            iszero = clt_is_zero(&pp, tmp);
         }
         end = current_time();
         if (g_verbose)
             (void) fprintf(stderr, " Zero test: %f\n", end - start);
     }
+
     for (int i = 0; i < size; ++i) {
         mpz_clears(s[i], t[i], NULL);
     }
@@ -535,7 +524,8 @@ obf_evaluate(PyObject *self, PyObject *args)
         mpz_clear(comp[i]);
     }
 cleanup:
-    mpz_clears(tmp, q, NULL);
+    clt_pp_clear(&pp);
+    mpz_clears(tmp, NULL);
     if (comp)
         free(comp);
     if (s)

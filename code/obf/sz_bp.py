@@ -61,10 +61,9 @@ class SZBranchingProgram(AbstractBranchingProgram):
                 for line in f:
                     if line.startswith('#'):
                         continue
-                    for step in json.loads(line)['steps']:
-                        # subtract one to have offset start at 0
-                        bp.append(Layer(int(step['position']) - 1,
-                                        matrix(step['0']), matrix(step['1'])))
+                    for idx, step in enumerate(json.loads(line)['steps']):
+                        bp.append(
+                            Layer(idx, matrix(step['0']), matrix(step['1'])))
                     return bp
         except IOError as e:
             print(e)

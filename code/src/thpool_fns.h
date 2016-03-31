@@ -2,16 +2,13 @@
 #define THPOOL_FNS
 
 #include <gmp.h>
-
-#include "clt_mlm.h"
+#include <clt13.h>
 
 struct mlm_encode_elem_s {
-    struct clt_mlm_state *mlm;
+    clt_state *mlm;
     mpz_t *out;
     size_t nins;
     mpz_t *ins;
-    unsigned int nzs;
-    int *indices;
     int *pows;
 };
 

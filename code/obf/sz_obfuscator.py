@@ -20,10 +20,9 @@ class SZObfuscator(AGISObfuscator):
         # create a dummy branching program to determine parameters
         bp = SZBranchingProgram(fname, verbose=self._verbose,
                                 obliviate=obliviate, formula=formula)
-        if not kappa:
-            # there are len(bp) matrices, so need len(bp) - 1 multiplications
-            kappa = len(bp) - 1
         nzs = bp.set_straddling_sets()
+        if not kappa:
+            kappa = nzs
 
         primes = self._gen_mlm_params(secparam, kappa, 0, nzs, directory)
         bps = self._construct_bps(SZBranchingProgram, nslots, fname, primes,

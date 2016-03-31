@@ -1,9 +1,10 @@
-#ifndef __IND_OBFUSCATION__UTILS_H__
-#define __IND_OBFUSCATION__UTILS_H__
+#ifndef __OBFUSCATION__UTILS_H__
+#define __OBFUSCATION__UTILS_H__
 
 #include <gmp.h>
 
-extern int g_verbose;
+#define OBFUSCATOR_OK 0
+#define OBFUSCATOR_ERR (-1)
 
 double
 current_time(void);

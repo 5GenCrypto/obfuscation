@@ -1,15 +1,16 @@
 #include "circuit.h"
 #include "utils.h"
 #include "pyutils.h"
-#include "clt_mlm.h"
 #include "thpool.h"
 #include "thpool_fns.h"
 
+#include <clt13.h>
 #include <omp.h>
 
 struct state {
     threadpool thpool;
-    struct clt_mlm_state mlm;
+    unsigned long secparam;
+    clt_state mlm;
     char *dir;
     mpz_t nchk;
     mpz_t nev;
@@ -22,7 +23,7 @@ state_destructor(PyObject *self)
 
     s = (struct state *) PyCapsule_GetPointer(self, NULL);
     if (s) {
-        clt_mlm_cleanup(&s->mlm);
+        clt_state_clear(&s->mlm);
         // thpool_destroy(s->thpool);
         mpz_clears(s->nev, s->nchk, NULL);
     }
@@ -55,7 +56,7 @@ obf_setup(PyObject *self, PyObject *args)
     s = (struct state *) malloc(sizeof(struct state));
     if (s == NULL)
         return NULL;
-    if (!PyArg_ParseTuple(args, "lllOsll", &s->mlm.secparam, &kappa, &s->mlm.nzs,
+    if (!PyArg_ParseTuple(args, "lllOsll", &s->secparam, &kappa, &s->mlm.nzs,
                           &py_pows, &s->dir, &nthreads, &ncores)) {
         free(s);
         return NULL;
@@ -74,7 +75,10 @@ obf_setup(PyObject *self, PyObject *args)
         fprintf(stderr, "  # Cores: %ld\n", ncores);
     }
 
-    (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, 0, g_verbose);
+    // (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, 0, g_verbose);
+    clt_state_init(&s->mlm, kappa, s->secparam, s->mlm.nzs, pows);
+    clt_state_save(&s->mlm, s->dir);
+
     mpz_init_set(s->nev, s->mlm.gs[0]);
     mpz_init_set(s->nchk, s->mlm.gs[1]);
     
@@ -121,15 +125,20 @@ create_work(struct state *s, const char *str, int i,
     args->out = out;
     args->nins = 2;
     args->ins = elems;
-    args->nzs = num;
-    args->indices = (int *) calloc(num, sizeof(int));
-    args->pows = (int *) calloc(num, sizeof(int));
+    args->pows = (int *) calloc(s->mlm.nzs, sizeof(int));
 
     va_start(vals, num);
     for (unsigned int i = 0; i < num; ++i) {
-        args->indices[i] = va_arg(vals, int);
-        args->pows[i] = va_arg(vals, int);
+        int idx = va_arg(vals, int);
+        args->pows[idx] = va_arg(vals, int);
+
     }
+
+    printf("%8s   ", we_s->name);
+    for (unsigned long i = 0; i < s->mlm.nzs; ++i) {
+        printf("%d ", args->pows[i]);
+    }
+    printf("\n");
 
     (void) thpool_add_work(s->thpool, thpool_encode_elem, (void *) args,
                            we_s->name);
@@ -176,28 +185,23 @@ obf_encode_circuit(PyObject *self, PyObject *args)
 
         deg = PyLong_AsLong(PyList_GET_ITEM(py_xdegs, i));
 
-        create_work(s, "x_\%d_0", i, zero, alphas[i],
-                    1, 2 * i, 1);
-        create_work(s, "x_\%d_1", i, one, alphas[i],
-                    1, 2 * i + 1, 1);
-        create_work(s, "u_\%d_0", i, one, one,
-                    1, 2 * i, 1);
-        create_work(s, "u_\%d_1", i, one, one,
-                    1, 2 * i + 1, 1);
+        create_work(s, "x_\%d_0", i, zero, alphas[i], 1, 2 * i, 1);
+        create_work(s, "x_\%d_1", i, one, alphas[i], 1, 2 * i + 1, 1);
+        create_work(s, "u_\%d_0", i, one, one, 1, 2 * i, 1);
+        create_work(s, "u_\%d_1", i, one, one, 1, 2 * i + 1, 1);
 
         mpz_urandomm(elems[0], s->mlm.rng, s->nev);
         mpz_urandomm(elems[1], s->mlm.rng, s->nchk);
 
-        create_work(s, "z_\%d_0", i, elems[0], elems[1],
-                    3, 2 * i + 1, deg, 2 * n + i, 1, 3 * n + i, 1);
-        create_work(s, "w_\%d_0", i, zero, elems[1],
-                    1, 3 * n + i, 1);
+        create_work(s, "z_\%d_0", i, elems[0], elems[1], 3, 2 * i + 1, deg,
+                    2 * n + i, 1, 3 * n + i, 1);
+        create_work(s, "w_\%d_0", i, zero, elems[1], 1, 3 * n + i, 1);
 
         mpz_urandomm(elems[0], s->mlm.rng, s->nev);
         mpz_urandomm(elems[1], s->mlm.rng, s->nchk);
 
-        create_work(s, "z_\%d_1", i, elems[0], elems[1],
-                    3, 2 * i, deg, 2 * n + i, 1, 3 * n + i, 1);
+        create_work(s, "z_\%d_1", i, elems[0], elems[1], 3, 2 * i, deg,
+                    2 * n + i, 1, 3 * n + i, 1);
         create_work(s, "w_\%d_1", i, zero, elems[1], 1, 3 * n + i, 1);
 
         mpz_clears(elems[0], elems[1], NULL);
@@ -232,15 +236,14 @@ obf_encode_circuit(PyObject *self, PyObject *args)
             (void) circ_copy_circuit(circuit, circname);
             free(circname);
         }
-        (void) circ_evaluate(c, alphas, betas, c_star, s->mlm.q);
+        (void) circ_evaluate(c, alphas, betas, c_star, s->mlm.x0);
         circ_cleanup(c);
     }
 
     // Last element to encode, so don't need to parallelize
     {
         mpz_t elems[2];
-        int idx_set_size;
-        int *indices, *pows;
+        int *pows;
 
         mpz_init_set_ui(elems[0], 0);
         mpz_init_set(elems[1], c_star);
@@ -250,10 +253,7 @@ obf_encode_circuit(PyObject *self, PyObject *args)
         //   - The next n entries contain Z_i
         //   - The next n entries contain W_i
         //   - The final entry contains Y
-        idx_set_size = 4 * n + 1;
-
-        indices = (int *) malloc(sizeof(int) * idx_set_size);
-        pows = (int *) malloc(sizeof(int) * idx_set_size);
+        pows = (int *) calloc(s->mlm.nzs, sizeof(int));
         
         // The C* encoding contains everything but the W_i symbols.
         // Here we calculate the appropriate indices and powers.
@@ -262,23 +262,25 @@ obf_encode_circuit(PyObject *self, PyObject *args)
 
             deg = PyLong_AsLong(PyList_GET_ITEM(py_xdegs, i));
             // X_i,0^deg(x_i)
-            indices[2 * i] = 2 * i;
             pows[2 * i] = deg;
             // X_i,1^deg(x_i)
-            indices[2 * i + 1] = 2 * i + 1;
             pows[2 * i + 1] = deg;
             // Z_i
-            indices[2 * n + i] = 2 * n + i;
             pows[2 * n + i] = 1;
         }
         // Y^deg(y)
-        indices[3 * n] = 4 * n;
-        pows[3 * n] = ydeg;
+        pows[4 * n] = ydeg;
         // Encode against these indices/powers
-        clt_mlm_encode(&s->mlm, tmp, 2, elems, 3 * n + 1, indices, pows);
+
+        printf("%8s   ", "c_star");
+        for (unsigned long i = 0; i < s->mlm.nzs; ++i) {
+            printf("%d ", pows[i]);
+        }
+        printf("\n");
+
+        clt_encode(tmp, &s->mlm, 2, elems, pows);
 
         mpz_clears(elems[0], elems[1], NULL);
-        free(indices);
         free(pows);
     }
     (void) write_element(s->dir, tmp, "c_star");
@@ -297,7 +299,8 @@ obf_evaluate(PyObject *self, PyObject *args)
     long n, m, nthreads;
     int fnamelen;
     int iszero;
-    mpz_t c_1, c_2, q, z, w;
+    clt_pp pp;
+    mpz_t c_1, c_2, z, w;
     mpz_t *xs, *xones, *ys, *yones;
 
     if (!PyArg_ParseTuple(args, "ssslll", &dir, &circuit, &input, &n, &m,
@@ -308,7 +311,9 @@ obf_evaluate(PyObject *self, PyObject *args)
     if (fname == NULL)
         return NULL;
 
-    mpz_inits(c_1, c_2, q, z, w, NULL);
+    mpz_inits(c_1, c_2, z, w, NULL);
+
+    clt_pp_read(&pp, dir);
 
     xs = (mpz_t *) malloc(sizeof(mpz_t) * n);
     xones = (mpz_t *) malloc(sizeof(mpz_t) * n);
@@ -320,10 +325,6 @@ obf_evaluate(PyObject *self, PyObject *args)
     for (int i = 0; i < m; ++i) {
         mpz_inits(ys[i], yones[i], NULL);
     }
-
-    // Load q
-    (void) snprintf(fname, fnamelen, "%s/q", dir);
-    (void) load_mpz_scalar(fname, q);
 
     // Check that all input choices are bits
     for (int i = 0; i < n; ++i) {
@@ -356,7 +357,7 @@ obf_evaluate(PyObject *self, PyObject *args)
         struct circuit *c;
 
         c = circ_parse(circuit);
-        (void) circ_evaluate_encoding(c, xs, xones, ys, yones, c_1, q);
+        circ_evaluate_encoding(c, xs, xones, ys, yones, c_1, pp.x0);
         circ_cleanup(c);
     }
 
@@ -369,24 +370,20 @@ obf_evaluate(PyObject *self, PyObject *args)
         (void) snprintf(fname, fnamelen, "%s/z_%d_%c", dir, i, input[i]);
         (void) load_mpz_scalar(fname, z);
         mpz_mul(c_1, c_1, z);
-        mpz_mod(c_1, c_1, q);
+        mpz_mod(c_1, c_1, pp.x0);
         (void) snprintf(fname, fnamelen, "%s/w_%d_%c", dir, i, input[i]);
         (void) load_mpz_scalar(fname, w);
         mpz_mul(c_2, c_2, w);
-        mpz_mod(c_2, c_2, q);
+        mpz_mod(c_2, c_2, pp.x0);
     }
 
     // Compute c_1 - c_2 and zero test
     {
-        mpz_t pzt, nu, tmp;
-        mpz_inits(tmp, pzt, nu, NULL);
-        (void) snprintf(fname, fnamelen, "%s/pzt", dir);
-        (void) load_mpz_scalar(fname, pzt);
-        (void) snprintf(fname, fnamelen, "%s/nu", dir);
-        (void) load_mpz_scalar(fname, nu);
+        mpz_t tmp;
+        mpz_inits(tmp, NULL);
         mpz_sub(tmp, c_1, c_2);
-        iszero = clt_mlm_is_zero(tmp, pzt, q, mpz_get_ui(nu));
-        mpz_clears(tmp, pzt, nu, NULL);
+        iszero = clt_is_zero(&pp, tmp);
+        mpz_clears(tmp, NULL);
     }
 
     free(fname);
@@ -400,7 +397,7 @@ obf_evaluate(PyObject *self, PyObject *args)
     }
     free(xs);
     free(xones);
-    mpz_clears(c_1, c_2, q, z, w, NULL);
+    mpz_clears(c_1, c_2, z, w, NULL);
 
     return Py_BuildValue("i", iszero ? 0 : 1);
 }

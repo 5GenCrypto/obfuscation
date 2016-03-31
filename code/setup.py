@@ -5,6 +5,7 @@ from setuptools import setup, Extension
 libraries = [
     'gmp',
     'gomp',
+    'clt13',
 ]
 compile_args = [
     '-fopenmp',
@@ -20,7 +21,6 @@ zobfuscator = Extension(
     extra_compile_args=compile_args,
     sources=[
         'src/circuit.cpp',
-        'src/clt_mlm.cpp',
         'src/_zobfuscator.cpp',
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
@@ -36,7 +36,6 @@ obfuscator = Extension(
     libraries=libraries,
     extra_compile_args=compile_args,
     sources=[
-        'src/clt_mlm.cpp',
         'src/_obfuscator.cpp',
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',

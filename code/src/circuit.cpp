@@ -1,4 +1,5 @@
 #include "circuit.h"
+#include "utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -352,11 +353,11 @@ circ_evaluate_encoding(const struct circuit *circ, const mpz_t *xs,
             break;
         default:
             (void) fprintf(stderr, "error: unknown gate type!\n");
-            return 1;
+            return OBFUSCATOR_ERR;
         }
     }
     mpz_set(out, circ->gates[circ->ngates - 1].value);
-    return 0;
+    return OBFUSCATOR_OK;
 }
 
 void

@@ -57,8 +57,8 @@ class AGISObfuscator(Obfuscator):
         self.logger('Constructing bookend vectors...')
         sidx, tidx = nzs - 2, nzs - 1
         ss, ts = compute_vectors()
-        _obf.encode_vectors(self._state, ss, [sidx], 's_enc')
-        _obf.encode_vectors(self._state, ts, [tidx], 't_enc')
+        _obf.encode_vectors(self._state, ss, sidx, 's_enc')
+        _obf.encode_vectors(self._state, ts, tidx, 't_enc')
 
     def _randomize(self, secparam, bps, primes):
         self.logger('Randomizing BPs...')
@@ -79,8 +79,10 @@ class AGISObfuscator(Obfuscator):
                        length, bplength)
             nrows = bps[0][i].zero.nrows()
             ncols = bps[0][i].zero.ncols()
+            assert(len(bps[0][i].zeroset) == 1)
+            assert(len(bps[0][i].oneset) == 1)
             _obf.encode_layers(self._state, i, nrows, ncols, bps[0][i].inp,
-                               zeros, ones, bps[0][i].zeroset, bps[0][i].oneset)
+                               zeros, ones, bps[0][i].zeroset[0], bps[0][i].oneset[0])
 
     def obfuscate(self, fname, secparam, directory, obliviate=False,
                   nslots=None, kappa=None, formula=True):
@@ -93,12 +95,11 @@ class AGISObfuscator(Obfuscator):
         # create a dummy branching program to determine parameters
         bp = AGISBranchingProgram(fname, verbose=self._verbose,
                                   obliviate=obliviate)
-        # add two to kappa due to the bookend vectors
-        if not kappa:
-            kappa = len(bp) + 2
         # construct straddling sets, and add two to the number of Zs to take
         # bookend vectors into account
         nzs = bp.set_straddling_sets() + 2
+        if not kappa:
+            kappa = nzs
         # width is the column/row-length of the matrices
         width = bp.size
 

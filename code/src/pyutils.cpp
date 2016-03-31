@@ -2,6 +2,7 @@
 #include "utils.h"
 #include "mpz_pylong.h"
 
+#include <clt13.h>
 #include <sys/resource.h>
 
 PyObject *
