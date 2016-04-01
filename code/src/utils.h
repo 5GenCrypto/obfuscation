@@ -6,6 +6,8 @@
 #define OBFUSCATOR_OK 0
 #define OBFUSCATOR_ERR (-1)
 
+enum mmap_e { MMAP_CLT, MMAP_GGHLITE };
+
 double
 current_time(void);
 

@@ -6,12 +6,17 @@ libraries = [
     'gmp',
     'gomp',
     'clt13',
+    'aesrand',
+    'gghlite'
 ]
 compile_args = [
     '-fopenmp',
     '-O3',
     '-Wall',
     '-pthread',
+    '-I/home/amaloz/prog/other/gghlite-flint',
+    '-I/home/amaloz/prog/other/gghlite-flint/gghlite',
+    '-I/home/amaloz/prog/other/gghlite-flint/dgs'
     # '-DTHPOOL_DEBUG',
 ]
 

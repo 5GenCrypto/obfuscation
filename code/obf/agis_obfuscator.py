@@ -25,7 +25,8 @@ class AGISObfuscator(Obfuscator):
         if not os.path.exists(directory):
             os.mkdir(directory)
         self._state, primes = _obf.setup(secparam, kappa, width, nzs, directory,
-                                         self._nthreads, self._ncores)
+                                         1, self._nthreads, self._ncores)
+        assert(False)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         return primes

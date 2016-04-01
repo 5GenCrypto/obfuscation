@@ -3,12 +3,17 @@
 #include "thpool.h"
 #include "thpool_fns.h"
 #include <clt13.h>
+#include <gghlite.h>
 #include <omp.h>
 
 struct state {
     threadpool thpool;
     unsigned long secparam;
-    clt_state mlm;
+    enum mmap_e mmap;
+    union {
+        clt_state mlm_clt;
+        gghlite_sk_t mlm_gghlite;
+    };
     char *dir;
 };
 
@@ -19,7 +24,13 @@ state_destructor(PyObject *self)
 
     s = (struct state *) PyCapsule_GetPointer(self, NULL);
     if (s) {
-        clt_state_clear(&s->mlm);
+        switch (s->mmap) {
+        case MMAP_CLT:
+            clt_state_clear(&s->mlm_clt);
+            break;
+        case MMAP_GGHLITE:
+            break;
+        }
         thpool_destroy(s->thpool);
     }
     free(s);
@@ -41,14 +52,18 @@ obf_setup(PyObject *self, PyObject *args)
     s = (struct state *) malloc(sizeof(struct state));
     if (s == NULL)
         return NULL;
-    if (!PyArg_ParseTuple(args, "llllsll", &s->secparam, &kappa, &size,
-                          &nzs, &s->dir, &nthreads, &ncores)) {
+    if (!PyArg_ParseTuple(args, "llllslll", &s->secparam, &kappa, &size,
+                          &nzs, &s->dir, &s->mmap, &nthreads, &ncores)) {
         free(s);
         return NULL;
     }
 
     if (kappa <= 0 || size < 0 || nzs <= 0) {
-        Py_RETURN_NONE;
+        return NULL;
+    }
+
+    if (s->mmap != MMAP_CLT && s->mmap != MMAP_GGHLITE) {
+        return NULL;
     }
 
     pows = (int *) calloc(nzs, sizeof(int));
@@ -64,11 +79,14 @@ obf_setup(PyObject *self, PyObject *args)
         fprintf(stderr, "  # Cores: %ld\n", ncores);
     }
 
-    clt_state_init(&s->mlm, kappa, s->secparam, nzs, pows);
-    // Write public parameters to disk
+    switch (s->mmap) {
+    case MMAP_CLT:
     {
         clt_pp pp;
-        clt_pp_init(&pp, &s->mlm);
+        PyObject *py_primes, *py_state;
+
+        clt_state_init(&s->mlm_clt, kappa, s->secparam, nzs, pows);
+        clt_pp_init(&pp, &s->mlm_clt);
         clt_pp_save(&pp, s->dir);
         clt_pp_clear(&pp);
         // Needed for AGIS obfuscator
@@ -86,27 +104,39 @@ obf_setup(PyObject *self, PyObject *args)
             free(fname);
             mpz_clear(tmp);
         }
-    }
-
-    /* Convert g_i values to python objects */
-    {
-        PyObject *py_gs, *py_state;
-
-        py_gs = PyList_New(s->secparam);
-
+        // Convert g_i values to python objects
+        py_primes = PyList_New(s->secparam);
         //
         // Only convert the first secparam g_i values since we only need to fill
         // in the first secparam slots of the plaintext space.
         //
         for (unsigned long i = 0; i < s->secparam; ++i) {
-            PyList_SetItem(py_gs, i, mpz_to_py(s->mlm.gs[i]));
+            PyList_SetItem(py_primes, i, mpz_to_py(s->mlm_clt.gs[i]));
         }
-
-        /* Encapsulate state as python object */
+        // Encapsulate state as python object
         py_state = PyCapsule_New((void *) s, NULL, state_destructor);
-
-        return PyTuple_Pack(2, py_state, py_gs);
+        return PyTuple_Pack(2, py_state, py_primes);
     }
+    case MMAP_GGHLITE:
+    {
+        aes_randstate_t state;
+        PyObject *py_primes, *py_state;
+
+        aes_randinit(state);
+        gghlite_init(s->mlm_gghlite, s->secparam, kappa, 1, 0,
+                     GGHLITE_FLAGS_VERBOSE, state);
+        aes_randclear(state);
+
+        fprintf(stderr, "g = ");
+        (void) fmpz_poly_fprint_pretty(stderr, s->mlm_gghlite->g, "x");
+        fprintf(stderr, "\n");
+
+        py_state = PyCapsule_New((void *) s, NULL, state_destructor);
+        return PyTuple_Pack(2, py_state, py_primes);
+    }
+    }
+
+    return NULL;
 }
 
 //
@@ -169,8 +199,8 @@ obf_encode_vectors(PyObject *self, PyObject *args)
             args = (struct mlm_encode_elem_s *)
                 malloc(sizeof(struct mlm_encode_elem_s));
             args->out = &vector[i];
-            args->mlm = &s->mlm;
-            args->nins = s->mlm.nzs;
+            args->mlm = &s->mlm_clt;
+            args->nins = s->mlm_clt.nzs;
             args->ins = elems;
             args->pows = (int *) calloc(args->nins, sizeof(int));
             args->pows[index] = 1;
@@ -267,8 +297,8 @@ obf_encode_layers(PyObject *self, PyObject *args)
             args = (struct mlm_encode_elem_s *)
                 malloc(sizeof(struct mlm_encode_elem_s));
             args->out = val;
-            args->mlm = &s->mlm;
-            args->nins = s->mlm.nzs;
+            args->mlm = &s->mlm_clt;
+            args->nins = s->mlm_clt.nzs;
             args->ins = elems;
             args->pows = (int *) calloc(args->nins, sizeof(int));
             args->pows[index] = 1;
