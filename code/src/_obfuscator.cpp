@@ -52,6 +52,7 @@ obf_setup(PyObject *self, PyObject *args)
         pows[i] = 1;
     }
 
+    s->thpool = thpool_init(nthreads);
     (void) omp_set_num_threads(ncores);
 
     if (g_verbose) {
@@ -82,8 +83,6 @@ obf_setup(PyObject *self, PyObject *args)
             mpz_clear(tmp);
         }
     }
-
-    s->thpool = thpool_init(nthreads);
 
     /* Convert g_i values to python objects */
     {

@@ -75,9 +75,13 @@ obf_setup(PyObject *self, PyObject *args)
         fprintf(stderr, "  # Cores: %ld\n", ncores);
     }
 
-    // (void) clt_mlm_setup(&s->mlm, s->dir, pows, kappa, 0, g_verbose);
     clt_state_init(&s->mlm, kappa, s->secparam, s->mlm.nzs, pows);
-    clt_state_save(&s->mlm, s->dir);
+    {
+        clt_pp pp;
+        clt_pp_init(&pp, &s->mlm);
+        clt_pp_save(&pp, s->dir);
+        clt_pp_clear(&pp);
+    }
 
     mpz_init_set(s->nev, s->mlm.gs[0]);
     mpz_init_set(s->nchk, s->mlm.gs[1]);
