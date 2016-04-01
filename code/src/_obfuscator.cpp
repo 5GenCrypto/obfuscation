@@ -47,8 +47,12 @@ obf_setup(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    pows = (int *) malloc(sizeof(int) * nzs);
-    for (unsigned long i = 0; i < nzs; ++i) {
+    if (kappa <= 0 || size < 0 || nzs <= 0) {
+        Py_RETURN_NONE;
+    }
+
+    pows = (int *) calloc(nzs, sizeof(int));
+    for (long i = 0; i < nzs; ++i) {
         pows[i] = 1;
     }
 
