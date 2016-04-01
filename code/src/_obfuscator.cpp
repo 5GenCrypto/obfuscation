@@ -34,7 +34,7 @@ state_destructor(PyObject *self)
 static PyObject *
 obf_setup(PyObject *self, PyObject *args)
 {
-    long kappa, size, nthreads, ncores;
+    long kappa, size, nzs, nthreads, ncores;
     struct state *s = NULL;
     int *pows = NULL;
 
@@ -42,13 +42,13 @@ obf_setup(PyObject *self, PyObject *args)
     if (s == NULL)
         return NULL;
     if (!PyArg_ParseTuple(args, "llllsll", &s->secparam, &kappa, &size,
-                          &s->mlm.nzs, &s->dir, &nthreads, &ncores)) {
+                          &nzs, &s->dir, &nthreads, &ncores)) {
         free(s);
         return NULL;
     }
 
-    pows = (int *) malloc(sizeof(int) * s->mlm.nzs);
-    for (unsigned long i = 0; i < s->mlm.nzs; ++i) {
+    pows = (int *) malloc(sizeof(int) * nzs);
+    for (unsigned long i = 0; i < nzs; ++i) {
         pows[i] = 1;
     }
 
@@ -60,7 +60,7 @@ obf_setup(PyObject *self, PyObject *args)
         fprintf(stderr, "  # Cores: %ld\n", ncores);
     }
 
-    clt_state_init(&s->mlm, kappa, s->secparam, s->mlm.nzs, pows);
+    clt_state_init(&s->mlm, kappa, s->secparam, nzs, pows);
     // Write public parameters to disk
     {
         clt_pp pp;
