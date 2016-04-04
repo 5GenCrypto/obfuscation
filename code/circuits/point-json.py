@@ -18,12 +18,8 @@ def run(lst):
 
 def binary_point(bitlength):
     secret = random_bitstring(bitlength)
-    array = '['
-    for x in range(1, bitlength + 1):
-        array += '"%d", ' % x
-    array += '"%d"]' % (bitlength + 1)
     lst = ['cryfsm', '-e', "(==) 0b%s" % secret, '-v', "\_ -> True", '-g',
-           array, '-o', 'point-%d.json' % bitlength]
+           '#', '-o', 'point-%d.json' % bitlength]
     run(lst)
     with open('point-%d.json' % bitlength, 'r') as f:
         line = f.read()
