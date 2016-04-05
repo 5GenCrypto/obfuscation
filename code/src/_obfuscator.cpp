@@ -41,6 +41,7 @@ obf_setup(PyObject *self, PyObject *args)
     long kappa, size, nzs, nthreads, ncores;
     struct state *s = NULL;
     int *pows = NULL;
+    ulong clt_flags = CLT_FLAG_DEFAULT;
 
     s = (struct state *) malloc(sizeof(struct state));
     if (s == NULL)
@@ -67,9 +68,10 @@ obf_setup(PyObject *self, PyObject *args)
     if (g_verbose) {
         fprintf(stderr, "  # Threads: %ld\n", nthreads);
         fprintf(stderr, "  # Cores: %ld\n", ncores);
+        clt_flags |= CLT_FLAG_VERBOSE;
     }
 
-    clt_state_init(&s->mlm, kappa, s->secparam, nzs, pows, s->rand);
+    clt_state_init(&s->mlm, kappa, s->secparam, nzs, pows, clt_flags, s->rand);
     // Write public parameters to disk
     {
         clt_pp pp;

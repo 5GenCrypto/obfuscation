@@ -55,6 +55,7 @@ obf_setup(PyObject *self, PyObject *args)
     PyObject *py_pows;
     int *pows;
     struct state *s;
+    ulong clt_flags = CLT_FLAG_DEFAULT;
 
     s = (struct state *) malloc(sizeof(struct state));
     if (s == NULL)
@@ -77,9 +78,10 @@ obf_setup(PyObject *self, PyObject *args)
     if (g_verbose) {
         fprintf(stderr, "  # Threads: %ld\n", nthreads);
         fprintf(stderr, "  # Cores: %ld\n", ncores);
+        clt_flags |= CLT_FLAG_VERBOSE;
     }
 
-    clt_state_init(&s->mlm, kappa, s->secparam, s->mlm.nzs, pows, s->rand);
+    clt_state_init(&s->mlm, kappa, s->secparam, s->mlm.nzs, pows, clt_flags, s->rand);
     {
         clt_pp pp;
         clt_pp_init(&pp, &s->mlm);
