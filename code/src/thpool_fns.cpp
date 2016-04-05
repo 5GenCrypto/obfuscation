@@ -10,7 +10,8 @@ thpool_encode_elem(void *vargs)
     struct mlm_encode_elem_s *args =
         (struct mlm_encode_elem_s *) vargs;
 
-    clt_encode(*args->out, args->mlm, args->nins, args->ins, args->pows);
+    clt_encode(*args->out, args->mlm, args->nins, args->ins, args->pows,
+               *args->rand);
     for (unsigned long j = 0; j < args->nins; ++j) {
         mpz_clear(args->ins[j]);
     }

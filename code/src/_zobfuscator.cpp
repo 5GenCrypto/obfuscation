@@ -4,6 +4,7 @@
 #include "thpool.h"
 #include "thpool_fns.h"
 
+#include <aesrand.h>
 #include <clt13.h>
 #include <omp.h>
 
@@ -11,6 +12,7 @@ struct state {
     threadpool thpool;
     unsigned long secparam;
     clt_state mlm;
+    aes_randstate_t rand;
     char *dir;
     mpz_t nchk;
     mpz_t nev;
@@ -23,6 +25,7 @@ state_destructor(PyObject *self)
 
     s = (struct state *) PyCapsule_GetPointer(self, NULL);
     if (s) {
+        aes_randclear(s->rand);
         clt_state_clear(&s->mlm);
         // thpool_destroy(s->thpool);
         mpz_clears(s->nev, s->nchk, NULL);
@@ -69,13 +72,14 @@ obf_setup(PyObject *self, PyObject *args)
 
     s->thpool = thpool_init(nthreads);
     (void) omp_set_num_threads(ncores);
+    aes_randinit(s->rand);
 
     if (g_verbose) {
         fprintf(stderr, "  # Threads: %ld\n", nthreads);
         fprintf(stderr, "  # Cores: %ld\n", ncores);
     }
 
-    clt_state_init(&s->mlm, kappa, s->secparam, s->mlm.nzs, pows);
+    clt_state_init(&s->mlm, kappa, s->secparam, s->mlm.nzs, pows, s->rand);
     {
         clt_pp pp;
         clt_pp_init(&pp, &s->mlm);
@@ -125,6 +129,7 @@ create_work(struct state *s, const char *str, int i,
 
     args = (struct mlm_encode_elem_s *)
         malloc(sizeof(struct mlm_encode_elem_s));
+    args->rand = &s->rand;
     args->mlm = &s->mlm;
     args->out = out;
     args->nins = 2;
@@ -138,11 +143,11 @@ create_work(struct state *s, const char *str, int i,
 
     }
 
-    printf("%8s   ", we_s->name);
-    for (unsigned long i = 0; i < s->mlm.nzs; ++i) {
-        printf("%d ", args->pows[i]);
-    }
-    printf("\n");
+    // printf("%8s   ", we_s->name);
+    // for (unsigned long i = 0; i < s->mlm.nzs; ++i) {
+    //     printf("%d ", args->pows[i]);
+    // }
+    // printf("\n");
 
     (void) thpool_add_work(s->thpool, thpool_encode_elem, (void *) args,
                            we_s->name);
@@ -173,12 +178,12 @@ obf_encode_circuit(PyObject *self, PyObject *args)
     alphas = (mpz_t *) malloc(sizeof(mpz_t) * n);
     for (int i = 0; i < n; ++i) {
         mpz_init(alphas[i]);
-        mpz_urandomm(alphas[i], s->mlm.rng, s->nchk);
+        mpz_urandomm_aes(alphas[i], s->rand, s->nchk);
     }
     betas = (mpz_t *) malloc(sizeof(mpz_t) * m);
     for (int i = 0; i < m; ++i) {
         mpz_init(betas[i]);
-        mpz_urandomm(betas[i], s->mlm.rng, s->nchk);
+        mpz_urandomm_aes(betas[i], s->rand, s->nchk);
     }
 
     for (int i = 0; i < n; ++i) {
@@ -194,15 +199,15 @@ obf_encode_circuit(PyObject *self, PyObject *args)
         create_work(s, "u_\%d_0", i, one, one, 1, 2 * i, 1);
         create_work(s, "u_\%d_1", i, one, one, 1, 2 * i + 1, 1);
 
-        mpz_urandomm(elems[0], s->mlm.rng, s->nev);
-        mpz_urandomm(elems[1], s->mlm.rng, s->nchk);
+        mpz_urandomm_aes(elems[0], s->rand, s->nev);
+        mpz_urandomm_aes(elems[1], s->rand, s->nchk);
 
         create_work(s, "z_\%d_0", i, elems[0], elems[1], 3, 2 * i + 1, deg,
                     2 * n + i, 1, 3 * n + i, 1);
         create_work(s, "w_\%d_0", i, zero, elems[1], 1, 3 * n + i, 1);
 
-        mpz_urandomm(elems[0], s->mlm.rng, s->nev);
-        mpz_urandomm(elems[1], s->mlm.rng, s->nchk);
+        mpz_urandomm_aes(elems[0], s->rand, s->nev);
+        mpz_urandomm_aes(elems[1], s->rand, s->nchk);
 
         create_work(s, "z_\%d_1", i, elems[0], elems[1], 3, 2 * i, deg,
                     2 * n + i, 1, 3 * n + i, 1);
@@ -276,13 +281,13 @@ obf_encode_circuit(PyObject *self, PyObject *args)
         pows[4 * n] = ydeg;
         // Encode against these indices/powers
 
-        printf("%8s   ", "c_star");
-        for (unsigned long i = 0; i < s->mlm.nzs; ++i) {
-            printf("%d ", pows[i]);
-        }
-        printf("\n");
+        // printf("%8s   ", "c_star");
+        // for (unsigned long i = 0; i < s->mlm.nzs; ++i) {
+        //     printf("%d ", pows[i]);
+        // }
+        // printf("\n");
 
-        clt_encode(tmp, &s->mlm, 2, elems, pows);
+        clt_encode(tmp, &s->mlm, 2, elems, pows, s->rand);
 
         mpz_clears(elems[0], elems[1], NULL);
         free(pows);

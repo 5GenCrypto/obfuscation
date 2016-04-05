@@ -6,6 +6,7 @@
 
 struct mlm_encode_elem_s {
     clt_state *mlm;
+    aes_randstate_t *rand;
     mpz_t *out;
     size_t nins;
     mpz_t *ins;

@@ -6,6 +6,8 @@
 #define OBFUSCATOR_OK 0
 #define OBFUSCATOR_ERR (-1)
 
+extern int g_verbose;
+
 double
 current_time(void);
 

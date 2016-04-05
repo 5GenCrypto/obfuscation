@@ -2,6 +2,8 @@
 #include "pyutils.h"
 #include "thpool.h"
 #include "thpool_fns.h"
+
+#include <aesrand.h>
 #include <clt13.h>
 #include <omp.h>
 
@@ -9,6 +11,7 @@ struct state {
     threadpool thpool;
     unsigned long secparam;
     clt_state mlm;
+    aes_randstate_t rand;
     char *dir;
 };
 
@@ -20,6 +23,7 @@ state_destructor(PyObject *self)
     s = (struct state *) PyCapsule_GetPointer(self, NULL);
     if (s) {
         clt_state_clear(&s->mlm);
+        aes_randclear(s->rand);
         thpool_destroy(s->thpool);
     }
     free(s);
@@ -58,13 +62,14 @@ obf_setup(PyObject *self, PyObject *args)
 
     s->thpool = thpool_init(nthreads);
     (void) omp_set_num_threads(ncores);
+    aes_randinit(s->rand);
 
     if (g_verbose) {
         fprintf(stderr, "  # Threads: %ld\n", nthreads);
         fprintf(stderr, "  # Cores: %ld\n", ncores);
     }
 
-    clt_state_init(&s->mlm, kappa, s->secparam, nzs, pows);
+    clt_state_init(&s->mlm, kappa, s->secparam, nzs, pows, s->rand);
     // Write public parameters to disk
     {
         clt_pp pp;
@@ -168,6 +173,7 @@ obf_encode_vectors(PyObject *self, PyObject *args)
             
             args = (struct mlm_encode_elem_s *)
                 malloc(sizeof(struct mlm_encode_elem_s));
+            args->rand = &s->rand;
             args->out = &vector[i];
             args->mlm = &s->mlm;
             args->nins = s->mlm.nzs;
@@ -175,10 +181,10 @@ obf_encode_vectors(PyObject *self, PyObject *args)
             args->pows = (int *) calloc(args->nins, sizeof(int));
             args->pows[index] = 1;
 
-            for (unsigned long i = 0; i < args->nins; ++i) {
-                printf("%d ", args->pows[i]);
-            }
-            printf("\n");
+            // for (unsigned long i = 0; i < args->nins; ++i) {
+            //     printf("%d ", args->pows[i]);
+            // }
+            // printf("\n");
 
             thpool_add_work(s->thpool, thpool_encode_elem, (void *) args, name);
         }
@@ -266,6 +272,7 @@ obf_encode_layers(PyObject *self, PyObject *args)
 
             args = (struct mlm_encode_elem_s *)
                 malloc(sizeof(struct mlm_encode_elem_s));
+            args->rand = &s->rand;
             args->out = val;
             args->mlm = &s->mlm;
             args->nins = s->mlm.nzs;
@@ -273,10 +280,10 @@ obf_encode_layers(PyObject *self, PyObject *args)
             args->pows = (int *) calloc(args->nins, sizeof(int));
             args->pows[index] = 1;
 
-            for (unsigned long i = 0; i < args->nins; ++i) {
-                printf("%d ", args->pows[i]);
-            }
-            printf("\n");
+            // for (unsigned long i = 0; i < args->nins; ++i) {
+            //     printf("%d ", args->pows[i]);
+            // }
+            // printf("\n");
 
             thpool_add_work(s->thpool, thpool_encode_elem, (void *) args, idx_s);
         }
@@ -315,8 +322,6 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
     clt_pp_read(&pp, dir);
 
     (void) omp_set_num_threads(nthreads);
-
-    int nmults = 0;
 
     for (int layer = 0; layer < bplen; ++layer) {
         unsigned int input_idx;
@@ -372,7 +377,6 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
                 mpz_init(result[i]);
             }
             mult_mats(result, left, right, pp.x0, nrows_prev, nrows, ncols);
-            nmults++;
             for (int i = 0; i < nrows_prev * nrows; ++i) {
                 mpz_clear(left[i]);
             }
@@ -388,8 +392,6 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
             (void) fprintf(stderr, "  Multiplying matrices: %f\n",
                            end - start);
     }
-
-    printf("%d\n", nmults);
 
     if (!err) {
         start = current_time();
