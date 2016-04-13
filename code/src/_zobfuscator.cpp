@@ -4,6 +4,7 @@
 #include "thpool.h"
 #include "thpool_fns.h"
 
+#include <aesrand.h>
 #include <clt13.h>
 #include <omp.h>
 
@@ -24,8 +25,8 @@ state_destructor(PyObject *self)
 
     s = (struct state *) PyCapsule_GetPointer(self, NULL);
     if (s) {
-        clt_state_clear(&s->mlm);
         aes_randclear(s->rand);
+        clt_state_clear(&s->mlm);
         // thpool_destroy(s->thpool);
         mpz_clears(s->nev, s->nchk, NULL);
     }
@@ -70,7 +71,7 @@ obf_setup(PyObject *self, PyObject *args)
         pows[i] = (int) PyLong_AsLong(PyList_GET_ITEM(py_pows, i));
     }
 
-    aes_randinit(s->rand);
+    (void) aes_randinit(s->rand);
     s->thpool = thpool_init(nthreads);
     (void) omp_set_num_threads(ncores);
 

@@ -61,11 +61,25 @@ class SZBranchingProgram(AbstractBranchingProgram):
                 for line in f:
                     if line.startswith('#'):
                         continue
-                    for idx, step in enumerate(json.loads(line)['steps']):
+                    bp_json = json.loads(line)
+                    for step in bp_json['steps']:
                         bp.append(
-                            Layer(idx, matrix(step['0']), matrix(step['1'])))
+                            Layer(int(step['position']), matrix(step['0']), matrix(step['1'])))
+
+                    assert len(bp_json['outputs'])    == 1 and \
+                           len(bp_json['outputs'][0]) == 2
+                    first_out = bp_json['outputs'][0][0].lower()
+                    if first_out not in ['false', '0']:
+                        if first_out not in ['true', '1']:
+                            print('warning: interpreting %s as a truthy output' % first_out)
+                        bp[-1].zero.swap_columns(0,1)
+                        bp[-1].one .swap_columns(0,1)
                     return bp
         except IOError as e:
+            print(e)
+            sys.exit(1)
+        except ValueError as e:
+            print('expected numeric position while parsing branching program JSON')
             print(e)
             sys.exit(1)
 
