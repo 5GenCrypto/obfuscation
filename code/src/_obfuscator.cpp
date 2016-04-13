@@ -8,12 +8,8 @@
 #include <clt13.h>
 #include <gghlite.h>
 #include <gghlite/gghlite-internals.h>
+#include <mife/mife_defs.h>
 #include <omp.h>
-
-#define debug_printf printf
-#define CHECK(x, y) if((x) < (y)) { debug_printf( \
-      "ERROR: fscanf() error encountered when trying to read from file\n" \
-    ); }
 
 struct state {
     threadpool thpool;
@@ -39,6 +35,7 @@ state_destructor(PyObject *self)
             clt_state_clear(&s->mlm_clt);
             break;
         case MMAP_GGHLITE:
+            // XXX: clean up here!
             break;
         }
         aes_randclear(s->rand);
@@ -136,7 +133,6 @@ fwrite_gghlite_params(FILE *fp, const gghlite_params_t params)
     fmpz_mod_poly_fprint_raw(fp, params->ntt->phi_inv);
 }
 
-
 //
 //
 // Python functions
@@ -150,13 +146,14 @@ obf_setup(PyObject *self, PyObject *args)
     struct state *s = NULL;
     PyObject *py_primes, *py_state;
 
-    s = (struct state *) malloc(sizeof(struct state));
+    s = (struct state *) calloc(1, sizeof(struct state));
     if (s == NULL) {
         PyErr_SetString(PyExc_RuntimeError, "memory allocation failed");
         return NULL;
     }
     if (!PyArg_ParseTuple(args, "llllslll", &s->secparam, &kappa, &size,
                           &nzs, &s->dir, &s->mmap, &nthreads, &ncores)) {
+        PyErr_SetString(PyExc_RuntimeError, "unable to parse input");
         goto error;
     }
 
@@ -182,17 +179,17 @@ obf_setup(PyObject *self, PyObject *args)
     // Needed for AGIS obfuscator
     if (size > 0) {
         char *fname;
-        fmpz_t tmp;
+        mpz_t tmp;
         int len;
 
-        fmpz_init(tmp);
-        fmpz_set_ui(tmp, size);
+        mpz_init(tmp);
+        mpz_set_ui(tmp, size);
         len = strlen(s->dir) + 6;
         fname = (char *) calloc(len, sizeof(char));
         (void) snprintf(fname, len, "%s/size", s->dir);
-        (void) save_fmpz_scalar(fname, tmp);
+        (void) save_mpz_scalar(fname, tmp);
         free(fname);
-        fmpz_clear(tmp);
+        mpz_clear(tmp);
     }
 
     switch (s->mmap) {
@@ -276,7 +273,7 @@ obf_setup(PyObject *self, PyObject *args)
 
 error:
     if (s)
-        free(s);
+        free(s);                // TODO: need to clean up s itself before freeing
 
     return NULL;
 }
@@ -375,7 +372,8 @@ _obf_encode_layers_clt(struct state *s, long idx, long inp, long nrows,
     zero = (clt_elem_t *) malloc(sizeof(clt_elem_t) * nrows * ncols);
     one = (clt_elem_t *) malloc(sizeof(clt_elem_t) * nrows * ncols);
     for (ssize_t i = 0; i < nrows * ncols; ++i) {
-        mpz_inits(zero[i], one[i], NULL);
+        clt_elem_init(zero[i]);
+        clt_elem_init(one[i]);
     }
 
     wl_s = (struct write_layer_s *) malloc(sizeof(write_layer_s));
@@ -395,9 +393,8 @@ _obf_encode_layers_clt(struct state *s, long idx, long inp, long nrows,
 
     for (Py_ssize_t ctr = 0; ctr < 2 * nrows * ncols; ++ctr) {
         PyObject *py_array;
-        clt_elem_t *val;
+        clt_elem_t *val, *elems;
         size_t i;
-        clt_elem_t *elems;
         struct encode_elem_s *args;
 
         if (ctr < nrows * ncols) {
@@ -412,7 +409,8 @@ _obf_encode_layers_clt(struct state *s, long idx, long inp, long nrows,
 
         elems = (clt_elem_t *) malloc(sizeof(clt_elem_t) * s->secparam);
         for (unsigned long j = 0; j < s->secparam; ++j) {
-            mpz_init(elems[j]);
+            clt_elem_init(elems[j]);
+            // TODO: should be py_to_clt_elem
             py_to_mpz(elems[j],
                       PyList_GET_ITEM(PyList_GET_ITEM(py_array, j), i));
         }
@@ -545,7 +543,8 @@ _obf_sz_evaluate_clt(clt_pp *pp, char *dir, char *input, long bplen)
 {
     char *fname = NULL;
     int fnamelen;
-    mpz_t tmp, *result = NULL;
+    mpz_t tmp;
+    clt_elem_t *result = NULL;
     long nrows, ncols = -1, nrows_prev = -1;
     int err = 0, iszero = -1;
     double start, end;
@@ -557,7 +556,7 @@ _obf_sz_evaluate_clt(clt_pp *pp, char *dir, char *input, long bplen)
 
     for (int layer = 0; layer < bplen; ++layer) {
         unsigned int input_idx;
-        mpz_t *left, *right;
+        clt_elem_t *left, *right;
 
         start = current_time();
 
@@ -591,31 +590,31 @@ _obf_sz_evaluate_clt(clt_pp *pp, char *dir, char *input, long bplen)
         }
 
         if (layer == 0) {
-            result = (mpz_t *) malloc(sizeof(mpz_t) * nrows * ncols);
+            result = (clt_elem_t *) malloc(sizeof(clt_elem_t) * nrows * ncols);
             for (int i = 0; i < nrows * ncols; ++i) {
-                mpz_init(result[i]);
+                clt_elem_init(result[i]);
             }
-            (void) load_mpz_vector(fname, result, nrows * ncols);
+            (void) clt_vector_read(fname, result, nrows * ncols);
             nrows_prev = nrows;
         } else {
             left = result;
-            right = (mpz_t *) malloc(sizeof(mpz_t) * nrows * ncols);
+            right = (clt_elem_t *) malloc(sizeof(clt_elem_t) * nrows * ncols);
             for (int i = 0; i < nrows * ncols; ++i) {
-                mpz_init(right[i]);
+                clt_elem_init(right[i]);
             }
-            (void) load_mpz_vector(fname, right, nrows * ncols);
-            result = (mpz_t *) malloc(sizeof(mpz_t) * nrows_prev * ncols);
+            (void) clt_vector_read(fname, right, nrows * ncols);
+            result = (clt_elem_t *) malloc(sizeof(clt_elem_t) * nrows_prev * ncols);
             for (int i = 0; i < nrows_prev * ncols; ++i) {
-                mpz_init(result[i]);
+                clt_elem_init(result[i]);
             }
-            mult_mpz_matrices(result, left, right, pp->x0, nrows_prev, nrows,
-                              ncols);
+            mult_clt_elem_matrices(result, left, right, pp->x0, nrows_prev,
+                                   nrows, ncols);
 
             for (int i = 0; i < nrows_prev * nrows; ++i) {
-                mpz_clear(left[i]);
+                clt_elem_clear(left[i]);
             }
             for (int i = 0; i < nrows * ncols; ++i) {
-                mpz_clear(right[i]);
+                clt_elem_clear(right[i]);
             }
             free(left);
             free(right);
@@ -636,11 +635,11 @@ _obf_sz_evaluate_clt(clt_pp *pp, char *dir, char *input, long bplen)
     }
 
     for (int i = 0; i < nrows_prev * ncols; ++i) {
-        mpz_clear(result[i]);
+        clt_elem_clear(result[i]);
     }
     free(result);
 
-    mpz_clears(tmp, NULL);
+    mpz_clear(tmp);
 
     return iszero;
 }
@@ -881,12 +880,12 @@ obf_evaluate(PyObject *self, PyObject *args)
         } else {
             (void) snprintf(fname, fnamelen, "%s/%d.one", dir, layer);
         }
-        (void) load_mpz_vector(fname, comp, size * size);
+        (void) clt_vector_read(fname, comp, size * size);
 
         // for the first matrix, multiply 'comp' by 's' to get a vector
         if (layer == 0) {
             (void) snprintf(fname, fnamelen, "%s/s_enc", dir);
-            (void) load_mpz_vector(fname, s, size);
+            (void) clt_vector_read(fname, s, size);
         }
         mult_vect_by_mat(s, comp, pp.x0, size, t);
         end = current_time();
@@ -898,7 +897,7 @@ obf_evaluate(PyObject *self, PyObject *args)
     if (!err) {
         start = current_time();
         (void) snprintf(fname, fnamelen, "%s/t_enc", dir);
-        (void) load_mpz_vector(fname, t, size);
+        (void) clt_vector_read(fname, t, size);
         mult_vect_by_vect(tmp, s, t, pp.x0, size);
         end = current_time();
         if (g_verbose)

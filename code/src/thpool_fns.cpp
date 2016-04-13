@@ -55,7 +55,7 @@ write_vector(const char *dir, mpz_t *vector, long size, char *name)
     if (fname == NULL)
         return 1;
     (void) snprintf(fname, fnamelen, "%s/%s", dir, name);
-    (void) save_mpz_vector(fname, vector, size);
+    (void) clt_vector_save(fname, vector, size);
     free(fname);
     return 0;
 }
@@ -107,7 +107,7 @@ write_layer(const char *dir, enum mmap_e mmap, int inp, long idx, void *zero,
     (void) snprintf(fname, fnamelen, "%s/%ld.zero", dir, idx);
     switch (mmap) {
     case MMAP_CLT:
-        (void) save_mpz_vector(fname, (clt_elem_t *) zero, nrows * ncols);
+        (void) clt_vector_save(fname, (clt_elem_t *) zero, nrows * ncols);
         break;
     case MMAP_GGHLITE:
         (void) save_gghlite_enc_vector(fname, (gghlite_enc_t *) zero,
@@ -117,7 +117,7 @@ write_layer(const char *dir, enum mmap_e mmap, int inp, long idx, void *zero,
     (void) snprintf(fname, fnamelen, "%s/%ld.one", dir, idx);
     switch (mmap) {
     case MMAP_CLT:
-        (void) save_mpz_vector(fname, (clt_elem_t *) one, nrows * ncols);
+        (void) clt_vector_save(fname, (clt_elem_t *) one, nrows * ncols);
         break;
     case MMAP_GGHLITE:
         (void) save_gghlite_enc_vector(fname, (gghlite_enc_t *) one,
@@ -174,7 +174,7 @@ thpool_write_layer(void *vargs)
 }
 
 static int
-write_element(const char *dir, mpz_t elem, const char *name)
+write_element(const char *dir, clt_elem_t elem, const char *name)
 {
     char *fname;
     int fnamelen;
@@ -184,7 +184,7 @@ write_element(const char *dir, mpz_t elem, const char *name)
     if (fname == NULL)
         return 1;
     (void) snprintf(fname, fnamelen, "%s/%s", dir, name);
-    (void) save_mpz_scalar(fname, elem);
+    (void) clt_elem_save(fname, elem);
     free(fname);
     return 0;
 }

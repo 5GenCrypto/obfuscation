@@ -49,7 +49,7 @@ thpool_write_layer(void *vargs);
 
 struct write_element_s {
     char *dir;
-    mpz_t *elem;
+    clt_elem_t *elem;
     char *name;
 };
 

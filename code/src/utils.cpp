@@ -11,45 +11,12 @@
 
 int g_verbose;
 
-// XXX: The use of /dev/urandom is not secure; however, the supercomputer we run
-// on doesn't appear to have enough entropy, and blocks for long periods of
-// time.  Thus, we use /dev/urandom instead.
-#ifndef RANDFILE
-#  define RANDFILE "/dev/urandom"
-#endif
-
 double
 current_time(void)
 {
     struct timeval t;
     (void) gettimeofday(&t, NULL);
     return (double) (t.tv_sec + (double) (t.tv_usec / 1000000.0));
-}
-
-int
-seed_rng(gmp_randstate_t *rng)
-{
-    int file;
-    if ((file = open(RANDFILE, O_RDONLY)) == -1) {
-        (void) fprintf(stderr, "Error opening %s\n", RANDFILE);
-        return 1;
-    } else {
-        unsigned long seed;
-        if (read(file, &seed, sizeof seed) == -1) {
-            (void) fprintf(stderr, "Error reading from %s\n", RANDFILE);
-            (void) close(file);
-            return 1;
-        } else {
-            if (g_verbose)
-                (void) fprintf(stderr, "  Seed: %lu\n", seed);
-
-            gmp_randinit_default(*rng);
-            gmp_randseed_ui(*rng, seed);
-        }
-    }
-    if (file != -1)
-        (void) close(file);
-    return 0;
 }
 
 int
@@ -92,7 +59,6 @@ fmpz_mod_poly_fread_raw(FILE * f, fmpz_mod_poly_t poly)
 
     return 1;
 }
-
 
 static int
 _fmpz_mod_poly_fprint_raw(FILE * file, const fmpz *poly, slong len, const fmpz_t p)
@@ -166,55 +132,6 @@ save_mpz_scalar(const char *fname, const mpz_t x)
 }
 
 int
-save_fmpz_scalar(const char *fname, const fmpz_t x)
-{
-    FILE *f;
-    if ((f = fopen(fname, "w")) == NULL) {
-        perror(fname);
-        return 1;
-    }
-    if (fmpz_out_raw(f, x) == 0) {
-        (void) fclose(f);
-        return 1;
-    }
-    (void) fclose(f);
-    return 0;
-}
-
-int
-load_mpz_vector(const char *fname, mpz_t *m, const int len)
-{
-    FILE *f;
-    if ((f = fopen(fname, "r")) == NULL) {
-        perror(fname);
-        return 1;
-    }
-    for (int i = 0; i < len; ++i) {
-        (void) mpz_inp_raw(m[i], f);
-    }
-    (void) fclose(f);
-    return 0;
-}
-
-int
-save_mpz_vector(const char *fname, const mpz_t *m, const int len)
-{
-    FILE *f;
-    if ((f = fopen(fname, "w")) == NULL) {
-        perror(fname);
-        return 1;
-    }
-    for (int i = 0; i < len; ++i) {
-        if (mpz_out_raw(f, m[i]) == 0) {
-            (void) fclose(f);
-            return 1;
-        }
-    }
-    (void) fclose(f);
-    return 0;
-}
-
-int
 load_gghlite_enc_vector(const char *fname, gghlite_enc_t *m, const int len)
 {
     FILE *f;
@@ -248,36 +165,39 @@ save_gghlite_enc_vector(const char *fname, const gghlite_enc_t *m, const int len
 }
 
 void
-mult_mpz_matrices(mpz_t *result, const mpz_t *left, const mpz_t *right,
-                  const mpz_t q, long m, long n, long p)
+mult_clt_elem_matrices(clt_elem_t *result, const clt_elem_t *left,
+                       const clt_elem_t *right, const clt_elem_t q, long m,
+                       long n, long p)
 {
-    mpz_t *tmparray;
+    clt_elem_t *tmparray;
     double start, end;
 
     start = current_time();
-    tmparray = (mpz_t *) malloc(sizeof(mpz_t) * m * p);
+    tmparray = (clt_elem_t *) malloc(sizeof(clt_elem_t) * m * p);
     for (int i = 0; i < m * p; ++i) {
-        mpz_init(tmparray[i]);
+        clt_elem_init(tmparray[i]);
     }
 #pragma omp parallel for
     for (int i = 0; i < m; ++i) {
         for (int j = 0; j < p; ++j) {
-            mpz_t tmp, sum;
-            mpz_inits(tmp, sum, NULL);
+            clt_elem_t tmp, sum;
+            clt_elem_init(tmp);
+            clt_elem_init(sum);
             for (int k = 0; k < n; ++k) {
-                mpz_mul(tmp,
-                        left[k * m + (i * m + j) % m],
-                        right[k + n * ((i * m + j) / m)]);
-                mpz_add(sum, sum, tmp);
-                mpz_mod(sum, sum, q);
+                clt_elem_mul(tmp,
+                             left[k * m + (i * m + j) % m],
+                             right[k + n * ((i * m + j) / m)]);
+                clt_elem_add(sum, sum, tmp);
+                clt_elem_mod(sum, sum, q);
             }
-            mpz_set(tmparray[i * n + j], sum);
-            mpz_clears(tmp, sum, NULL);
+            clt_elem_set(tmparray[i * n + j], sum);
+            clt_elem_clear(tmp);
+            clt_elem_clear(sum);
         }
     }
     for (int i = 0; i < m * p; ++i) {
-        mpz_swap(result[i], tmparray[i]);
-        mpz_clear(tmparray[i]);
+        clt_elem_set(result[i], tmparray[i]);
+        clt_elem_clear(tmparray[i]);
     }
     free(tmparray);
     end = current_time();
@@ -363,13 +283,4 @@ mult_vect_by_vect(mpz_t out, const mpz_t *v, const mpz_t *u, mpz_t q, int size)
         }
         mpz_clears(tmp, NULL);
     }
-}
-
-void
-mpz_genrandom(mpz_t rnd, gmp_randstate_t *rng, const long nbits)
-{
-    mpz_t one;
-    mpz_init_set_ui(one, 1 << (nbits - 1));
-    mpz_urandomb(rnd, *rng, nbits);
-    mpz_clear(one);
 }
