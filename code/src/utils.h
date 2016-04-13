@@ -39,6 +39,6 @@ mult_clt_elem_matrices(clt_elem_t *result, const clt_elem_t *left,
 void
 mult_gghlite_enc_matrices(gghlite_enc_t *result, const gghlite_params_t pp,
                           const gghlite_enc_t *left, const gghlite_enc_t *right,
-                          const fmpz_t q, long m, long n, long p);
+                          long m, long n, long p);
 
 #endif

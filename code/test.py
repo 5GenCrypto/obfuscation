@@ -60,13 +60,11 @@ def test(f, sage, *args):
         print(success_str)
 
 def test_all(sage):
-    # test(test_load, sage, "AGIS", "CLT")
     test(test_load, sage, "SZ", "CLT")
-    test(test_load, sage, "Z", "CLT")
+    # test(test_load, sage, "Z", "CLT")
     test(test_load, sage, "SZ", "GGH")
-    # test(test_circuits, sage, "AGIS", "CLT")
     test(test_circuits, sage, "SZ", "CLT")
-    test(test_circuits, sage, "Z", "CLT")
+    # test(test_circuits, sage, "Z", "CLT")
     test(test_circuits, sage, "SZ", "GGH")
 
 def main():

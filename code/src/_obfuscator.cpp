@@ -444,12 +444,13 @@ obf_encode_layers(PyObject *self, PyObject *args)
 }
 
 static int
-_obf_sz_evaluate_clt(clt_pp *pp, char *dir, char *input, long bplen)
+_obf_evaluate(void *pp, char *dir, char *input, long bplen, enum mmap_e mmap,
+              size_t esize)
 {
     char *fname = NULL;
     int fnamelen;
     mpz_t tmp;
-    clt_elem_t *result = NULL;
+    void *result = NULL;
     long nrows, ncols = -1, nrows_prev = -1;
     int err = 0, iszero = -1;
     double start, end;
@@ -461,7 +462,7 @@ _obf_sz_evaluate_clt(clt_pp *pp, char *dir, char *input, long bplen)
 
     for (int layer = 0; layer < bplen; ++layer) {
         unsigned int input_idx;
-        clt_elem_t *left, *right;
+        void *left, *right;
 
         start = current_time();
 
@@ -495,137 +496,82 @@ _obf_sz_evaluate_clt(clt_pp *pp, char *dir, char *input, long bplen)
         }
 
         if (layer == 0) {
-            result = (clt_elem_t *) malloc(sizeof(clt_elem_t) * nrows * ncols);
-            for (int i = 0; i < nrows * ncols; ++i) {
-                clt_elem_init(result[i]);
+            result = malloc(esize * nrows * ncols);
+            switch (mmap) {
+            case MMAP_CLT:
+                for (int i = 0; i < nrows * ncols; ++i) {
+                    clt_elem_init(((clt_elem_t *) result)[i]);
+                }
+                (void) clt_vector_read(fname, (clt_elem_t *) result,
+                                       nrows * ncols);
+                break;
+            case MMAP_GGHLITE:
+                for (int i = 0; i < nrows * ncols; ++i) {
+                    gghlite_enc_init(((gghlite_enc_t *) result)[i],
+                                     (_gghlite_params_struct *) pp);
+                }
+                (void) load_gghlite_enc_vector(fname, (gghlite_enc_t *) result,
+                                               nrows * ncols);
+                break;
             }
-            (void) clt_vector_read(fname, result, nrows * ncols);
             nrows_prev = nrows;
         } else {
             left = result;
-            right = (clt_elem_t *) malloc(sizeof(clt_elem_t) * nrows * ncols);
-            for (int i = 0; i < nrows * ncols; ++i) {
-                clt_elem_init(right[i]);
+            right = malloc(esize * nrows * ncols);
+            switch (mmap) {
+            case MMAP_CLT:
+                for (int i = 0; i < nrows * ncols; ++i) {
+                    clt_elem_init(((clt_elem_t *) right)[i]);
+                }
+                (void) clt_vector_read(fname, (clt_elem_t *) right,
+                                       nrows * ncols);
+                break;
+            case MMAP_GGHLITE:
+                for (int i = 0; i < nrows * ncols; ++i) {
+                    gghlite_enc_init(((gghlite_enc_t *) right)[i],
+                                     (_gghlite_params_struct *) pp);
+                }
+                (void) load_gghlite_enc_vector(fname, (gghlite_enc_t *) right,
+                                               nrows * ncols);
+                break;
             }
-            (void) clt_vector_read(fname, right, nrows * ncols);
-            result = (clt_elem_t *) malloc(sizeof(clt_elem_t) * nrows_prev * ncols);
-            for (int i = 0; i < nrows_prev * ncols; ++i) {
-                clt_elem_init(result[i]);
-            }
-            mult_clt_elem_matrices(result, left, right, pp->x0, nrows_prev,
-                                   nrows, ncols);
+            result = malloc(esize * nrows_prev * ncols);
+            switch (mmap) {
+            case MMAP_CLT:
+                for (int i = 0; i < nrows_prev * ncols; ++i) {
+                    clt_elem_init(((clt_elem_t *) result)[i]);
+                }
+                mult_clt_elem_matrices((clt_elem_t *) result,
+                                       (clt_elem_t *) left,
+                                       (clt_elem_t *) right,
+                                       ((clt_pp *) pp)->x0, nrows_prev,
+                                       nrows, ncols);
 
-            for (int i = 0; i < nrows_prev * nrows; ++i) {
-                clt_elem_clear(left[i]);
-            }
-            for (int i = 0; i < nrows * ncols; ++i) {
-                clt_elem_clear(right[i]);
-            }
-            free(left);
-            free(right);
-        }
-        end = current_time();
+                for (int i = 0; i < nrows_prev * nrows; ++i) {
+                    clt_elem_clear(((clt_elem_t *) left)[i]);
+                }
+                for (int i = 0; i < nrows * ncols; ++i) {
+                    clt_elem_clear(((clt_elem_t *) right)[i]);
+                }
+                break;
+            case MMAP_GGHLITE:
+                for (int i = 0; i < nrows_prev * ncols; ++i) {
+                    gghlite_enc_init(((gghlite_enc_t *) result)[i],
+                                     (_gghlite_params_struct *) pp);
+                }
+                mult_gghlite_enc_matrices((gghlite_enc_t *) result,
+                                          (_gghlite_params_struct *) pp,
+                                          (gghlite_enc_t *) left,
+                                          (gghlite_enc_t *) right,
+                                          nrows_prev, nrows, ncols);
 
-        if (g_verbose)
-            (void) fprintf(stderr, "  Multiplying matrices: %f\n",
-                           end - start);
-    }
-
-    if (!err) {
-        start = current_time();
-        iszero = clt_is_zero(pp, result[1]);
-        end = current_time();
-        if (g_verbose)
-            (void) fprintf(stderr, "  Zero test: %f\n", end - start);
-    }
-
-    for (int i = 0; i < nrows_prev * ncols; ++i) {
-        clt_elem_clear(result[i]);
-    }
-    free(result);
-
-    mpz_clear(tmp);
-
-    return iszero;
-}
-
-static int
-_obf_sz_evaluate_gghlite(gghlite_params_t pp, char *dir, char *input, long bplen)
-{
-    char *fname = NULL;
-    int fnamelen;
-    mpz_t tmp;
-    gghlite_enc_t *result = NULL;
-    long nrows, ncols = -1, nrows_prev = -1;
-    int err = 0, iszero = -1;
-    double start, end;
-
-    fnamelen = strlen(dir) + sizeof bplen + 7;
-    fname = (char *) malloc(sizeof(char) * fnamelen);
-
-    mpz_inits(tmp, NULL);
-
-    for (int layer = 0; layer < bplen; ++layer) {
-        unsigned int input_idx;
-        gghlite_enc_t *left, *right;
-
-        start = current_time();
-
-        // determine the size of the matrix
-        (void) snprintf(fname, fnamelen, "%s/%d.nrows", dir, layer);
-        (void) load_mpz_scalar(fname, tmp);
-        nrows = mpz_get_ui(tmp);
-        (void) snprintf(fname, fnamelen, "%s/%d.ncols", dir, layer);
-        (void) load_mpz_scalar(fname, tmp);
-        ncols = mpz_get_ui(tmp);
-
-        // find out the input bit for the given layer
-        (void) snprintf(fname, fnamelen, "%s/%d.input", dir, layer);
-        (void) load_mpz_scalar(fname, tmp);
-        input_idx = mpz_get_ui(tmp);
-        if (input_idx >= strlen(input)) {
-            PyErr_SetString(PyExc_RuntimeError, "invalid input");
-            err = 1;
-            break;
-        }
-        if (input[input_idx] != '0' && input[input_idx] != '1') {
-            PyErr_SetString(PyExc_RuntimeError, "input must be 0 or 1");
-            err = 1;
-            break;
-        }
-        // load in appropriate matrix for the given input value
-        if (input[input_idx] == '0') {
-            (void) snprintf(fname, fnamelen, "%s/%d.zero", dir, layer);
-        } else {
-            (void) snprintf(fname, fnamelen, "%s/%d.one", dir, layer);
-        }
-
-        if (layer == 0) {
-            result = (gghlite_enc_t *) malloc(sizeof(gghlite_enc_t) * nrows * ncols);
-            for (int i = 0; i < nrows * ncols; ++i) {
-                gghlite_enc_init(result[i], pp);
-            }
-            (void) load_gghlite_enc_vector(fname, result, nrows * ncols);
-            nrows_prev = nrows;
-        } else {
-            left = result;
-            right = (gghlite_enc_t *) malloc(sizeof(gghlite_enc_t) * nrows * ncols);
-            for (int i = 0; i < nrows * ncols; ++i) {
-                gghlite_enc_init(right[i], pp);
-            }
-            (void) load_gghlite_enc_vector(fname, right, nrows * ncols);
-            result = (gghlite_enc_t *) malloc(sizeof(gghlite_enc_t) * nrows_prev * ncols);
-            for (int i = 0; i < nrows_prev * ncols; ++i) {
-                gghlite_enc_init(result[i], pp);
-            }
-            mult_gghlite_enc_matrices(result, pp, left, right, pp->q,
-                                      nrows_prev, nrows, ncols);
-
-            for (int i = 0; i < nrows_prev * nrows; ++i) {
-                gghlite_enc_clear(left[i]);
-            }
-            for (int i = 0; i < nrows * ncols; ++i) {
-                gghlite_enc_clear(right[i]);
+                for (int i = 0; i < nrows_prev * nrows; ++i) {
+                    gghlite_enc_clear(((gghlite_enc_t *) left)[i]);
+                }
+                for (int i = 0; i < nrows * ncols; ++i) {
+                    gghlite_enc_clear(((gghlite_enc_t *) right)[i]);
+                }
+                break;
             }
             free(left);
             free(right);
@@ -638,18 +584,35 @@ _obf_sz_evaluate_gghlite(gghlite_params_t pp, char *dir, char *input, long bplen
 
     if (!err) {
         start = current_time();
-        iszero = gghlite_enc_is_zero(pp, result[1]);
+        switch (mmap) {
+        case MMAP_CLT:
+            iszero = clt_is_zero((clt_pp *) pp, ((clt_elem_t *) result)[1]);
+            break;
+        case MMAP_GGHLITE:
+            iszero = gghlite_enc_is_zero((_gghlite_params_struct *) pp,
+                                         ((gghlite_enc_t *) result)[1]);
+            break;
+        }
         end = current_time();
         if (g_verbose)
             (void) fprintf(stderr, "  Zero test: %f\n", end - start);
     }
 
-    for (int i = 0; i < nrows_prev * ncols; ++i) {
-        gghlite_enc_clear(result[i]);
+    switch (mmap) {
+    case MMAP_CLT:
+        for (int i = 0; i < nrows_prev * ncols; ++i) {
+            clt_elem_clear(((clt_elem_t *) result)[i]);
+        }
+        break;
+    case MMAP_GGHLITE:
+        for (int i = 0; i < nrows_prev * ncols; ++i) {
+            gghlite_enc_clear(((gghlite_enc_t *) result)[i]);
+        }
+        break;
     }
     free(result);
 
-    mpz_clears(tmp, NULL);
+    mpz_clear(tmp);
 
     return iszero;
 }
@@ -681,7 +644,7 @@ obf_evaluate(PyObject *self, PyObject *args)
         clt_pp pp_clt;
         if (clt_pp_read(&pp_clt, dir) == 1)
             return NULL;
-        iszero = _obf_sz_evaluate_clt(&pp_clt, dir, input, bplen);
+        iszero = _obf_evaluate(&pp_clt, dir, input, bplen, mmap, sizeof(clt_elem_t));
         clt_pp_clear(&pp_clt);
         break;
     }
@@ -702,7 +665,7 @@ obf_evaluate(PyObject *self, PyObject *args)
         }
         fread_gghlite_params(fp, pp_gghlite);
         (void) fclose(fp);
-        iszero = _obf_sz_evaluate_gghlite(pp_gghlite, dir, input, bplen);
+        iszero = _obf_evaluate(pp_gghlite, dir, input, bplen, mmap, sizeof(gghlite_enc_t));
         break;
     }
     }
