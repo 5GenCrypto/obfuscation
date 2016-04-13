@@ -1,14 +1,20 @@
 #ifndef THPOOL_FNS
 #define THPOOL_FNS
 
+#include "utils.h"
+
+#include <aesrand.h>
 #include <gmp.h>
 #include <clt13.h>
+#include <gghlite.h>
 
-struct mlm_encode_elem_s {
-    clt_state *mlm;
-    mpz_t *out;
+struct encode_elem_s {
+    enum mmap_e mmap;
+    void *mlm;
+    aes_randstate_t *rand;
+    void *out;
     size_t nins;
-    mpz_t *ins;
+    void *ins;
     int *pows;
 };
 
@@ -27,9 +33,10 @@ void *
 thpool_write_vector(void *vargs);
 
 struct write_layer_s {
+    enum mmap_e mmap;
     char *dir;
-    mpz_t *zero;
-    mpz_t *one;
+    void *zero;
+    void *one;
     long inp;
     long idx;
     long nrows;

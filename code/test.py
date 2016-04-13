@@ -25,14 +25,15 @@ def run(lst):
     print('%s' % ' '.join(lst))
     return subprocess.call(lst)
 
-def test_circuits(sage, scheme):
+def test_circuits(sage, scheme, mlm):
     print_test('Testing all circuits for scheme %s' % scheme)
-    lst = [sage, CMD, "obf", "--test-all", CIRCUIT_PATH, "--secparam", "8"]
+    lst = [sage, CMD, "obf", "--test-all", CIRCUIT_PATH, "--secparam", "8",
+           "--mlm", mlm]
     if scheme != 'AGIS':
         lst.append(schemedict[scheme])
     return run(lst)
 
-def test_load(sage, scheme):
+def test_load(sage, scheme, mlm):
     print_test('Testing load for scheme %s' % scheme)
     if scheme == 'Z':
         circuit = 'add.acirc'
@@ -41,13 +42,13 @@ def test_load(sage, scheme):
         circuit = 'and.circ'
         eval = '00'
     path = os.path.join(CIRCUIT_PATH, circuit)
-    lst = [sage, CMD, "obf", "--test", path, "--secparam", "8"]
+    lst = [sage, CMD, "obf", "--test", path, "--secparam", "8", "--mlm", mlm]
     if scheme != 'AGIS':
         lst.append(schemedict[scheme])
     r = run(lst)
     if r:
         return r
-    lst = [sage, CMD, "obf", "--load-obf", path + ".obf.8", "--eval", eval]
+    lst = [sage, CMD, "obf", "--load-obf", path + ".obf.8", "--mlm", mlm, "--eval", eval]
     if scheme != 'AGIS':
         lst.append(schemedict[scheme])
     return run(lst)
@@ -59,12 +60,14 @@ def test(f, sage, *args):
         print(success_str)
 
 def test_all(sage):
-    test(test_load, sage, "AGIS")
-    test(test_load, sage, "SZ")
-    test(test_load, sage, "Z")
-    test(test_circuits, sage, "AGIS")
-    test(test_circuits, sage, "SZ")
-    test(test_circuits, sage, "Z")
+    # test(test_load, sage, "AGIS", "CLT")
+    test(test_load, sage, "SZ", "CLT")
+    test(test_load, sage, "Z", "CLT")
+    test(test_load, sage, "SZ", "GGH")
+    # test(test_circuits, sage, "AGIS", "CLT")
+    test(test_circuits, sage, "SZ", "CLT")
+    test(test_circuits, sage, "Z", "CLT")
+    test(test_circuits, sage, "SZ", "GGH")
 
 def main():
     if len(sys.argv) > 2:

@@ -110,8 +110,9 @@ class Circuit(object):
 
 
 class ZObfuscator(Obfuscator):
-    def __init__(self, verbose=False, nthreads=None, ncores=None):
-        super(ZObfuscator, self).__init__(_zobf, verbose=verbose,
+    def __init__(self, mlm, verbose=False, nthreads=None, ncores=None):
+        assert mlm == 'CLT'
+        super(ZObfuscator, self).__init__(_zobf, mlm, verbose=verbose,
                                           nthreads=nthreads, ncores=ncores)
 
     def _gen_mlm_params(self, secparam, kappa, nzs, pows, directory):
@@ -163,7 +164,7 @@ class ZObfuscator(Obfuscator):
             _zobf.max_mem_usage()
 
     def evaluate(self, directory, inp):
-        def f(directory, inp, length, nthreads):
+        def f(directory, inp, length, mlm, nthreads):
             inp = inp[::-1]
             circname = os.path.join(directory, 'circuit')
             # Count number of y values

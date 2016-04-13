@@ -10,11 +10,12 @@ failstr = utils.clr_error('Fail')
 
 def test_obfuscation(path, cls, testcases, args, formula=True):
     success = True
-    obf = cls(verbose=args.verbose, nthreads=args.nthreads, ncores=args.ncores)
+    obf = cls(args.mlm, verbose=args.verbose, nthreads=args.nthreads,
+              ncores=args.ncores)
     directory = args.save if args.save \
                 else '%s.obf.%d' % (path, args.secparam)
     obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate,
-                  nslots=args.nslots, kappa=args.kappa, formula=formula)
+                  kappa=args.kappa, formula=formula)
     for k, v in testcases.items():
         if obf.evaluate(directory, k) != v:
             print('%s (%s != %d) ' % (failstr, k, v))

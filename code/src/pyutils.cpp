@@ -2,7 +2,6 @@
 #include "utils.h"
 #include "mpz_pylong.h"
 
-#include <clt13.h>
 #include <sys/resource.h>
 
 PyObject *
@@ -18,10 +17,39 @@ mpz_to_py(const mpz_t in)
     return out;
 }
 
-void
+int
 py_to_mpz(mpz_t out, PyObject *in)
 {
-    (void) mpz_set_pylong(out, in);
+    if (mpz_set_pylong(out, in) == -1) {
+        fprintf(stderr, "error converting python object to mpz\n");
+        return OBFUSCATOR_ERR;
+    }
+    return OBFUSCATOR_OK;
+}
+
+PyObject *
+fmpz_to_py(const fmpz_t in)
+{
+    PyObject *outs, *out;
+    char *buffer;
+
+    buffer = fmpz_get_str(NULL, 10, in);
+    outs = PyString_FromString(buffer);
+    out = PyNumber_Long(outs);
+    free(buffer);
+    return out;
+}
+
+int
+py_to_fmpz(fmpz_t out, PyObject *in)
+{
+    mpz_t tmp;
+    mpz_init(tmp);
+    if (py_to_mpz(tmp, in) == OBFUSCATOR_ERR)
+        return OBFUSCATOR_ERR;
+    fmpz_set_mpz(out, tmp);
+    mpz_clear(tmp);
+    return OBFUSCATOR_OK;
 }
 
 PyObject *

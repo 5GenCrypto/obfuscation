@@ -5,19 +5,16 @@ from setuptools import setup, Extension
 libraries = [
     'gmp',
     'gomp',
+    'flint',
     'clt13',
-    'aesrand',
-    'gghlite'
+    'gghlite',
 ]
 compile_args = [
     '-fopenmp',
-    '-O3',
+    '-O0',
+    '-g',
     '-Wall',
     '-pthread',
-    '-I/home/amaloz/prog/other/gghlite-flint',
-    '-I/home/amaloz/prog/other/gghlite-flint/gghlite',
-    '-I/home/amaloz/prog/other/gghlite-flint/dgs'
-    # '-DTHPOOL_DEBUG',
 ]
 
 zobfuscator = Extension(
