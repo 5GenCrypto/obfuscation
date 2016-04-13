@@ -21,17 +21,6 @@ struct encode_elem_s {
 void *
 thpool_encode_elem(void *vargs);
 
-struct write_vector_s {
-    char *dir;
-    mpz_t *vector;
-    unsigned long length;
-    char *name;
-    double start;
-};
-
-void *
-thpool_write_vector(void *vargs);
-
 struct write_layer_s {
     enum mmap_e mmap;
     char *dir;

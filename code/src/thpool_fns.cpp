@@ -45,46 +45,6 @@ thpool_encode_elem(void *vargs)
 }
 
 static int
-write_vector(const char *dir, mpz_t *vector, long size, char *name)
-{
-    char *fname;
-    int fnamelen;
-
-    fnamelen = strlen(dir) + strlen(name) + 2;
-    fname = (char *) malloc(sizeof(char) * fnamelen);
-    if (fname == NULL)
-        return 1;
-    (void) snprintf(fname, fnamelen, "%s/%s", dir, name);
-    (void) clt_vector_save(fname, vector, size);
-    free(fname);
-    return 0;
-}
-
-void *
-thpool_write_vector(void *vargs)
-{
-    double end;
-    struct write_vector_s *args = (struct write_vector_s *) vargs;
-
-    (void) write_vector(args->dir, args->vector, args->length, args->name);
-    for (unsigned long i = 0; i < args->length; ++i) {
-        mpz_clear(args->vector[i]);
-    }
-
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
-                       args->length, end - args->start);
-
-    free(args->dir);
-    free(args->name);
-    free(args->vector);
-    free(args);
-
-    return NULL;
-}
-
-static int
 write_layer(const char *dir, enum mmap_e mmap, int inp, long idx, void *zero,
             void *one, long nrows, long ncols)
 {

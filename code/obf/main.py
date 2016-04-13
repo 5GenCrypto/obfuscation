@@ -37,19 +37,16 @@ def test_all(args, bpclass, obfclass, obfuscate):
             test_file(path, bpclass, obfclass, obfuscate, args, formula=False)
 
 def check_args(args):
-    num_set = int(args.ananth_etal) + int(args.sahai_zhandry) + int(args.zimmerman)
+    num_set = int(args.sahai_zhandry) + int(args.zimmerman)
     if num_set > 1:
-        print('%s Only one of --ananth-etal, --sahai-zhandry, --zimmerman can be set' % errorstr)
+        print('%s Only one of --sahai-zhandry, --zimmerman can be set' % errorstr)
         sys.exit(1)
     if num_set == 0:
-        args.ananth_etal = True
+        args.sahai_zhandry = True
 
 def bp(args):
     check_args(args)
 
-    if args.ananth_etal:
-        from agis_bp import AGISBranchingProgram
-        cls = AGISBranchingProgram
     if args.sahai_zhandry:
         from sz_bp import SZBranchingProgram
         cls = SZBranchingProgram
@@ -83,11 +80,6 @@ def bp(args):
 def obf(args):
     check_args(args)
 
-    if args.ananth_etal:
-        from agis_bp import AGISBranchingProgram
-        from agis_obfuscator import AGISObfuscator
-        bpclass = AGISBranchingProgram
-        obfclass = AGISObfuscator
     if args.sahai_zhandry:
         from sz_bp import SZBranchingProgram
         from sz_obfuscator import SZObfuscator
@@ -178,12 +170,9 @@ def main():
     parser_bp.add_argument('-v', '--verbose',
                            action='store_true',
                            help='be verbose')
-    parser_bp.add_argument('-a', '--ananth-etal',
-                            action='store_true',
-                            help='use the Ananth et al. construction (default)')
     parser_bp.add_argument('-s', '--sahai-zhandry',
                            action='store_true',
-                           help='use the Sahai/Zhandry construction')
+                           help='use the Sahai/Zhandry construction (default)')
     parser_bp.add_argument('-z', '--zimmerman',
                            action='store_true',
                            help='use the Zimmerman construction')
@@ -231,12 +220,9 @@ def main():
     parser_obf.add_argument('-v', '--verbose',
                             action='store_true', 
                             help='be verbose')
-    parser_obf.add_argument('-a', '--ananth-etal',
-                            action='store_true',
-                            help='use the Ananth et al. construction (default)')
     parser_obf.add_argument('-s', '--sahai-zhandry',
                             action='store_true',
-                            help='use the Sahai/Zhandry construction')
+                            help='use the Sahai/Zhandry construction (default)')
     parser_obf.add_argument('-z', '--zimmerman',
                             action='store_true',
                             help='use the Zimmerman construction')

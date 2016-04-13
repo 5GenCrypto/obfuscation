@@ -41,9 +41,4 @@ mult_gghlite_enc_matrices(gghlite_enc_t *result, const gghlite_params_t pp,
                           const gghlite_enc_t *left, const gghlite_enc_t *right,
                           const fmpz_t q, long m, long n, long p);
 
-void
-mult_vect_by_mat(mpz_t *v, const mpz_t *m, mpz_t q, int size, mpz_t *tmparray);
-void
-mult_vect_by_vect(mpz_t out, const mpz_t *m, const mpz_t *v, mpz_t q, int size);
-
 #endif

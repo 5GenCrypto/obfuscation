@@ -176,22 +176,6 @@ obf_setup(PyObject *self, PyObject *args)
         fprintf(stderr, "  # Cores: %ld\n", ncores);
     }
 
-    // Needed for AGIS obfuscator
-    if (size > 0) {
-        char *fname;
-        mpz_t tmp;
-        int len;
-
-        mpz_init(tmp);
-        mpz_set_ui(tmp, size);
-        len = strlen(s->dir) + 6;
-        fname = (char *) calloc(len, sizeof(char));
-        (void) snprintf(fname, len, "%s/size", s->dir);
-        (void) save_mpz_scalar(fname, tmp);
-        free(fname);
-        mpz_clear(tmp);
-    }
-
     switch (s->mmap) {
     case MMAP_CLT:
     {
@@ -278,84 +262,6 @@ error:
     return NULL;
 }
 
-//
-// Encode N vectors across all slots of the multilinear map
-//
-static PyObject *
-obf_encode_vectors(PyObject *self, PyObject *args)
-{
-    PyObject *py_state, *py_vectors;
-    long index;
-    char *name;
-    mpz_t *vector;
-    ssize_t length;
-    double start;
-    struct state *s;
-
-    if (!PyArg_ParseTuple(args, "OOls", &py_state, &py_vectors, &index, &name))
-        return NULL;
-
-    s = (struct state *) PyCapsule_GetPointer(py_state, NULL);
-    if (s == NULL)
-        return NULL;
-
-    start = current_time();
-
-    // We assume that all vectors have the same length, and thus just grab the
-    // length of the first vector
-    length = PyList_GET_SIZE(PyList_GET_ITEM(py_vectors, 0));
-    vector = (mpz_t *) calloc(length, sizeof(mpz_t));
-    for (ssize_t i = 0; i < length; ++i) {
-        mpz_init(vector[i]);
-    }
-
-    {
-        struct write_vector_s *wv_s;
-
-        wv_s = (struct write_vector_s *) malloc(sizeof(write_vector_s));
-        wv_s->dir = (char *) calloc(strlen(s->dir) + 1, sizeof(char));
-        (void) strcpy(wv_s->dir, s->dir);
-        wv_s->name = (char *) calloc(strlen(name) + 1, sizeof(char));
-        (void) strcpy(wv_s->name, name);
-        wv_s->vector = vector;
-        wv_s->length = length;
-        wv_s->start = start;
-
-        (void) thpool_add_tag(s->thpool, name, length, thpool_write_vector,
-                              wv_s);
-        
-        for (ssize_t i = 0; i < length; ++i) {
-            mpz_t *elems;
-            struct encode_elem_s *args;
-
-            elems = (mpz_t *) calloc(s->secparam, sizeof(mpz_t));
-            for (unsigned long j = 0; j < s->secparam; ++j) {
-                mpz_init(elems[j]);
-                py_to_mpz(elems[j],
-                          PyList_GET_ITEM(PyList_GET_ITEM(py_vectors, j), i));
-            }
-            
-            args = (struct encode_elem_s *) malloc(sizeof(struct encode_elem_s));
-            args->mlm = &s->mlm_clt;
-            args->rand = &s->rand;
-            args->out = &vector[i];
-            args->nins = s->mlm_clt.nzs;
-            args->ins = elems;
-            args->pows = (int *) calloc(args->nins, sizeof(int));
-            args->pows[index] = 1;
-
-            // for (unsigned long i = 0; i < args->nins; ++i) {
-            //     printf("%d ", args->pows[i]);
-            // }
-            // printf("\n");
-
-            thpool_add_work(s->thpool, thpool_encode_elem, (void *) args, name);
-        }
-    }
-
-    Py_RETURN_NONE;
-}
-
 static void
 _obf_encode_layers_clt(struct state *s, long idx, long inp, long nrows,
                        long ncols, PyObject *py_zero_ms, PyObject *py_one_ms)
@@ -410,7 +316,6 @@ _obf_encode_layers_clt(struct state *s, long idx, long inp, long nrows,
         elems = (clt_elem_t *) malloc(sizeof(clt_elem_t) * s->secparam);
         for (unsigned long j = 0; j < s->secparam; ++j) {
             clt_elem_init(elems[j]);
-            // TODO: should be py_to_clt_elem
             py_to_mpz(elems[j],
                       PyList_GET_ITEM(PyList_GET_ITEM(py_array, j), i));
         }
@@ -750,7 +655,7 @@ _obf_sz_evaluate_gghlite(gghlite_params_t pp, char *dir, char *input, long bplen
 }
 
 static PyObject *
-obf_sz_evaluate(PyObject *self, PyObject *args)
+obf_evaluate(PyObject *self, PyObject *args)
 {
     char *dir = NULL;
     char *input = NULL;
@@ -809,134 +714,6 @@ obf_sz_evaluate(PyObject *self, PyObject *args)
 }
 
 static PyObject *
-obf_evaluate(PyObject *self, PyObject *args)
-{
-    char *dir = NULL;
-    char *input = NULL;
-    char *fname = NULL;
-    int fnamelen;
-    int iszero = -1;
-    clt_pp pp;
-    mpz_t *comp, *s, *t;
-    mpz_t tmp;
-    long bplen, size, nthreads;
-    int err = 0;
-    enum mmap_e mmap;
-    double start, end;
-
-    if (!PyArg_ParseTuple(args, "sslll", &dir, &input, &bplen, &mmap, &nthreads))
-        return NULL;
-    fnamelen = strlen(dir) + sizeof bplen + 7;
-    fname = (char *) malloc(sizeof(char) * fnamelen);
-    if (fname == NULL)
-        return NULL;
-
-    mpz_inits(tmp, NULL);
-    clt_pp_read(&pp, dir);
-
-    // Get the size of the matrices
-    (void) snprintf(fname, fnamelen, "%s/size", dir);
-    (void) load_mpz_scalar(fname, tmp);
-    size = mpz_get_ui(tmp);
-
-    comp = (mpz_t *) malloc(sizeof(mpz_t) * size * size);
-    s = (mpz_t *) malloc(sizeof(mpz_t) * size);
-    t = (mpz_t *) malloc(sizeof(mpz_t) * size);
-    if (!comp || !s || !t) {
-        err = 1;
-        goto cleanup;
-    }
-    for (int i = 0; i < size; ++i) {
-        mpz_inits(s[i], t[i], NULL);
-    }
-    for (int i = 0; i < size * size; ++i) {
-        mpz_init(comp[i]);
-    }
-
-    (void) omp_set_num_threads(nthreads);
-
-    for (int layer = 0; layer < bplen; ++layer) {
-        unsigned int input_idx;
-
-        start = current_time();
-        // find out the input bit for the given layer
-        (void) snprintf(fname, fnamelen, "%s/%d.input", dir, layer);
-        (void) load_mpz_scalar(fname, tmp);
-        input_idx = mpz_get_ui(tmp);
-        if (input_idx >= strlen(input)) {
-            PyErr_SetString(PyExc_RuntimeError, "invalid input");
-            err = 1;
-            break;
-        }
-        if (input[input_idx] != '0' && input[input_idx] != '1') {
-            PyErr_SetString(PyExc_RuntimeError, "input must be 0 or 1");
-            err = 1;
-            break;
-        }
-
-        // load in appropriate matrix for the given input value
-        if (input[input_idx] == '0') {
-            (void) snprintf(fname, fnamelen, "%s/%d.zero", dir, layer);
-        } else {
-            (void) snprintf(fname, fnamelen, "%s/%d.one", dir, layer);
-        }
-        (void) clt_vector_read(fname, comp, size * size);
-
-        // for the first matrix, multiply 'comp' by 's' to get a vector
-        if (layer == 0) {
-            (void) snprintf(fname, fnamelen, "%s/s_enc", dir);
-            (void) clt_vector_read(fname, s, size);
-        }
-        mult_vect_by_mat(s, comp, pp.x0, size, t);
-        end = current_time();
-        if (g_verbose)
-            (void) fprintf(stderr, " Multiplying matrices: %f\n",
-                           end - start);
-    }
-
-    if (!err) {
-        start = current_time();
-        (void) snprintf(fname, fnamelen, "%s/t_enc", dir);
-        (void) clt_vector_read(fname, t, size);
-        mult_vect_by_vect(tmp, s, t, pp.x0, size);
-        end = current_time();
-        if (g_verbose)
-            (void) fprintf(stderr, " Multiplying vectors: %f\n",
-                           end - start);
-
-        start = current_time();
-        {
-            iszero = clt_is_zero(&pp, tmp);
-        }
-        end = current_time();
-        if (g_verbose)
-            (void) fprintf(stderr, " Zero test: %f\n", end - start);
-    }
-
-    for (int i = 0; i < size; ++i) {
-        mpz_clears(s[i], t[i], NULL);
-    }
-    for (int i = 0; i < size * size; ++i) {
-        mpz_clear(comp[i]);
-    }
-cleanup:
-    clt_pp_clear(&pp);
-    mpz_clears(tmp, NULL);
-    if (comp)
-        free(comp);
-    if (s)
-        free(s);
-    if (t)
-        free(t);
-    if (fname)
-        free(fname);
-    if (err)
-        return NULL;
-    else
-        return Py_BuildValue("i", iszero ? 0 : 1);
-}
-
-static PyObject *
 obf_wait(PyObject *self, PyObject *args)
 {
     PyObject *py_state;
@@ -960,15 +737,11 @@ ObfMethods[] = {
      "Set verbosity."},
     {"setup", obf_setup, METH_VARARGS,
      "Set up obfuscator."},
-    {"encode_vectors", obf_encode_vectors, METH_VARARGS,
-     "Encode a vector in each slot."},
     {"encode_layers", obf_encode_layers, METH_VARARGS,
      "Encode a branching program layer in each slot."},
     {"max_mem_usage", obf_max_mem_usage, METH_VARARGS,
      "Print out the maximum memory usage."},
     {"evaluate", obf_evaluate, METH_VARARGS,
-     "Evaluate the obfuscation."},
-    {"sz_evaluate", obf_sz_evaluate, METH_VARARGS,
      "Evaluate the obfuscation."},
     {"wait", obf_wait, METH_VARARGS,
      "Wait for threadpool to empty."},
