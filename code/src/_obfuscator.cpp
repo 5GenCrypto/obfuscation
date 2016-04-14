@@ -11,6 +11,11 @@
 #include <mife/mife_defs.h>
 #include <omp.h>
 
+static void
+fread_gghlite_params(FILE *fp, gghlite_params_t params);
+static void
+fwrite_gghlite_params(FILE *fp, const gghlite_params_t params);
+
 struct state {
     threadpool thpool;
     unsigned long secparam;
@@ -24,18 +29,61 @@ struct state {
 };
 
 static void
-state_destructor(PyObject *self)
+state_save_mlm_clt(struct state *s)
 {
-    struct state *s;
+    clt_pp pp;
+    clt_pp_init(&pp, &s->mlm_clt);
+    clt_pp_save(&pp, s->dir);
+    clt_pp_clear(&pp);
+}
 
-    s = (struct state *) PyCapsule_GetPointer(self, NULL);
+static int
+state_save_mlm_gghlite(struct state *s)
+{
+    FILE *fp;
+    char *path;
+    int len = strlen(s->dir) + 10;
+
+    path = (char *) malloc(len);
+    snprintf(path, len, "%s/params", s->dir);
+    fp = fopen(path, "w");
+    free(path);
+    if (fp == NULL) {
+        return 1;
+    }
+    fwrite_gghlite_params(fp, s->mlm_gghlite->params);
+    (void) fclose(fp);
+    return 0;
+}
+
+static int
+load_mlm_gghlite(char *dir, gghlite_params_t pp)
+{
+    FILE *fp;
+    char *path;
+    int len = strlen(dir) + 10;
+
+    path = (char *) malloc(len);
+    snprintf(path, len, "%s/params", dir);
+    fp = fopen(path, "r");
+    free(path);
+    if (fp == NULL)
+        return 1;
+    fread_gghlite_params(fp, pp);
+    (void) fclose(fp);
+    return 0;
+}
+
+static void
+state_cleanup(struct state *s)
+{
     if (s) {
         switch (s->mmap) {
         case MMAP_CLT:
             clt_state_clear(&s->mlm_clt);
             break;
         case MMAP_GGHLITE:
-            // XXX: clean up here!
+            gghlite_sk_clear(s->mlm_gghlite, 1);
             break;
         }
         aes_randclear(s->rand);
@@ -44,54 +92,62 @@ state_destructor(PyObject *self)
     free(s);
 }
 
-static void fread_gghlite_params(FILE *fp, gghlite_params_t params) {
-  int mpfr_base = 10;
-  size_t lambda, kappa, gamma, n, ell;
-  uint64_t rerand_mask;
-  int gghlite_flag_int;
-  CHECK(fscanf(fp, "%zd %zd %zd %ld %ld %lu %d\n",
-    &lambda,
-    &gamma,
-    &kappa,
-    &n,
-    &ell,
-    &rerand_mask,
-    &gghlite_flag_int
-  ), 7);
+static void
+state_destructor(PyObject *self)
+{
+    state_cleanup((struct state *) PyCapsule_GetPointer(self, NULL));
+}
 
-  gghlite_params_initzero(params, lambda, kappa, gamma);
-  params->n = n;
-  params->ell = ell;
-  params->rerand_mask = rerand_mask;
-  params->flags = (gghlite_flag_t) gghlite_flag_int;
+static void
+fread_gghlite_params(FILE *fp, gghlite_params_t params)
+{
+    int mpfr_base = 10;
+    size_t lambda, kappa, gamma, n, ell;
+    uint64_t rerand_mask;
+    int gghlite_flag_int;
+    CHECK(fscanf(fp, "%zd %zd %zd %ld %ld %lu %d\n",
+                 &lambda,
+                 &gamma,
+                 &kappa,
+                 &n,
+                 &ell,
+                 &rerand_mask,
+                 &gghlite_flag_int
+              ), 7);
 
-  fmpz_inp_raw(params->q, fp);
-  CHECK(fscanf(fp, "\n"), 0);
-  mpfr_inp_str(params->sigma, fp, mpfr_base, MPFR_RNDN);
-  CHECK(fscanf(fp, "\n"), 0);
-  mpfr_inp_str(params->sigma_p, fp, mpfr_base, MPFR_RNDN);
-  CHECK(fscanf(fp, "\n"), 0);
-  mpfr_inp_str(params->sigma_s, fp, mpfr_base, MPFR_RNDN);
-  CHECK(fscanf(fp, "\n"), 0);
-  mpfr_inp_str(params->ell_b, fp, mpfr_base, MPFR_RNDN);
-  CHECK(fscanf(fp, "\n"), 0);
-  mpfr_inp_str(params->ell_g, fp, mpfr_base, MPFR_RNDN);
-  CHECK(fscanf(fp, "\n"), 0);
-  mpfr_inp_str(params->xi, fp, mpfr_base, MPFR_RNDN);
-  CHECK(fscanf(fp, "\n"), 0);
+    gghlite_params_initzero(params, lambda, kappa, gamma);
+    params->n = n;
+    params->ell = ell;
+    params->rerand_mask = rerand_mask;
+    params->flags = (gghlite_flag_t) gghlite_flag_int;
 
-  fmpz_mod_poly_fread_raw(fp, params->pzt);
-  CHECK(fscanf(fp, "\n"), 0);
-  CHECK(fscanf(fp, "%zd\n", &params->ntt->n), 1);
-  fmpz_mod_poly_fread_raw(fp, params->ntt->w);
-  CHECK(fscanf(fp, "\n"), 0);
-  fmpz_mod_poly_fread_raw(fp, params->ntt->w_inv);
-  CHECK(fscanf(fp, "\n"), 0);
-  fmpz_mod_poly_fread_raw(fp, params->ntt->phi);
-  CHECK(fscanf(fp, "\n"), 0);
-  fmpz_mod_poly_fread_raw(fp, params->ntt->phi_inv);
+    fmpz_inp_raw(params->q, fp);
+    CHECK(fscanf(fp, "\n"), 0);
+    mpfr_inp_str(params->sigma, fp, mpfr_base, MPFR_RNDN);
+    CHECK(fscanf(fp, "\n"), 0);
+    mpfr_inp_str(params->sigma_p, fp, mpfr_base, MPFR_RNDN);
+    CHECK(fscanf(fp, "\n"), 0);
+    mpfr_inp_str(params->sigma_s, fp, mpfr_base, MPFR_RNDN);
+    CHECK(fscanf(fp, "\n"), 0);
+    mpfr_inp_str(params->ell_b, fp, mpfr_base, MPFR_RNDN);
+    CHECK(fscanf(fp, "\n"), 0);
+    mpfr_inp_str(params->ell_g, fp, mpfr_base, MPFR_RNDN);
+    CHECK(fscanf(fp, "\n"), 0);
+    mpfr_inp_str(params->xi, fp, mpfr_base, MPFR_RNDN);
+    CHECK(fscanf(fp, "\n"), 0);
 
-  gghlite_params_set_D_sigmas(params);
+    fmpz_mod_poly_fread_raw(fp, params->pzt);
+    CHECK(fscanf(fp, "\n"), 0);
+    CHECK(fscanf(fp, "%zd\n", &params->ntt->n), 1);
+    fmpz_mod_poly_fread_raw(fp, params->ntt->w);
+    CHECK(fscanf(fp, "\n"), 0);
+    fmpz_mod_poly_fread_raw(fp, params->ntt->w_inv);
+    CHECK(fscanf(fp, "\n"), 0);
+    fmpz_mod_poly_fread_raw(fp, params->ntt->phi);
+    CHECK(fscanf(fp, "\n"), 0);
+    fmpz_mod_poly_fread_raw(fp, params->ntt->phi_inv);
+
+    gghlite_params_set_D_sigmas(params);
 }
 
 static void
@@ -197,18 +253,8 @@ obf_setup(PyObject *self, PyObject *args)
                        s->rand);
         free(pows);
 
-        // Save CLT public parameters
-        {
-            clt_pp pp;
-            clt_pp_init(&pp, &s->mlm_clt);
-            clt_pp_save(&pp, s->dir);
-            clt_pp_clear(&pp);
-        }
-        // Convert g_i values to python objects
-        //
-        // Only convert the first secparam g_i values since we only need to fill
-        // in the first secparam slots of the plaintext space.
-        //
+        state_save_mlm_clt(s);
+
         py_primes = PyList_New(s->secparam);
         for (unsigned long i = 0; i < s->secparam; ++i) {
             PyList_SetItem(py_primes, i, mpz_to_py(s->mlm_clt.gs[i]));
@@ -218,34 +264,20 @@ obf_setup(PyObject *self, PyObject *args)
     case MMAP_GGHLITE:
     {
         gghlite_flag_t flags = GGHLITE_FLAGS_DEFAULT;
-        if (g_verbose)
-            flags = (gghlite_flag_t) (flags | GGHLITE_FLAGS_VERBOSE);
-        else
-            flags = (gghlite_flag_t) (flags | GGHLITE_FLAGS_QUIET);
+        flags = (gghlite_flag_t)
+            (flags | (g_verbose ? GGHLITE_FLAGS_VERBOSE : GGHLITE_FLAGS_QUIET));
 
-        gghlite_jigsaw_init_gamma(s->mlm_gghlite, s->secparam, kappa, nzs, flags, s->rand);
+        gghlite_jigsaw_init_gamma(s->mlm_gghlite, s->secparam, kappa, nzs,
+                                  flags, s->rand);
         if (g_verbose)
             gghlite_params_print(s->mlm_gghlite->params);
 
-        // Save GGHLite public parameters
-        {
-            FILE *fp;
-            char *path;
-            int len = strlen(s->dir) + 10;
-
-            path = (char *) malloc(len);
-            snprintf(path, len, "%s/params", s->dir);
-            fp = fopen(path, "w");
-            free(path);
-            if (fp == NULL) {
-                PyErr_SetString(PyExc_RuntimeError, "invalid path");
-                goto error;
-            }
-            fwrite_gghlite_params(fp, s->mlm_gghlite->params);
-            (void) fclose(fp);
+        if (state_save_mlm_gghlite(s)) {
+            PyErr_SetString(PyExc_RuntimeError, "saving mlm failed");
+            goto error;
         }
 
-        // Covert q to python object
+        // XXX: what should we convert?  q is incorrect for randomization
         py_primes = PyList_New(1);
         PyList_SetItem(py_primes, 0, fmpz_to_py(s->mlm_gghlite->params->q));
         break;
@@ -256,9 +288,7 @@ obf_setup(PyObject *self, PyObject *args)
     return PyTuple_Pack(2, py_state, py_primes);
 
 error:
-    if (s)
-        free(s);                // TODO: need to clean up s itself before freeing
-
+    state_cleanup(s);
     return NULL;
 }
 
@@ -368,16 +398,15 @@ _obf_encode_layers(struct state *s, long idx, long inp, long nrows, long ncols,
         args->mlm = &s->mlm_gghlite;
         args->rand = NULL;
         args->out = val;
+        args->ins = elems;
         switch (mmap) {
         case MMAP_CLT:
             args->nins = s->mlm_clt.nzs;
-            args->ins = elems;
             args->pows = (int *) calloc(args->nins, sizeof(int));
             args->pows[idx] = 1;
             break;
         case MMAP_GGHLITE:
             args->nins = 1;
-            args->ins = elems;
             args->pows = (int *) calloc(s->mlm_gghlite->params->gamma, sizeof(int));
             break;
         }
@@ -616,41 +645,33 @@ obf_evaluate(PyObject *self, PyObject *args)
     (void) omp_set_num_threads(nthreads);
 
     switch (mmap) {
-    case MMAP_CLT:
-    {
-        clt_pp pp_clt;
-        if (clt_pp_read(&pp_clt, dir) == 1)
-            return NULL;
-        iszero = _obf_evaluate(&pp_clt, dir, input, bplen, mmap, sizeof(clt_elem_t));
-        clt_pp_clear(&pp_clt);
-        break;
-    }
-    case MMAP_GGHLITE:
-    {
-        FILE *fp;
-        char *path;
-        int len = strlen(dir) + 10;
-        gghlite_params_t pp_gghlite;
-
-        path = (char *) malloc(len);
-        snprintf(path, len, "%s/params", dir);
-        fp = fopen(path, "r");
-        free(path);
-        if (fp == NULL) {
-            PyErr_SetString(PyExc_RuntimeError, "invalid path");
+    case MMAP_CLT: {
+        clt_pp pp;
+        if (clt_pp_read(&pp, dir)) {
+            PyErr_SetString(PyExc_RuntimeError, "unable to load mmap");
             return NULL;
         }
-        fread_gghlite_params(fp, pp_gghlite);
-        (void) fclose(fp);
-        iszero = _obf_evaluate(pp_gghlite, dir, input, bplen, mmap, sizeof(gghlite_enc_t));
-        break;
-    }
+        iszero = _obf_evaluate(&pp, dir, input, bplen, mmap, sizeof(clt_elem_t));
+        clt_pp_clear(&pp);
+        break; }
+    case MMAP_GGHLITE: {
+        gghlite_params_t pp;
+        if (load_mlm_gghlite(dir, pp)) {
+            PyErr_SetString(PyExc_RuntimeError, "unable to load mmap");
+            return NULL;
+        }
+        iszero = _obf_evaluate(pp, dir, input, bplen, mmap,
+                               sizeof(gghlite_enc_t));
+        gghlite_params_clear(pp);
+        break; }
     }
 
-    if (iszero == -1)
+    if (iszero == -1) {
+        PyErr_SetString(PyExc_RuntimeError, "zero test failed");
         return NULL;
-    else
+    } else {
         return Py_BuildValue("i", iszero ? 0 : 1);
+    }
 }
 
 static PyObject *
