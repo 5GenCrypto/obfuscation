@@ -263,11 +263,12 @@ error:
 }
 
 static void
-_obf_encode_layers_clt(struct state *s, long idx, long inp, long nrows,
-                       long ncols, PyObject *py_zero_ms, PyObject *py_one_ms)
+_obf_encode_layers(struct state *s, long idx, long inp, long nrows, long ncols,
+                   PyObject *py_zero_ms, PyObject *py_one_ms, enum mmap_e mmap,
+                   size_t esize)
 {
     struct write_layer_s *wl_s;
-    clt_elem_t *zero, *one;
+    void *zero, *one;
     double start;
     char idx_s[10];
 
@@ -275,11 +276,21 @@ _obf_encode_layers_clt(struct state *s, long idx, long inp, long nrows,
 
     (void) snprintf(idx_s, 10, "%ld", idx);
 
-    zero = (clt_elem_t *) malloc(sizeof(clt_elem_t) * nrows * ncols);
-    one = (clt_elem_t *) malloc(sizeof(clt_elem_t) * nrows * ncols);
-    for (ssize_t i = 0; i < nrows * ncols; ++i) {
-        clt_elem_init(zero[i]);
-        clt_elem_init(one[i]);
+    zero = malloc(esize * nrows * ncols);
+    one = malloc(esize * nrows * ncols);
+    switch (mmap) {
+    case MMAP_CLT:
+        for (ssize_t i = 0; i < nrows * ncols; ++i) {
+            clt_elem_init(((clt_elem_t *) zero)[i]);
+            clt_elem_init(((clt_elem_t *) one)[i]);
+        }
+        break;
+    case MMAP_GGHLITE:
+        for (ssize_t i = 0; i < nrows * ncols; ++i) {
+            gghlite_enc_init(((gghlite_enc_t *) zero)[i], s->mlm_gghlite->params);
+            gghlite_enc_init(((gghlite_enc_t *) one)[i], s->mlm_gghlite->params);
+        }
+        break;
     }
 
     wl_s = (struct write_layer_s *) malloc(sizeof(write_layer_s));
@@ -299,111 +310,77 @@ _obf_encode_layers_clt(struct state *s, long idx, long inp, long nrows,
 
     for (Py_ssize_t ctr = 0; ctr < 2 * nrows * ncols; ++ctr) {
         PyObject *py_array;
-        clt_elem_t *val, *elems;
+        void *val, *elems;
         size_t i;
         struct encode_elem_s *args;
 
-        if (ctr < nrows * ncols) {
-            i = ctr;
-            val = &zero[i];
-            py_array = py_zero_ms;
-        } else {
-            i = ctr - nrows * ncols;
-            val = &one[i];
-            py_array = py_one_ms;
+        switch (mmap) {
+        case MMAP_CLT:
+            elems = malloc(sizeof(clt_elem_t) * s->secparam);
+            break;
+        case MMAP_GGHLITE:
+            elems = malloc(sizeof(fmpz_t));
+            fmpz_init(*((fmpz_t *) elems));
+            break;
         }
-
-        elems = (clt_elem_t *) malloc(sizeof(clt_elem_t) * s->secparam);
-        for (unsigned long j = 0; j < s->secparam; ++j) {
-            clt_elem_init(elems[j]);
-            py_to_mpz(elems[j],
-                      PyList_GET_ITEM(PyList_GET_ITEM(py_array, j), i));
-        }
-
-        args = (struct encode_elem_s *) malloc(sizeof(struct encode_elem_s));
-        args->mmap = s->mmap;
-        args->mlm = &s->mlm_clt;
-        args->rand = NULL;
-        args->out = val;
-        args->nins = s->mlm_clt.nzs;
-        args->ins = elems;
-        args->pows = (int *) calloc(args->nins, sizeof(int));
-        args->pows[idx] = 1;
-
-        // for (unsigned long i = 0; i < args->nins; ++i) {
-        //     printf("%d ", args->pows[i]);
-        // }
-        // printf("\n");
-
-        thpool_add_work(s->thpool, thpool_encode_elem, (void *) args, idx_s);
-    }
-}
-
-static void
-_obf_encode_layers_gghlite(struct state *s, long idx, long inp, long nrows,
-                           long ncols, PyObject *py_zero_ms, PyObject *py_one_ms)
-{
-    struct write_layer_s *wl_s;
-    gghlite_enc_t *zero, *one;
-    double start;
-    char idx_s[10];
-
-    start = current_time();
-
-    (void) snprintf(idx_s, 10, "%ld", idx);
-
-    zero = (gghlite_enc_t *) malloc(sizeof(gghlite_enc_t) * nrows * ncols);
-    one = (gghlite_enc_t *) malloc(sizeof(gghlite_enc_t) * nrows * ncols);
-    for (ssize_t i = 0; i < nrows * ncols; ++i) {
-        gghlite_enc_init(zero[i], s->mlm_gghlite->params);
-        gghlite_enc_init(one[i], s->mlm_gghlite->params);
-    }
-
-    wl_s = (struct write_layer_s *) malloc(sizeof(write_layer_s));
-    wl_s->dir = (char *) calloc(strlen(s->dir) + 1, sizeof(char));
-    (void) strcpy(wl_s->dir, s->dir);
-    wl_s->mmap = s->mmap;
-    wl_s->zero = zero;
-    wl_s->one = one;
-    wl_s->inp = inp;
-    wl_s->idx = idx;
-    wl_s->nrows = nrows;
-    wl_s->ncols = ncols;
-    wl_s->start = start;
-
-    (void) thpool_add_tag(s->thpool, idx_s, 2 * nrows * ncols,
-                          thpool_write_layer, wl_s);
-
-    for (Py_ssize_t ctr = 0; ctr < 2 * nrows * ncols; ++ctr) {
-        PyObject *py_array;
-        gghlite_enc_t *val;
-        size_t i;
-        fmpz_t *elem;
-        struct encode_elem_s *args;
-
-        elem = (fmpz_t *) malloc(sizeof(fmpz_t));
-        fmpz_init(*elem);
 
         if (ctr < nrows * ncols) {
             i = ctr;
-            val = &zero[i];
+            switch (mmap) {
+            case MMAP_CLT:
+                val = &((clt_elem_t *) zero)[i];
+                break;
+            case MMAP_GGHLITE:
+                val = &((gghlite_enc_t *) zero)[i];
+                break;
+            }
             py_array = py_zero_ms;
         } else {
             i = ctr - nrows * ncols;
-            val = &one[i];
+            switch (mmap) {
+            case MMAP_CLT:
+                val = &((clt_elem_t *) one)[i];
+                break;
+            case MMAP_GGHLITE:
+                val = &((gghlite_enc_t *) one)[i];
+                break;
+            }
             py_array = py_one_ms;
         }
 
-        py_to_fmpz(*elem, PyList_GET_ITEM(PyList_GET_ITEM(py_array, 0), i));
+        switch (mmap) {
+        case MMAP_CLT:
+            elems = (clt_elem_t *) malloc(sizeof(clt_elem_t) * s->secparam);
+            for (unsigned long j = 0; j < s->secparam; ++j) {
+                clt_elem_init(((clt_elem_t *) elems)[j]);
+                py_to_mpz(((clt_elem_t *) elems)[j],
+                          PyList_GET_ITEM(PyList_GET_ITEM(py_array, j), i));
+            }
+            break;
+        case MMAP_GGHLITE:
+            py_to_fmpz(*((fmpz_t *) elems),
+                       PyList_GET_ITEM(PyList_GET_ITEM(py_array, 0), i));
+            break;
+        }
 
         args = (struct encode_elem_s *) malloc(sizeof(struct encode_elem_s));
         args->mmap = s->mmap;
         args->mlm = &s->mlm_gghlite;
         args->rand = NULL;
         args->out = val;
-        args->nins = 1;
-        args->ins = elem;
-        args->pows = (int *) calloc(s->mlm_gghlite->params->gamma, sizeof(int));
+        switch (mmap) {
+        case MMAP_CLT:
+            args->nins = s->mlm_clt.nzs;
+            args->ins = elems;
+            args->pows = (int *) calloc(args->nins, sizeof(int));
+            args->pows[idx] = 1;
+            break;
+        case MMAP_GGHLITE:
+            args->nins = 1;
+            args->ins = elems;
+            args->pows = (int *) calloc(s->mlm_gghlite->params->gamma, sizeof(int));
+            break;
+        }
 
         thpool_add_work(s->thpool, thpool_encode_elem, (void *) args, idx_s);
     }
@@ -431,12 +408,12 @@ obf_encode_layers(PyObject *self, PyObject *args)
 
     switch (s->mmap) {
     case MMAP_CLT:
-        _obf_encode_layers_clt(s, idx, inp, nrows, ncols, py_zero_ms,
-                               py_one_ms);
+        _obf_encode_layers(s, idx, inp, nrows, ncols, py_zero_ms, py_one_ms,
+                           s->mmap, sizeof(clt_elem_t));
         break;
     case MMAP_GGHLITE:
-        _obf_encode_layers_gghlite(s, idx, inp, nrows, ncols, py_zero_ms,
-                                   py_one_ms);
+        _obf_encode_layers(s, idx, inp, nrows, ncols, py_zero_ms, py_one_ms,
+                           s->mmap, sizeof(gghlite_enc_t));
         break;
     }
 
