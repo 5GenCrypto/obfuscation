@@ -19,21 +19,7 @@ current_time(void);
 
 int
 load_mpz_scalar(const char *fname, mpz_t x);
-int
-save_mpz_scalar(const char *fname, const mpz_t x);
-
-int
-load_gghlite_enc_vector(const char *fname, gghlite_enc_t *m, const int len);
-int
-save_gghlite_enc_vector(const char *fname, const gghlite_enc_t *m, const int len);
-
-void
-mult_clt_elem_matrices(clt_elem_t *result, const clt_elem_t *left,
-                       const clt_elem_t *right, const clt_elem_t q, long m,
-                       long n, long p);
-void
-mult_gghlite_enc_matrices(gghlite_enc_t *result, const gghlite_params_t pp,
-                          const gghlite_enc_t *left, const gghlite_enc_t *right,
-                          long m, long n, long p);
+/* int */
+/* save_mpz_scalar(const char *fname, const mpz_t x); */
 
 #endif

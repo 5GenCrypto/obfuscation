@@ -34,18 +34,15 @@ state_destructor(PyObject *self)
 }
 
 static int
-write_element(const char *dir, mpz_t elem, const char *name)
+write_element(const char *dir, mmap_enc *elem, const char *name)
 {
-    char *fname;
-    int fnamelen;
+    FILE *fp;
+    char fname[100];
 
-    fnamelen = strlen(dir) + strlen(name) + 2;
-    fname = (char *) malloc(sizeof(char) * fnamelen);
-    if (fname == NULL)
-        return 1;
-    (void) snprintf(fname, fnamelen, "%s/%s", dir, name);
-    (void) save_mpz_scalar(fname, elem);
-    free(fname);
+    (void) snprintf(fname, 100, "%s/%s", dir, name);
+    fp = fopen(fname, "w+b");
+    clt13_vtable.enc->fwrite(elem, fp);
+    fclose(fp);
     return 0;
 }
 
@@ -285,18 +282,12 @@ obf_encode_circuit(PyObject *self, PyObject *args)
         pows[4 * n] = ydeg;
         // Encode against these indices/powers
 
-        // printf("%8s   ", "c_star");
-        // for (unsigned long i = 0; i < s->mlm.nzs; ++i) {
-        //     printf("%d ", pows[i]);
-        // }
-        // printf("\n");
-
         clt_encode(tmp, &s->mlm, 2, elems, pows, s->rand);
 
         mpz_clears(elems[0], elems[1], NULL);
         free(pows);
     }
-    (void) write_element(s->dir, tmp, "c_star");
+    (void) write_element(s->dir, (mmap_enc *) &tmp, "c_star");
 
     mpz_clears(c_star, tmp, NULL);
 
