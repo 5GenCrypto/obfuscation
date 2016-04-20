@@ -74,10 +74,7 @@ class SZObfuscator(Obfuscator):
         start = time.time()
 
         self._remove_old(directory)
-        if self._mlm == 'CLT':
-            nslots = secparam
-        else:
-            nslots = 1
+        nslots = 1
 
         # create a dummy branching program to determine parameters
         bp = SZBranchingProgram(fname, verbose=self._verbose,
@@ -89,10 +86,10 @@ class SZObfuscator(Obfuscator):
         primes = self._gen_mlm_params(secparam, kappa, 0, nzs, directory)
         bps = self._construct_bps(SZBranchingProgram, nslots, fname, obliviate,
                                   formula=formula)
-        if self._mlm == 'CLT':
-            self._randomize(secparam, bps, primes)
-        else:
-            print("Warning: No randomization for GGH yet")
+        # if self._mlm == 'CLT':
+        #     self._randomize(secparam, bps, primes)
+        # else:
+        #     print("Warning: No randomization for GGH yet")
         self._obfuscate(bps, len(primes))
 
         _obf.wait(self._state)

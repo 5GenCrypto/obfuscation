@@ -4,28 +4,25 @@
 #include "utils.h"
 
 #include <aesrand.h>
-#include <gmp.h>
-#include <clt13.h>
-#include <gghlite.h>
+#include <mife/mife_defs.h>
 
 struct encode_elem_s {
-    enum mmap_e mmap;
-    void *mlm;
-    aes_randstate_t *rand;
-    void *out;
-    size_t nins;
-    void *ins;
-    int *pows;
+    const mmap_vtable *vtable;
+    const mmap_sk *sk;
+    int n;
+    fmpz_t *plaintext;
+    int *group;
+    mmap_enc *enc;
 };
 
 void *
 thpool_encode_elem(void *vargs);
 
 struct write_layer_s {
-    enum mmap_e mmap;
-    char *dir;
-    void *zero;
-    void *one;
+    const mmap_vtable *vtable;
+    const char *dir;
+    mmap_enc *zero;
+    mmap_enc *one;
     long inp;
     long idx;
     long nrows;
@@ -37,8 +34,8 @@ void *
 thpool_write_layer(void *vargs);
 
 struct write_element_s {
-    char *dir;
-    clt_elem_t *elem;
+    const char *dir;
+    mmap_enc *elem;
     char *name;
 };
 

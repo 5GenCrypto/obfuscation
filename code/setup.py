@@ -6,8 +6,8 @@ libraries = [
     'gmp',
     'gomp',
     'flint',
+    'mmap',
     'clt13',
-    'gghlite',
 ]
 compile_args = [
     '-fopenmp',

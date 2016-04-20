@@ -18,11 +18,6 @@ double
 current_time(void);
 
 int
-fmpz_mod_poly_fread_raw(FILE * f, fmpz_mod_poly_t poly);
-int
-fmpz_mod_poly_fprint_raw(FILE * file, const fmpz_mod_poly_t poly);
-
-int
 load_mpz_scalar(const char *fname, mpz_t x);
 int
 save_mpz_scalar(const char *fname, const mpz_t x);

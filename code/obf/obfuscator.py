@@ -14,6 +14,8 @@ class Obfuscator(object):
 
     def _remove_old(self, directory):
         # remove old files in obfuscation directory
+        # if os.path.isfile(directory):
+        #     os.unlink(directory)
         if os.path.isdir(directory):
             files = os.listdir(directory)
             for file in os.listdir(directory):

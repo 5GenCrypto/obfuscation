@@ -8,6 +8,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <mmap/mmap_gghlite.h>
 
 int g_verbose;
 
@@ -18,89 +19,6 @@ current_time(void)
     (void) gettimeofday(&t, NULL);
     return (double) (t.tv_sec + (double) (t.tv_usec / 1000000.0));
 }
-
-int
-fmpz_mod_poly_fread_raw(FILE * f, fmpz_mod_poly_t poly)
-{
-    slong i, length;
-    fmpz_t coeff;
-    ulong res;
-
-    fmpz_init(coeff);
-    if (flint_fscanf(f, "%wd ", &length) != 1) {
-        fmpz_clear(coeff);
-        return 0;
-    }
-
-    fmpz_inp_raw(coeff,f);
-    fmpz_mod_poly_init(poly, coeff);
-    fmpz_mod_poly_fit_length(poly, length);
-
-    poly->length = length;
-    flint_fscanf(f, " ");
-
-    for (i = 0; i < length; i++)
-    {
-        flint_fscanf(f, " ");
-        res = fmpz_inp_raw(coeff, f);
-
-        fmpz_mod_poly_set_coeff_fmpz(poly,i,coeff);
-
-        if (!res)
-        {
-            poly->length = i;
-            fmpz_clear(coeff);
-            return 0;
-        }
-    }
-
-    fmpz_clear(coeff);
-    _fmpz_mod_poly_normalise(poly);
-
-    return 1;
-}
-
-static int
-_fmpz_mod_poly_fprint_raw(FILE * file, const fmpz *poly, slong len, const fmpz_t p)
-{
-    int r;
-    slong i;
-
-    r = flint_fprintf(file, "%wd ", len);
-    if (r <= 0)
-        return r;
-
-    r = fmpz_out_raw(file, p);
-    if (r <= 0)
-        return r;
-
-    if (len == 0)
-        return r;
-
-    r = flint_fprintf(file, " ");
-    if (r <= 0)
-        return r;
-
-    for (i = 0; (r > 0) && (i < len); i++)
-    {
-        r = flint_fprintf(file, " ");
-        if (r <= 0)
-            return r;
-        r = fmpz_out_raw(file, poly + i);
-        if (r <= 0)
-            return r;
-    }
-
-    return r;
-}
-
-int
-fmpz_mod_poly_fprint_raw(FILE * file, const fmpz_mod_poly_t poly)
-{
-    return _fmpz_mod_poly_fprint_raw(file, poly->coeffs, poly->length,
-        &(poly->p));
-}
-
 
 int
 load_mpz_scalar(const char *fname, mpz_t x)

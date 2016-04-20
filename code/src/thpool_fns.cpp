@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <mmap/mmap.h>
+#include <mmap/mmap_clt.h>
+#include <mmap/mmap_gghlite.h>
+
 void *
 thpool_encode_elem(void *vargs)
 {
@@ -11,150 +15,80 @@ thpool_encode_elem(void *vargs)
     aes_randstate_t rand;
 
     aes_randinit(rand);
-    switch (args->mmap) {
-    case MMAP_CLT:
-        clt_encode(*((clt_elem_t *) args->out), (clt_state *) args->mlm,
-                   args->nins, (clt_elem_t *) args->ins, args->pows, rand);
-
-        for (unsigned long j = 0; j < args->nins; ++j) {
-            mpz_clear(((clt_elem_t *) args->ins)[j]);
-        }
-        break;
-    case MMAP_GGHLITE:
-    {
-        gghlite_clr_t e;
-        gghlite_clr_init(e);
-        fmpz_poly_set_coeff_fmpz(e, 0, ((fmpz_t *) args->ins)[0]);
-        gghlite_enc_set_gghlite_clr(*((gghlite_enc_t *) args->out),
-                                    *((gghlite_sk_t *) args->mlm),
-                                    e, 1, args->pows, 0, rand);
-        gghlite_clr_clear(e);
-        fmpz_clear(((fmpz_t *) args->ins)[0]);
-        break;
-    }
-    }
+    args->vtable->enc->encode(args->enc, args->sk, args->n, args->plaintext,
+                              args->group, rand);
     aes_randclear(rand);
 
-    if (args->pows)
-        free(args->pows);
-    if (args->ins)
-        free(args->ins);
+    for (int i = 0; i < args->n; ++i)
+        fmpz_clear(args->plaintext[i]);
+    free(args->plaintext);
+    free(args->group);
     free(args);
 
     return NULL;
 }
 
-static int
-write_layer(const char *dir, enum mmap_e mmap, int inp, long idx, void *zero,
-            void *one, long nrows, long ncols)
-{
-    mpz_t tmp;
-    char *fname;
-    int fnamelen;
-    int ret = 1;
-
-    if (idx < 0)
-        return 1;
-
-    mpz_init_set_ui(tmp, inp);
-    fnamelen = strlen(dir) + sizeof idx + 7;
-    fname = (char *) malloc(sizeof(char) * fnamelen);
-    if (fname == NULL)
-        goto cleanup;
-
-    (void) snprintf(fname, fnamelen, "%s/%ld.input", dir, idx);
-    (void) save_mpz_scalar(fname, tmp);
-    (void) snprintf(fname, fnamelen, "%s/%ld.zero", dir, idx);
-    switch (mmap) {
-    case MMAP_CLT:
-        (void) clt_vector_save(fname, (clt_elem_t *) zero, nrows * ncols);
-        break;
-    case MMAP_GGHLITE:
-        (void) save_gghlite_enc_vector(fname, (gghlite_enc_t *) zero,
-                                       nrows * ncols);
-        break;
-    }
-    (void) snprintf(fname, fnamelen, "%s/%ld.one", dir, idx);
-    switch (mmap) {
-    case MMAP_CLT:
-        (void) clt_vector_save(fname, (clt_elem_t *) one, nrows * ncols);
-        break;
-    case MMAP_GGHLITE:
-        (void) save_gghlite_enc_vector(fname, (gghlite_enc_t *) one,
-                                       nrows * ncols);
-        break;
-    }
-    mpz_set_ui(tmp, nrows);
-    (void) snprintf(fname, fnamelen, "%s/%ld.nrows", dir, idx);
-    (void) save_mpz_scalar(fname, tmp);
-    mpz_set_ui(tmp, ncols);
-    (void) snprintf(fname, fnamelen, "%s/%ld.ncols", dir, idx);
-    (void) save_mpz_scalar(fname, tmp);
-    ret = 0;
-
-cleanup:
-    if (fname)
-        free(fname);
-    mpz_clear(tmp);
-
-    return ret;
-}
-
 void *
 thpool_write_layer(void *vargs)
 {
+    char fname[100];
+    FILE *fp;
     double end;
     struct write_layer_s *args = (struct write_layer_s *) vargs;
 
-    (void) write_layer(args->dir, args->mmap, args->inp, args->idx, args->zero,
-                       args->one, args->nrows, args->ncols);
-    switch (args->mmap) {
-    case MMAP_CLT:
-        for (int i = 0; i < args->nrows * args->ncols; ++i) {
-            mpz_clears(((mpz_t *) args->zero)[i], ((mpz_t *) args->one)[i], NULL);
-        }
-        break;
-    case MMAP_GGHLITE:
-        for (int i = 0; i < args->nrows * args->ncols; ++i) {
-            gghlite_enc_clear(((gghlite_enc_t *) args->zero)[i]);
-            gghlite_enc_clear(((gghlite_enc_t *) args->one)[i]);
-        }
-        break;
+    (void) snprintf(fname, 100, "%s/%ld.input", args->dir, args->idx);
+    fp = fopen(fname, "w+b");
+    fwrite(&args->inp, sizeof args->inp, 1, fp);
+    fclose(fp);
+
+    (void) snprintf(fname, 100, "%s/%ld.nrows", args->dir, args->idx);
+    fp = fopen(fname, "w+b");
+    fwrite(&args->nrows, sizeof args->nrows, 1, fp);
+    fclose(fp);
+
+    (void) snprintf(fname, 100, "%s/%ld.ncols", args->dir, args->idx);
+    fp = fopen(fname, "w+b");
+    fwrite(&args->ncols, sizeof args->ncols, 1, fp);
+    fclose(fp);
+
+    (void) snprintf(fname, 100, "%s/%ld.zero", args->dir, args->idx);
+    fp = fopen(fname, "w+b");
+    for (long i = 0; i < args->nrows * args->ncols; ++i) {
+        args->vtable->enc->fwrite(&args->zero[i], fp);
+        args->vtable->enc->clear(&args->zero[i]);
     }
-    free(args->zero);
-    free(args->one);
+    fclose(fp);
+
+    (void) snprintf(fname, 100, "%s/%ld.one", args->dir, args->idx);
+    fp = fopen(fname, "w+b");
+    for (long i = 0; i < args->nrows * args->ncols; ++i) {
+        args->vtable->enc->fwrite(&args->one[i], fp);
+        args->vtable->enc->clear(&args->one[i]);
+    }
+    fclose(fp);
 
     end = current_time();
     if (g_verbose)
         (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
                        2 * args->nrows * args->ncols, end - args->start);
 
+    free(args->zero);
+    free(args->one);
+    free(args);
 
     return NULL;
-}
-
-static int
-write_element(const char *dir, clt_elem_t elem, const char *name)
-{
-    char *fname;
-    int fnamelen;
-
-    fnamelen = strlen(dir) + strlen(name) + 2;
-    fname = (char *) malloc(sizeof(char) * fnamelen);
-    if (fname == NULL)
-        return 1;
-    (void) snprintf(fname, fnamelen, "%s/%s", dir, name);
-    (void) clt_elem_save(fname, elem);
-    free(fname);
-    return 0;
 }
 
 void *
 thpool_write_element(void *vargs)
 {
+    FILE *fp;
+    char fname[100];
     struct write_element_s *args = (struct write_element_s *) vargs;
 
-    (void) write_element(args->dir, *args->elem, args->name);
-
+    (void) snprintf(fname, 100, "%s/%s", args->dir, args->name);
+    fp = fopen(fname, "w+b");
+    clt13_vtable.enc->fwrite(args->elem, fp);
+    fclose(fp);
     return NULL;
 }

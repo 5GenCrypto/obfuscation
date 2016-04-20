@@ -5,7 +5,8 @@
 #include "thpool_fns.h"
 
 #include <aesrand.h>
-#include <clt13.h>
+#include <mmap/mmap.h>
+#include <mmap/mmap_clt.h>
 #include <omp.h>
 
 struct state {
@@ -85,8 +86,14 @@ obf_setup(PyObject *self, PyObject *args)
                    s->rand);
     {
         clt_pp pp;
+        char fname[100];
+        FILE *fp;
+
         clt_pp_init(&pp, &s->mlm);
-        clt_pp_save(&pp, s->dir);
+        (void) snprintf(fname, 100, "%s/params", s->dir);
+        fp = fopen(fname, "w+b");
+        clt_pp_fsave(fp, &pp);
+        fclose(fp);
         clt_pp_clear(&pp);
     }
 
@@ -110,17 +117,20 @@ create_work(struct state *s, const char *str, int i,
 
     struct write_element_s *we_s;
     struct encode_elem_s *args;
-    mpz_t *out, *elems;
+    mmap_enc *out;
+    fmpz_t *plaintext;
+    const mmap_pp *pp = clt13_vtable.sk->pp((mmap_sk *) &s->mlm);
 
-    out = (mpz_t *) malloc(sizeof(mpz_t));
-    elems = (mpz_t *) calloc(2, sizeof(mpz_t));
-    mpz_inits(*out, elems[0], elems[1], NULL);    
-    mpz_set(elems[0], elem0);
-    mpz_set(elems[1], elem1);
+    out = (mmap_enc *) malloc(sizeof(mmap_enc));
+    plaintext = (fmpz_t *) calloc(2, sizeof(fmpz_t));
+    clt13_vtable.enc->init(out, pp);
+    fmpz_init(plaintext[0]);
+    fmpz_init(plaintext[1]);
+    fmpz_set_mpz(plaintext[0], elem0);
+    fmpz_set_mpz(plaintext[1], elem1);
 
     we_s = (struct write_element_s *) malloc(sizeof(write_element_s));
-    we_s->dir = (char *) calloc(strlen(s->dir) + 1, sizeof(char));
-    (void) strcpy(we_s->dir, s->dir);
+    we_s->dir = s->dir;
     we_s->elem = out;
     we_s->name = (char *) calloc(sizeof(int) + 10, sizeof(char));
     if (i >= 0) {
@@ -131,26 +141,17 @@ create_work(struct state *s, const char *str, int i,
     (void) thpool_add_tag(s->thpool, we_s->name, 1, thpool_write_element, we_s);
 
     args = (struct encode_elem_s *) malloc(sizeof(struct encode_elem_s));
-    args->mmap = MMAP_CLT;
-    args->mlm = &s->mlm;
-    args->rand = NULL;          // XXX: fix once aesrand is threadsafe
-    args->out = out;
-    args->nins = 2;
-    args->ins = elems;
-    args->pows = (int *) calloc(s->mlm.nzs, sizeof(int));
-
+    args->vtable = &clt13_vtable;
+    args->sk = (mmap_sk *) &s->mlm;
+    args->enc = out;
+    args->n = 2;
+    args->plaintext = plaintext;
+    args->group = (int *) calloc(s->mlm.nzs, sizeof(int));
     va_start(vals, num);
     for (unsigned int i = 0; i < num; ++i) {
         int idx = va_arg(vals, int);
-        args->pows[idx] = va_arg(vals, int);
-
+        args->group[idx] = va_arg(vals, int);
     }
-
-    // printf("%8s   ", we_s->name);
-    // for (unsigned long i = 0; i < s->mlm.nzs; ++i) {
-    //     printf("%d ", args->pows[i]);
-    // }
-    // printf("\n");
 
     (void) thpool_add_work(s->thpool, thpool_encode_elem, (void *) args,
                            we_s->name);
@@ -325,7 +326,16 @@ obf_evaluate(PyObject *self, PyObject *args)
 
     mpz_inits(c_1, c_2, z, w, NULL);
 
-    clt_pp_read(&pp, dir);
+    {
+        char fname[100];
+        FILE *fp;
+
+        (void) snprintf(fname, 100, "%s/params", dir);
+        fp = fopen(fname, "r+b");
+        clt_pp_fread(fp, &pp);
+        fclose(fp);
+
+    }
 
     xs = (mpz_t *) malloc(sizeof(mpz_t) * n);
     xones = (mpz_t *) malloc(sizeof(mpz_t) * n);
