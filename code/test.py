@@ -13,7 +13,6 @@ failure_str = '\t\x1b[31mTest Failed\x1b[0m'
 success_str = '\t\x1b[32mTest Succeeded\x1b[0m'
 
 schemedict = {
-    'AGIS': '',
     'SZ': '--sahai-zhandry',
     'Z': '--zimmerman',
 }
@@ -29,8 +28,7 @@ def test_circuits(sage, scheme, mlm):
     print_test('Testing all circuits for scheme %s' % scheme)
     lst = [sage, CMD, "obf", "--test-all", CIRCUIT_PATH, "--secparam", "8",
            "--mlm", mlm]
-    if scheme != 'AGIS':
-        lst.append(schemedict[scheme])
+    lst.append(schemedict[scheme])
     return run(lst)
 
 def test_load(sage, scheme, mlm):
@@ -43,14 +41,12 @@ def test_load(sage, scheme, mlm):
         eval = '00'
     path = os.path.join(CIRCUIT_PATH, circuit)
     lst = [sage, CMD, "obf", "--test", path, "--secparam", "8", "--mlm", mlm]
-    if scheme != 'AGIS':
-        lst.append(schemedict[scheme])
+    lst.append(schemedict[scheme])
     r = run(lst)
     if r:
         return r
     lst = [sage, CMD, "obf", "--load-obf", path + ".obf.8", "--mlm", mlm, "--eval", eval]
-    if scheme != 'AGIS':
-        lst.append(schemedict[scheme])
+    lst.append(schemedict[scheme])
     return run(lst)
 
 def test(f, sage, *args):
