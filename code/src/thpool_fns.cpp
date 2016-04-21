@@ -19,11 +19,11 @@ thpool_encode_elem(void *vargs)
                               args->group, rand);
     aes_randclear(rand);
 
-    for (int i = 0; i < args->n; ++i)
-        fmpz_clear(args->plaintext[i]);
-    free(args->plaintext);
-    free(args->group);
-    free(args);
+    // for (int i = 0; i < args->n; ++i)
+    //     fmpz_clear(args->plaintext[i]);
+    // free(args->plaintext);
+    // free(args->group);
+    // free(args);
 
     return NULL;
 }
@@ -54,16 +54,16 @@ thpool_write_layer(void *vargs)
     (void) snprintf(fname, 100, "%s/%ld.zero", args->dir, args->idx);
     fp = fopen(fname, "w+b");
     for (long i = 0; i < args->nrows * args->ncols; ++i) {
-        args->vtable->enc->fwrite(&args->zero[i], fp);
-        args->vtable->enc->clear(&args->zero[i]);
+        args->vtable->enc->fwrite(&args->zero_enc[i], fp);
+        args->vtable->enc->clear(&args->zero_enc[i]);
     }
     fclose(fp);
 
     (void) snprintf(fname, 100, "%s/%ld.one", args->dir, args->idx);
     fp = fopen(fname, "w+b");
     for (long i = 0; i < args->nrows * args->ncols; ++i) {
-        args->vtable->enc->fwrite(&args->one[i], fp);
-        args->vtable->enc->clear(&args->one[i]);
+        args->vtable->enc->fwrite(&args->one_enc[i], fp);
+        args->vtable->enc->clear(&args->one_enc[i]);
     }
     fclose(fp);
 
@@ -72,8 +72,8 @@ thpool_write_layer(void *vargs)
         (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
                        2 * args->nrows * args->ncols, end - args->start);
 
-    free(args->zero);
-    free(args->one);
+    free(args->zero_enc);
+    free(args->one_enc);
     free(args);
 
     return NULL;

@@ -19,14 +19,14 @@ class SZObfuscator(Obfuscator):
         super(SZObfuscator, self).__init__(_obf, mlm, verbose=verbose,
                                            nthreads=nthreads, ncores=ncores)
 
-    def _gen_mlm_params(self, secparam, kappa, width, nzs, directory):
+    def _gen_mlm_params(self, secparam, kappa, nzs, directory):
         self.logger('Generating MLM parameters...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
         mlm = 0 if self._mlm == 'CLT' else 1
-        self._state, primes = _obf.setup(secparam, kappa, width, nzs, directory,
-                                         mlm, self._nthreads, self._ncores)
+        self._state, primes = _obf.init(directory, mlm, secparam, kappa, nzs,
+                                        self._nthreads, self._ncores)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         return primes
@@ -66,8 +66,10 @@ class SZObfuscator(Obfuscator):
             assert(len(bps[0][i].zeroset) == 1)
             assert(len(bps[0][i].oneset) == 1)
             assert(bps[0][i].zeroset[0] == bps[0][i].oneset[0])
-            _obf.encode_layers(self._state, i, nrows, ncols, bps[0][i].inp,
-                               zeros, ones)
+            print(nrows, ncols)
+            print(zeros, ones)
+            _obf.encode_layer(self._state, i, nrows, ncols, bps[0][i].inp,
+                              zeros, ones)
 
     def obfuscate(self, fname, secparam, directory, obliviate=False,
                   kappa=None, formula=True):
@@ -83,11 +85,11 @@ class SZObfuscator(Obfuscator):
         if not kappa:
             kappa = nzs
 
-        primes = self._gen_mlm_params(secparam, kappa, 0, nzs, directory)
+        primes = self._gen_mlm_params(secparam, kappa, nzs, directory)
         bps = self._construct_bps(SZBranchingProgram, nslots, fname, obliviate,
                                   formula=formula)
         # if self._mlm == 'CLT':
-        #     self._randomize(secparam, bps, primes)
+        # self._randomize(secparam, bps, primes)
         # else:
         #     print("Warning: No randomization for GGH yet")
         self._obfuscate(bps, len(primes))

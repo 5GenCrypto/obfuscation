@@ -8,6 +8,7 @@ libraries = [
     'flint',
     'mmap',
     'clt13',
+    'mife',
 ]
 compile_args = [
     '-fopenmp',
@@ -22,8 +23,8 @@ zobfuscator = Extension(
     libraries=libraries,
     extra_compile_args=compile_args,
     sources=[
+        'src/zobfuscator_wrapper.cpp',
         'src/circuit.cpp',
-        'src/_zobfuscator.cpp',
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
         'src/pyutils.cpp',
@@ -38,7 +39,8 @@ obfuscator = Extension(
     libraries=libraries,
     extra_compile_args=compile_args,
     sources=[
-        'src/_obfuscator.cpp',
+        'src/obfuscator_wrapper.cpp',
+        'src/obfuscator.cpp',
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
         'src/pyutils.cpp',
@@ -56,8 +58,8 @@ setup(name='obfuscator',
       license='GPLv2',
       url='https://github.com/amaloz/obfuscation',
       packages=['obf'],
-      ext_modules=[obfuscator, zobfuscator],
-      scripts=['obfuscator'],
+      ext_modules=[obfuscator],
+      scripts=['obfuscator', 'zobfuscator'],
       test_suite='t',
       classifiers=[
           'Topic :: Security :: Cryptography',
