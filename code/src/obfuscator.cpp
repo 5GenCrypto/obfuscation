@@ -162,7 +162,7 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
     mmap_enc_mat_init(s->vtable, pp, *zero_enc, nrows, ncols);
     mmap_enc_mat_init(s->vtable, pp, *one_enc, nrows, ncols);
 
-    obf_randomize_layer(s, nrows, ncols, zero, one);
+    // obf_randomize_layer(s, nrows, ncols, zero, one);
 
     wl_s = (struct write_layer_s *) malloc(sizeof(write_layer_s));
     wl_s->vtable = s->vtable;

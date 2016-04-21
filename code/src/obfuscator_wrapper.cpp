@@ -67,11 +67,17 @@ obf_encode_layer_wrapper(PyObject *self, PyObject *args)
     for (long i = 0; i < nrows; ++i) {
         for (long j = 0; j < ncols; ++j) {
             py_to_fmpz(fmpz_mat_entry(zero, i, j),
-                       PyList_GET_ITEM(PyList_GET_ITEM(py_zero_ms, 0), i * nrows + j));
+                       PyList_GET_ITEM(PyList_GET_ITEM(py_zero_ms, 0), i * ncols + j));
             py_to_fmpz(fmpz_mat_entry(one, i, j),
-                       PyList_GET_ITEM(PyList_GET_ITEM(py_one_ms, 0), i * nrows + j));
+                       PyList_GET_ITEM(PyList_GET_ITEM(py_one_ms, 0), i * ncols + j));
         }
     }
+
+    // fprintf(stderr, "RESULTS!\n");
+    // fmpz_mat_fprint_pretty(stderr, zero);
+    // fprintf(stderr, "\n");
+    // fmpz_mat_fprint_pretty(stderr, one);
+    // fprintf(stderr, "\n");
 
     obf_encode_layer(s, idx, inp, nrows, ncols, zero, one);
 
