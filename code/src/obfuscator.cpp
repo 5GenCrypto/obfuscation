@@ -1,9 +1,26 @@
 #include "obfuscator.h"
 #include "thpool_fns.h"
 
+#include <mife/mife_internals.h>
 #include <mmap/mmap_clt.h>
 #include <mmap/mmap_gghlite.h>
 #include <omp.h>
+
+typedef struct obf_state_s {
+    threadpool thpool;
+    unsigned long secparam;
+    enum mmap_e type;
+    mmap_sk mmap;
+    const mmap_vtable *vtable;
+    aes_randstate_t rand;
+    const char *dir;
+    long nzs;
+    fmpz_mat_t *randomizer;
+    fmpz_t field;
+} obf_state_t;
+
+fmpz_mat_t g_first;
+fmpz_mat_t g_second;
 
 static void
 mult_matrices(const mmap_vtable *vtable, const mmap_pp *pp, mmap_enc *result,
@@ -45,11 +62,17 @@ mult_matrices(const mmap_vtable *vtable, const mmap_pp *pp, mmap_enc *result,
         (void) fprintf(stderr, " Multiplying took: %f\n", end - start);
 }
 
-int
-obf_init(struct state *s, enum mmap_e type, const char *dir,
+obf_state_t *
+obf_init(enum mmap_e type, const char *dir,
          unsigned long secparam, unsigned long kappa, unsigned long nzs,
          unsigned long nthreads, unsigned long ncores)
 {
+    obf_state_t *s = NULL;
+
+    s = (obf_state_t *) calloc(1, sizeof(obf_state_t));
+    if (s == NULL)
+        return NULL;
+
     s->secparam = secparam;
     s->type = type;
     s->dir = dir;
@@ -63,7 +86,7 @@ obf_init(struct state *s, enum mmap_e type, const char *dir,
         s->vtable = &gghlite_vtable;
         break;
     default:
-        return 1;
+        return NULL;
     }
 
     fmpz_init(s->field);
@@ -88,11 +111,11 @@ obf_init(struct state *s, enum mmap_e type, const char *dir,
     }
 
     s->vtable->sk->plaintext_field(&s->mmap, s->field);
-    return 0;
+    return s;
 }
 
 void
-obf_clear(struct state *s)
+obf_clear(obf_state_t *s)
 {
     if (s) {
         s->vtable->sk->clear(&s->mmap);
@@ -102,17 +125,69 @@ obf_clear(struct state *s)
     free(s);
 }
 
+fmpz_t *
+obf_get_field(obf_state_t *s)
+{
+    return &s->field;
+}
+
 void
-obf_encode_layer(struct state *s, long idx, long inp, long nrows, long ncols,
+obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
                  fmpz_mat_t zero, fmpz_mat_t one)
 {
     struct write_layer_s *wl_s;
     mmap_enc *zero_enc, *one_enc;
     double start;
     char idx_s[10];
+    fmpz_t rand;
     const mmap_pp *pp = s->vtable->sk->pp(&s->mmap);
 
     start = current_time();
+
+    fmpz_init(rand);
+    fmpz_randm_aes(rand, s->rand, s->field);
+
+    // if (s->randomizer == NULL) {
+    //     s->randomizer = (fmpz_mat_t *) malloc(sizeof(fmpz_mat_t));
+    //     fmpz_mat_init(*s->randomizer, ncols, ncols);
+    //     // fmpz_mat_one(*s->randomizer);
+    //     for (int i = 0; i < ncols; i++)
+    //         for(int j = 0; j < ncols; j++)
+    //             fmpz_randm_aes(fmpz_mat_entry(*s->randomizer, i, j), s->rand, s->field);
+
+    //     fmpz_mat_fprint_pretty(stderr, *s->randomizer);
+    //     fprintf(stderr, "\n");
+
+    //     fmpz_mat_mul(zero, zero, *s->randomizer);
+    //     fmpz_mat_scalar_mod_fmpz(zero, zero, s->field);
+    //     fmpz_mat_mul(one, one, *s->randomizer);
+    //     fmpz_mat_scalar_mod_fmpz(one, one, s->field);
+
+    //     fmpz_mat_init(g_first, nrows, ncols);
+    //     fmpz_mat_set(g_first, zero);
+
+    // } else {
+    //     fmpz_modp_matrix_inverse(*s->randomizer, *s->randomizer, nrows, s->field);
+    //     fmpz_mat_fprint_pretty(stderr, *s->randomizer);
+    //     fprintf(stderr, "\n");
+
+    //     fmpz_mat_mul(zero, *s->randomizer, zero);
+    //     fmpz_mat_scalar_mod_fmpz(zero, zero, s->field);
+    //     fmpz_mat_mul(one, *s->randomizer, one);
+    //     fmpz_mat_scalar_mod_fmpz(one, one, s->field);
+
+    //     fmpz_mat_init(g_second, nrows, ncols);
+    //     fmpz_mat_set(g_second, zero);
+
+    //     fmpz_mat_mul(g_first, g_first, g_second);
+    //     fmpz_mat_scalar_mod_fmpz(g_first, g_first, s->field);
+
+    //     fprintf(stderr, "RESULT:\n");
+    //     fmpz_mat_fprint_pretty(stderr, g_first);
+    //     fprintf(stderr, "\n");
+    // }
+
+    fmpz_clear(rand);
 
     (void) snprintf(idx_s, 10, "%ld", idx);
 
@@ -292,4 +367,10 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, unsigned long bplen,
     }
 
     return iszero;
+}
+
+void
+obf_wait(obf_state_t *s)
+{
+    thpool_wait(s->thpool);
 }
