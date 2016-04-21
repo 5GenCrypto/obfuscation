@@ -56,18 +56,18 @@ class SZObfuscator(Obfuscator):
     def _obfuscate(self, bps, length):
         for i in xrange(len(bps[0])):
             self.logger('Obfuscating layer...')
-            bplength = len(bps[0][i].zero.transpose().list())
-            zeros = pad([to_long(bp[i].zero.transpose().list()) for bp in bps],
+            bplength = len(bps[0][i].zero.list())
+            zeros = pad([to_long(bp[i].zero.list()) for bp in bps],
                         length, bplength)
-            ones = pad([to_long(bp[i].one.transpose().list()) for bp in bps],
+            ones = pad([to_long(bp[i].one.list()) for bp in bps],
                        length, bplength)
             nrows = bps[0][i].zero.nrows()
             ncols = bps[0][i].zero.ncols()
             assert(len(bps[0][i].zeroset) == 1)
             assert(len(bps[0][i].oneset) == 1)
             assert(bps[0][i].zeroset[0] == bps[0][i].oneset[0])
-            print(nrows, ncols)
-            print(zeros, ones)
+            print(zeros)
+            print(ones)
             _obf.encode_layer(self._state, i, nrows, ncols, bps[0][i].inp,
                               zeros, ones)
 

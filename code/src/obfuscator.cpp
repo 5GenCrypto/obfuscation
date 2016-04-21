@@ -16,51 +16,10 @@ typedef struct obf_state_s {
     const char *dir;
     long nzs;
     fmpz_mat_t *randomizer;
-    fmpz_t field;
 } obf_state_t;
 
 fmpz_mat_t g_first;
 fmpz_mat_t g_second;
-
-static void
-mult_matrices(const mmap_vtable *vtable, const mmap_pp *pp, mmap_enc *result,
-              const mmap_enc *left, const mmap_enc *right, long m, long n,
-              long p)
-{
-    mmap_enc *tmparray;
-    double start, end;
-
-    start = current_time();
-    tmparray = (mmap_enc *) malloc(sizeof(mmap_enc) * m * p);
-    for (int i = 0; i < m * p; ++i) {
-        vtable->enc->init(&tmparray[i], pp);
-    }
-#pragma omp parallel for
-    for (int i = 0; i < m; ++i) {
-        for (int j = 0; j < p; ++j) {
-            mmap_enc tmp, sum;
-            vtable->enc->init(&tmp, pp);
-            vtable->enc->init(&sum, pp);
-            for (int k = 0; k < n; ++k) {
-                vtable->enc->mul(&tmp, pp,
-                                 &left[k * m + (i * m + j) % m],
-                                 &right[k + n * ((i * m + j) / m)]);
-                vtable->enc->add(&sum, pp, &sum, &tmp);
-            }
-            vtable->enc->set(&tmparray[i * n + j], &sum);
-            vtable->enc->clear(&tmp);
-            vtable->enc->clear(&sum);
-        }
-    }
-    for (int i = 0; i < m * p; ++i) {
-        vtable->enc->set(&result[i], &tmparray[i]);
-        vtable->enc->clear(&tmparray[i]);
-    }
-    free(tmparray);
-    end = current_time();
-    if (g_verbose)
-        (void) fprintf(stderr, " Multiplying took: %f\n", end - start);
-}
 
 obf_state_t *
 obf_init(enum mmap_e type, const char *dir,
@@ -89,7 +48,8 @@ obf_init(enum mmap_e type, const char *dir,
         return NULL;
     }
 
-    fmpz_init(s->field);
+    nthreads = 1;               // FIXME: remove
+
     (void) aes_randinit(s->rand);
     s->thpool = thpool_init(nthreads);
     (void) omp_set_num_threads(ncores);
@@ -110,7 +70,6 @@ obf_init(enum mmap_e type, const char *dir,
         fclose(fp);
     }
 
-    s->vtable->sk->plaintext_field(&s->mmap, s->field);
     return s;
 }
 
@@ -125,10 +84,63 @@ obf_clear(obf_state_t *s)
     free(s);
 }
 
-fmpz_t *
-obf_get_field(obf_state_t *s)
+void
+obf_get_field(obf_state_t *s, fmpz_t *field)
 {
-    return &s->field;
+    s->vtable->sk->plaintext_field(&s->mmap, *field);
+}
+
+void
+obf_randomize_layer(obf_state_t *s, long nrows, long ncols, fmpz_mat_t zero,
+                    fmpz_mat_t one)
+{
+    fmpz_t rand, field;
+    flint_rand_t rng;
+
+    fmpz_init(rand);
+    fmpz_init(field);
+
+    s->vtable->sk->plaintext_field(&s->mmap, field);
+    fmpz_randm_aes(rand, s->rand, field);
+
+    flint_randinit(rng);
+
+    if (s->randomizer == NULL) {
+        s->randomizer = (fmpz_mat_t *) malloc(sizeof(fmpz_mat_t));
+        fmpz_mat_init(*s->randomizer, ncols, ncols);
+        fmpz_mat_randbits(*s->randomizer, rng, 8);
+        fmpz_mat_one(*s->randomizer);
+        for (int i = 0; i < ncols; i++)
+            for(int j = 0; j < ncols; j++)
+                fmpz_randm_aes(fmpz_mat_entry(*s->randomizer, i, j), s->rand, field);
+        fmpz_mat_scalar_mod_fmpz(*s->randomizer, *s->randomizer, field);
+
+        fmpz_mat_mul(zero, zero, *s->randomizer);
+        fmpz_mat_scalar_mod_fmpz(zero, zero, field);
+        fmpz_mat_mul(one, one, *s->randomizer);
+        fmpz_mat_scalar_mod_fmpz(one, one, field);
+
+        fmpz_mat_init(g_first, nrows, ncols);
+        fmpz_mat_set(g_first, one);
+    } else {
+        fmpz_modp_matrix_inverse(*s->randomizer, *s->randomizer, nrows, field);
+
+        fmpz_mat_mul(zero, *s->randomizer, zero);
+        fmpz_mat_scalar_mod_fmpz(zero, zero, field);
+        fmpz_mat_mul(one, *s->randomizer, one);
+        fmpz_mat_scalar_mod_fmpz(one, one, field);
+
+        fprintf(stderr, "RESULT:\n");
+        fmpz_mat_init(g_second, nrows, ncols);
+        fmpz_mat_set(g_second, one);
+        fmpz_mat_mul(g_first, g_first, g_second);
+        fmpz_mat_scalar_mod_fmpz(g_first, g_first, field);
+        fmpz_mat_fprint_pretty(stderr, g_first);
+        fprintf(stderr, "\n\n");
+    }
+
+    fmpz_clear(rand);
+    fmpz_clear(field);
 }
 
 void
@@ -136,67 +148,21 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
                  fmpz_mat_t zero, fmpz_mat_t one)
 {
     struct write_layer_s *wl_s;
-    mmap_enc *zero_enc, *one_enc;
+    mmap_enc_mat_t *zero_enc, *one_enc;
     double start;
     char idx_s[10];
-    fmpz_t rand;
     const mmap_pp *pp = s->vtable->sk->pp(&s->mmap);
 
     start = current_time();
 
-    fmpz_init(rand);
-    fmpz_randm_aes(rand, s->rand, s->field);
-
-    // if (s->randomizer == NULL) {
-    //     s->randomizer = (fmpz_mat_t *) malloc(sizeof(fmpz_mat_t));
-    //     fmpz_mat_init(*s->randomizer, ncols, ncols);
-    //     // fmpz_mat_one(*s->randomizer);
-    //     for (int i = 0; i < ncols; i++)
-    //         for(int j = 0; j < ncols; j++)
-    //             fmpz_randm_aes(fmpz_mat_entry(*s->randomizer, i, j), s->rand, s->field);
-
-    //     fmpz_mat_fprint_pretty(stderr, *s->randomizer);
-    //     fprintf(stderr, "\n");
-
-    //     fmpz_mat_mul(zero, zero, *s->randomizer);
-    //     fmpz_mat_scalar_mod_fmpz(zero, zero, s->field);
-    //     fmpz_mat_mul(one, one, *s->randomizer);
-    //     fmpz_mat_scalar_mod_fmpz(one, one, s->field);
-
-    //     fmpz_mat_init(g_first, nrows, ncols);
-    //     fmpz_mat_set(g_first, zero);
-
-    // } else {
-    //     fmpz_modp_matrix_inverse(*s->randomizer, *s->randomizer, nrows, s->field);
-    //     fmpz_mat_fprint_pretty(stderr, *s->randomizer);
-    //     fprintf(stderr, "\n");
-
-    //     fmpz_mat_mul(zero, *s->randomizer, zero);
-    //     fmpz_mat_scalar_mod_fmpz(zero, zero, s->field);
-    //     fmpz_mat_mul(one, *s->randomizer, one);
-    //     fmpz_mat_scalar_mod_fmpz(one, one, s->field);
-
-    //     fmpz_mat_init(g_second, nrows, ncols);
-    //     fmpz_mat_set(g_second, zero);
-
-    //     fmpz_mat_mul(g_first, g_first, g_second);
-    //     fmpz_mat_scalar_mod_fmpz(g_first, g_first, s->field);
-
-    //     fprintf(stderr, "RESULT:\n");
-    //     fmpz_mat_fprint_pretty(stderr, g_first);
-    //     fprintf(stderr, "\n");
-    // }
-
-    fmpz_clear(rand);
-
     (void) snprintf(idx_s, 10, "%ld", idx);
 
-    zero_enc = (mmap_enc *) malloc(sizeof(mmap_enc) * nrows * ncols);
-    one_enc = (mmap_enc *) malloc(sizeof(mmap_enc) * nrows * ncols);
-    for (ssize_t i = 0; i < nrows * ncols; ++i) {
-        s->vtable->enc->init(&zero_enc[i], pp);
-        s->vtable->enc->init(&one_enc[i], pp);
-    }
+    zero_enc = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
+    one_enc = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
+    mmap_enc_mat_init(s->vtable, pp, *zero_enc, nrows, ncols);
+    mmap_enc_mat_init(s->vtable, pp, *one_enc, nrows, ncols);
+
+    obf_randomize_layer(s, nrows, ncols, zero, one);
 
     wl_s = (struct write_layer_s *) malloc(sizeof(write_layer_s));
     wl_s->vtable = s->vtable;
@@ -222,10 +188,10 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
                 plaintext = (fmpz_t *) malloc(sizeof(fmpz_t));
                 if (c == 0) {
                     fmpz_init_set(*plaintext, fmpz_mat_entry(zero, i, j));
-                    enc = &zero_enc[i * nrows + j];
+                    enc = zero_enc[0]->m[i][j];
                 } else {
                     fmpz_init_set(*plaintext, fmpz_mat_entry(one, i, j));
-                    enc = &one_enc[i * nrows + j];
+                    enc = one_enc[0]->m[i][j];
                 }
                 args = (struct encode_elem_s *) malloc(sizeof(struct encode_elem_s));
                 args->vtable = s->vtable;
@@ -250,7 +216,7 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, unsigned long bplen,
     mmap_pp pp;
     char fname[100];
     FILE *fp;
-    mmap_enc *result = NULL;
+    mmap_enc_mat_t *result = NULL;
     long nrows, ncols, nrows_prev;
     int err = 0, iszero = -1;
     double start, end;
@@ -275,7 +241,7 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, unsigned long bplen,
 
     for (unsigned long layer = 0; layer < bplen; ++layer) {
         unsigned int inp;
-        mmap_enc *left, *right;
+        mmap_enc_mat_t *left, *right;
 
         start = current_time();
 
@@ -314,55 +280,53 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, unsigned long bplen,
         }
 
         if (layer == 0) {
-            result = (mmap_enc *) malloc(sizeof(mmap_enc) * nrows * ncols);
+            result = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
+            mmap_enc_mat_init(vtable, &pp, *result, nrows, ncols);
             fp = fopen(fname, "r+b");
-            for (int i = 0; i < nrows * ncols; ++i) {
-                vtable->enc->init(&result[i], &pp);
-                vtable->enc->fread(&result[i], fp);
+            for (int i = 0; i < nrows; ++i) {
+                for (int j = 0; j < ncols; ++j) {
+                    vtable->enc->fread(result[0]->m[i][j], fp);
+                }
             }
             fclose(fp);
             nrows_prev = nrows;
         } else {
             left = result;
-            right = (mmap_enc *) malloc(sizeof(mmap_enc) * nrows * ncols);
+            right = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
+            mmap_enc_mat_init(vtable, &pp, *right, nrows, ncols);
             fp = fopen(fname, "r+b");
-            for (int i = 0; i < nrows * ncols; ++i) {
-                vtable->enc->init(&right[i], &pp);
-                vtable->enc->fread(&right[i], fp);
+            for (int i = 0; i < nrows; ++i) {
+                for (int j = 0; j < ncols; ++j) {
+                    vtable->enc->fread(right[0]->m[i][j], fp);
+                }
             }
             fclose(fp);
-            result = (mmap_enc *) malloc(sizeof(mmap_enc) * nrows_prev * ncols);
-            for (int i = 0; i < nrows_prev * ncols; ++i) {
-                vtable->enc->init(&result[i], &pp);
-            }
-            mult_matrices(vtable, &pp, result, left, right, nrows_prev, nrows, ncols);
-            for (int i = 0; i < nrows_prev * nrows; ++i) {
-                vtable->enc->clear(&left[i]);
-            }
-            for (int i = 0; i < nrows * ncols; ++i) {
-                vtable->enc->clear(&right[i]);
-            }
+
+            result = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
+            mmap_enc_mat_init(vtable, &pp, *result, nrows_prev, ncols);
+            mmap_enc_mat_mul(vtable, &pp, *result, *left, *right);
+            mmap_enc_mat_clear(vtable, *left);
+            mmap_enc_mat_clear(vtable, *right);
             free(left);
             free(right);
         }
+
         end = current_time();
 
-        if (g_verbose)
+        if (layer && g_verbose)
             (void) fprintf(stderr, "  Multiplying matrices: %f\n", end - start);
     }
 
     if (!err) {
         start = current_time();
-        iszero = vtable->enc->is_zero(&result[1], &pp);
+        iszero = vtable->enc->is_zero(result[0]->m[0][1], &pp);
         end = current_time();
         if (g_verbose)
             (void) fprintf(stderr, "  Zero test: %f\n", end - start);
     }
 
     if (result) {
-        for (int i = 0; i < nrows_prev * ncols; ++i) {
-            vtable->enc->clear(&result[i]);
-        }
+        mmap_enc_mat_clear(vtable, *result);
         free(result);
     }
 

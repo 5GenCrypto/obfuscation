@@ -53,18 +53,22 @@ thpool_write_layer(void *vargs)
 
     (void) snprintf(fname, 100, "%s/%ld.zero", args->dir, args->idx);
     fp = fopen(fname, "w+b");
-    for (long i = 0; i < args->nrows * args->ncols; ++i) {
-        args->vtable->enc->fwrite(&args->zero_enc[i], fp);
-        args->vtable->enc->clear(&args->zero_enc[i]);
+    for (long i = 0; i < args->nrows; ++i) {
+        for (long j = 0; j < args->ncols; ++j) {
+            args->vtable->enc->fwrite(args->zero_enc[0]->m[i][j], fp);
+        }
     }
+    mmap_enc_mat_clear(args->vtable, args->zero_enc[0]);
     fclose(fp);
 
     (void) snprintf(fname, 100, "%s/%ld.one", args->dir, args->idx);
     fp = fopen(fname, "w+b");
-    for (long i = 0; i < args->nrows * args->ncols; ++i) {
-        args->vtable->enc->fwrite(&args->one_enc[i], fp);
-        args->vtable->enc->clear(&args->one_enc[i]);
+    for (long i = 0; i < args->nrows; ++i) {
+        for (long j = 0; j < args->ncols; ++j) {
+            args->vtable->enc->fwrite(args->one_enc[0]->m[i][j], fp);
+        }
     }
+    mmap_enc_mat_clear(args->vtable, args->one_enc[0]);
     fclose(fp);
 
     end = current_time();

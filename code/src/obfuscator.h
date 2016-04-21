@@ -16,8 +16,12 @@ obf_init(enum mmap_e type, const char *dir, unsigned long secparam,
 void
 obf_clear(obf_state_t *s);
 
-fmpz_t *
-obf_get_field(obf_state_t *s);
+void
+obf_get_field(obf_state_t *s, fmpz_t *field);
+
+void
+obf_randomize_layer(obf_state_t *s, long nrows, long ncols, fmpz_mat_t zero,
+                    fmpz_mat_t one);
 
 void
 obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,

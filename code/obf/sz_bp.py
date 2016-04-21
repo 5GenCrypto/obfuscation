@@ -160,6 +160,7 @@ class SZBranchingProgram(AbstractBranchingProgram):
         assert not self.randomized
         prev = None
         for i in xrange(0, len(self.bp)):
+            print(i)
             nrows = self.bp[i].zero.nrows()
             ncols = self.bp[i].zero.ncols()
             MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), nrows, ncols)
@@ -170,6 +171,7 @@ class SZBranchingProgram(AbstractBranchingProgram):
                 cur = MSZp_square.random_element()
                 self.bp[i] = self.bp[i].group(MSZp, prime).mult_right(cur)
                 prev = cur
+            print(self.bp[i])
         # compute S * B_0
         # d_0 = self.bp[0].zero.nrows()
         # d_1 = self.bp[0].zero.ncols()
