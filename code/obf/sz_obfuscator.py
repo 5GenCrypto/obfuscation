@@ -68,7 +68,14 @@ class SZObfuscator(Obfuscator):
             assert(bps[0][i].zeroset[0] == bps[0][i].oneset[0])
             print(zeros)
             print(ones)
-            _obf.encode_layer(self._state, i, nrows, ncols, bps[0][i].inp,
+            typ = 0
+            if i == 0:
+                typ = typ | 1
+            if i == len(bps[0]) - 1:
+                typ = typ | 4
+            if 0 < i < len(bps[0]) - 1:
+                typ = 2
+            _obf.encode_layer(self._state, i, nrows, ncols, bps[0][i].inp, typ,
                               zeros, ones)
 
     def obfuscate(self, fname, secparam, directory, obliviate=False,

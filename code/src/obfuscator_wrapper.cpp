@@ -49,12 +49,12 @@ static PyObject *
 obf_encode_layer_wrapper(PyObject *self, PyObject *args)
 {
     PyObject *py_state, *py_zero_ms, *py_one_ms;
-    long inp, idx, nrows, ncols;
+    long inp, idx, nrows, ncols, type;
     fmpz_mat_t zero, one;
     obf_state_t *s;
 
-    if (!PyArg_ParseTuple(args, "OllllOO", &py_state, &idx, &nrows, &ncols,
-                          &inp, &py_zero_ms, &py_one_ms))
+    if (!PyArg_ParseTuple(args, "OlllllOO", &py_state, &idx, &nrows, &ncols,
+                          &inp, &type, &py_zero_ms, &py_one_ms))
         return NULL;
 
     s = (obf_state_t *) PyCapsule_GetPointer(py_state, NULL);
@@ -79,7 +79,7 @@ obf_encode_layer_wrapper(PyObject *self, PyObject *args)
     // fmpz_mat_fprint_pretty(stderr, one);
     // fprintf(stderr, "\n");
 
-    obf_encode_layer(s, idx, inp, nrows, ncols, zero, one);
+    obf_encode_layer(s, idx, inp, nrows, ncols, type, zero, one);
 
     fmpz_mat_clear(zero);
     fmpz_mat_clear(one);

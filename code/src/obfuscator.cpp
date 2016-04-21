@@ -90,12 +90,36 @@ obf_get_field(obf_state_t *s, fmpz_t *field)
     s->vtable->sk->plaintext_field(&s->mmap, *field);
 }
 
+static void
+_fmpz_mat_init_rand(fmpz_mat_t m, long n, aes_randstate_t rand, fmpz_t field)
+{
+    fmpz_mat_t inverse;
+
+    fmpz_mat_init(m, n, n);
+    fmpz_mat_init(inverse, n, n);
+    while (true) {
+        for (int i = 0; i < n; i++) {
+            for(int j = 0; j < n; j++) {
+                fmpz_randm_aes(fmpz_mat_entry(m, i, j), rand, field);
+            }
+        }
+        fmpz_modp_matrix_inverse(inverse, m, n, field);
+        for (int i = 0; i < n; i++) {
+            for(int j = 0; j < n; j++) {
+                if (!fmpz_is_zero(fmpz_mat_entry(inverse, i, j)))
+                    goto done;
+            }
+        }
+    }
+done:
+    fmpz_mat_clear(inverse);
+}
+
 void
-obf_randomize_layer(obf_state_t *s, long nrows, long ncols, fmpz_mat_t zero,
-                    fmpz_mat_t one)
+obf_randomize_layer(obf_state_t *s, long nrows, long ncols, int type,
+                    fmpz_mat_t zero, fmpz_mat_t one)
 {
     fmpz_t rand, field;
-    flint_rand_t rng;
 
     fmpz_init(rand);
     fmpz_init(field);
@@ -103,26 +127,33 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols, fmpz_mat_t zero,
     s->vtable->sk->plaintext_field(&s->mmap, field);
     fmpz_randm_aes(rand, s->rand, field);
 
-    flint_randinit(rng);
+    if (type & ENCODE_LAYER_TYPE_FIRST && type & ENCODE_LAYER_TYPE_LAST) {
 
-    if (s->randomizer == NULL) {
+    } else if (type & ENCODE_LAYER_TYPE_FIRST) {
         s->randomizer = (fmpz_mat_t *) malloc(sizeof(fmpz_mat_t));
-        fmpz_mat_init(*s->randomizer, ncols, ncols);
-        fmpz_mat_randbits(*s->randomizer, rng, 8);
-        fmpz_mat_one(*s->randomizer);
-        for (int i = 0; i < ncols; i++)
-            for(int j = 0; j < ncols; j++)
-                fmpz_randm_aes(fmpz_mat_entry(*s->randomizer, i, j), s->rand, field);
-        fmpz_mat_scalar_mod_fmpz(*s->randomizer, *s->randomizer, field);
-
+        _fmpz_mat_init_rand(*s->randomizer, ncols, s->rand, field);
         fmpz_mat_mul(zero, zero, *s->randomizer);
         fmpz_mat_scalar_mod_fmpz(zero, zero, field);
         fmpz_mat_mul(one, one, *s->randomizer);
         fmpz_mat_scalar_mod_fmpz(one, one, field);
 
-        fmpz_mat_init(g_first, nrows, ncols);
-        fmpz_mat_set(g_first, one);
-    } else {
+        // fmpz_mat_init(g_first, nrows, ncols);
+        // fmpz_mat_set(g_first, one);
+    } else if (type & ENCODE_LAYER_TYPE_MIDDLE) {
+        fmpz_modp_matrix_inverse(*s->randomizer, *s->randomizer, nrows, field);
+        fmpz_mat_mul(zero, *s->randomizer, zero);
+        fmpz_mat_scalar_mod_fmpz(zero, zero, field);
+        fmpz_mat_mul(one, *s->randomizer, one);
+        fmpz_mat_scalar_mod_fmpz(one, one, field);
+        fmpz_mat_clear(*s->randomizer);
+        free(s->randomizer);
+        s->randomizer = (fmpz_mat_t *) malloc(sizeof(fmpz_mat_t));
+        _fmpz_mat_init_rand(*s->randomizer, ncols, s->rand, field);
+        fmpz_mat_mul(zero, zero, *s->randomizer);
+        fmpz_mat_scalar_mod_fmpz(zero, zero, field);
+        fmpz_mat_mul(one, one, *s->randomizer);
+        fmpz_mat_scalar_mod_fmpz(one, one, field);
+    } else if (type & ENCODE_LAYER_TYPE_LAST) {
         fmpz_modp_matrix_inverse(*s->randomizer, *s->randomizer, nrows, field);
 
         fmpz_mat_mul(zero, *s->randomizer, zero);
@@ -130,13 +161,13 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols, fmpz_mat_t zero,
         fmpz_mat_mul(one, *s->randomizer, one);
         fmpz_mat_scalar_mod_fmpz(one, one, field);
 
-        fprintf(stderr, "RESULT:\n");
-        fmpz_mat_init(g_second, nrows, ncols);
-        fmpz_mat_set(g_second, one);
-        fmpz_mat_mul(g_first, g_first, g_second);
-        fmpz_mat_scalar_mod_fmpz(g_first, g_first, field);
-        fmpz_mat_fprint_pretty(stderr, g_first);
-        fprintf(stderr, "\n\n");
+        // fprintf(stderr, "RESULT:\n");
+        // fmpz_mat_init(g_second, nrows, ncols);
+        // fmpz_mat_set(g_second, one);
+        // fmpz_mat_mul(g_first, g_first, g_second);
+        // fmpz_mat_scalar_mod_fmpz(g_first, g_first, field);
+        // fmpz_mat_fprint_pretty(stderr, g_first);
+        // fprintf(stderr, "\n\n");
     }
 
     fmpz_clear(rand);
@@ -145,7 +176,7 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols, fmpz_mat_t zero,
 
 void
 obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
-                 fmpz_mat_t zero, fmpz_mat_t one)
+                 int type, fmpz_mat_t zero, fmpz_mat_t one)
 {
     struct write_layer_s *wl_s;
     mmap_enc_mat_t *zero_enc, *one_enc;
@@ -162,7 +193,7 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
     mmap_enc_mat_init(s->vtable, pp, *zero_enc, nrows, ncols);
     mmap_enc_mat_init(s->vtable, pp, *one_enc, nrows, ncols);
 
-    // obf_randomize_layer(s, nrows, ncols, zero, one);
+    obf_randomize_layer(s, nrows, ncols, type, zero, one);
 
     wl_s = (struct write_layer_s *) malloc(sizeof(write_layer_s));
     wl_s->vtable = s->vtable;
