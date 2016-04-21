@@ -25,11 +25,10 @@ class SZObfuscator(Obfuscator):
         if not os.path.exists(directory):
             os.mkdir(directory)
         mlm = 0 if self._mlm == 'CLT' else 1
-        self._state, primes = _obf.init(directory, mlm, secparam, kappa, nzs,
-                                        self._nthreads, self._ncores)
+        self._state = _obf.init(directory, mlm, secparam, kappa, nzs,
+                                self._nthreads, self._ncores)
         end = time.time()
         self.logger('Took: %f' % (end - start))
-        return primes
 
     def _construct_bps(self, bpclass, nslots, fname, obliviate, formula=True):
         self.logger('Constructing %d BP...' % nslots)
@@ -44,15 +43,6 @@ class SZObfuscator(Obfuscator):
         self.logger('Took: %f' % (end - start))
         return bps
 
-    def _randomize(self, secparam, bps, primes):
-        self.logger('Randomizing BPs...')
-        start = time.time()
-        for bp, prime in zip(bps, primes):
-            bp.randomize(prime)
-            bp.set_straddling_sets()
-        end = time.time()
-        self.logger('Took: %f' % (end - start))
-
     def _obfuscate(self, bps, length):
         for i in xrange(len(bps[0])):
             self.logger('Obfuscating layer...')
@@ -66,8 +56,8 @@ class SZObfuscator(Obfuscator):
             assert(len(bps[0][i].zeroset) == 1)
             assert(len(bps[0][i].oneset) == 1)
             assert(bps[0][i].zeroset[0] == bps[0][i].oneset[0])
-            print(zeros)
-            print(ones)
+            # print(zeros)
+            # print(ones)
             typ = 0
             if i == 0:
                 typ = typ | 1
@@ -92,14 +82,14 @@ class SZObfuscator(Obfuscator):
         if not kappa:
             kappa = nzs
 
-        primes = self._gen_mlm_params(secparam, kappa, nzs, directory)
+        self._gen_mlm_params(secparam, kappa, nzs, directory)
         bps = self._construct_bps(SZBranchingProgram, nslots, fname, obliviate,
                                   formula=formula)
         # if self._mlm == 'CLT':
         # self._randomize(secparam, bps, primes)
         # else:
         #     print("Warning: No randomization for GGH yet")
-        self._obfuscate(bps, len(primes))
+        self._obfuscate(bps, 1)
 
         _obf.wait(self._state)
         if self._verbose:

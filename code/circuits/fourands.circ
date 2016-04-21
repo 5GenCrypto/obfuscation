@@ -1,6 +1,8 @@
 : nins 5
 : depth 4
 # TEST 00000 0
+# TEST 00100 0
+# TEST 10101 0
 # TEST 11111 1
 0 input
 1 input

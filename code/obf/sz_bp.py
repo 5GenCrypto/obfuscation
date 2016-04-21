@@ -44,7 +44,6 @@ class SZBranchingProgram(AbstractBranchingProgram):
 
     def obliviate(self):
         assert self.ninputs and self.depth
-        assert not self.randomized
         newbp = []
         for m in self.bp:
             for i in xrange(self.ninputs):

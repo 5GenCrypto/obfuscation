@@ -30,7 +30,6 @@ class AbstractBranchingProgram(object):
         self.nlayers = 0
         self.ninputs = None
         self.bp = None
-        self.randomized = False
         self.zero = None
     def __len__(self):
         return len(self.bp)
@@ -62,8 +61,6 @@ class AbstractBranchingProgram(object):
         return n
 
     def obliviate(self):
-        raise NotImplementedError
-    def randomize(self, prime):
         raise NotImplementedError
     def evaluate(self, x):
         raise NotImplementedError

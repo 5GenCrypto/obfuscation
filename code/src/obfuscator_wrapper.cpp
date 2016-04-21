@@ -15,8 +15,6 @@ obf_init_wrapper(PyObject *self, PyObject *args)
     enum mmap_e type;
     char *dir;
     obf_state_t *s;
-    fmpz_t field;
-    PyObject *py_primes, *py_state;
 
     if (!PyArg_ParseTuple(args, "sllllll", &dir, &type, &secparam, &kappa,
                           &nzs, &nthreads, &ncores)) {
@@ -32,17 +30,7 @@ obf_init_wrapper(PyObject *self, PyObject *args)
     if (s == NULL)
         return NULL;
 
-    fmpz_init(field);
-    obf_get_field(s, &field);
-    py_primes = PyList_New(1);
-    fprintf(stderr, "FIELD: ");
-    fmpz_fprint(stderr, field);
-    fprintf(stderr, "\n");
-    PyList_SetItem(py_primes, 0, fmpz_to_py(field));
-    fmpz_clear(field);
-
-    py_state = PyCapsule_New((void *) s, NULL, obf_clear_wrapper);
-    return PyTuple_Pack(2, py_state, py_primes);
+    return PyCapsule_New((void *) s, NULL, obf_clear_wrapper);
 }
 
 static PyObject *
