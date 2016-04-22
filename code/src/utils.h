@@ -3,8 +3,6 @@
 
 #include <gmp.h>
 
-extern int g_verbose;
-
 double
 current_time(void);
 

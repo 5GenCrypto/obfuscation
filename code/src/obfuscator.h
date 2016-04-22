@@ -9,9 +9,6 @@
 extern "C" {
 #endif
 
-#define OBFUSCATOR_OK 0
-#define OBFUSCATOR_ERR (-1)
-
 typedef struct obf_state_s obf_state_t;
 
 enum mmap_e { MMAP_CLT, MMAP_GGHLITE };

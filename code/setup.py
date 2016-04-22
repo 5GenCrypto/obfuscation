@@ -24,6 +24,7 @@ zobfuscator = Extension(
     extra_compile_args=compile_args,
     sources=[
         'src/zobfuscator_wrapper.cpp',
+        'src/zobfuscator.cpp',
         'src/circuit.cpp',
         'src/mpn_pylong.cpp',
         'src/mpz_pylong.cpp',
