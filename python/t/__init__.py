@@ -24,14 +24,14 @@ def run(lst):
     print('%s' % ' '.join(lst))
     return subprocess.call(lst)
 
-def test_circuits(scheme, mlm):
+def test_circuits(scheme, mlm, secparam):
     print_test('Testing all circuits for scheme %s' % scheme)
-    lst = [CMD, "obf", "--test-all", CIRCUIT_PATH, "--secparam", "8",
+    lst = [CMD, "obf", "--test-all", CIRCUIT_PATH, "--secparam", str(secparam),
            "--mlm", mlm]
     lst.append(schemedict[scheme])
     return run(lst)
 
-def test_load(scheme, mlm):
+def test_load(scheme, mlm, secparam):
     print_test('Testing load for scheme %s' % scheme)
     if scheme == 'Z':
         circuit = 'add.acirc'
@@ -40,12 +40,12 @@ def test_load(scheme, mlm):
         circuit = 'and.circ'
         eval = '00'
     path = os.path.join(CIRCUIT_PATH, circuit)
-    lst = [CMD, "obf", "--test", path, "--secparam", "8", "--mlm", mlm]
+    lst = [CMD, "obf", "--test", path, "--secparam", str(secparam), "--mlm", mlm]
     lst.append(schemedict[scheme])
     r = run(lst)
     if r:
         return r
-    lst = [CMD, "obf", "--load-obf", path + ".obf.8", "--mlm", mlm, "--eval", eval]
+    lst = [CMD, "obf", "--load-obf", path + ".obf.%d" % secparam, "--mlm", mlm, "--eval", eval]
     lst.append(schemedict[scheme])
     return run(lst)
 
@@ -56,12 +56,14 @@ def test(f, *args):
         print(success_str)
 
 def test_all():
-    test(test_load, "SZ", "CLT")
-    # test(test_load, "Z", "CLT")
-    test(test_load, "SZ", "GGH")
-    test(test_circuits, "SZ", "CLT")
-    # test(test_circuits, "Z", "CLT")
-    test(test_circuits, "SZ", "GGH")
+    print("TESTING LOAD")
+    test(test_load, "SZ", "CLT", 8)
+    test(test_load, "SZ", "GGH", 8)
+    test(test_load, "Z", "CLT", 8)
+    print("TESTING CIRCUITS w SECPARAM = 8")
+    test(test_circuits, "SZ", "CLT", 8)
+    test(test_circuits, "SZ", "GGH", 8)
+    test(test_circuits, "Z", "CLT", 8)
 
 try:
     test_all()
