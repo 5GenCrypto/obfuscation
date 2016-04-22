@@ -1,7 +1,6 @@
-# Implementation of Cryptographic Program Obfuscation
+# Cryptographic Program Obfuscation
 
-This code presents several implementations of cryptographic program obfuscation,
-as listed in the following table:
+This porject provides the following implementations of cryptographic program obfuscation:
 
 Scheme | Authors | ePrint Reference
 ------ | ------- | ----------------
@@ -15,13 +14,28 @@ across the board) appears in the work:
 Jonathan Katz, Alex J. Malozemoff. Cryptology ePrint Archive 2014/779.
 https://eprint.iacr.org/2014/779.
 
-All schemes use the graded encoding scheme of Coron et al. (CRYPTO,
-2013. https://eprint.iacr.org/2013/183).  The implementation is in a mix of
-Python and C, using [Sage](http://sagemath.org), [GNU GMP](https://gmplib.org)
-and [OpenMP](http://openmp.org).
+The implementation uses [libmmap](https://github.com/amaloz/gghlite-flint) to support both the CLT13 and GGHlite graded
+encoding schemes for SZ; Z only works with CLT13.
 
-Instructions for building and running the code are in code/README.md, and
-scripts for running experiments and processing the results are in the scripts/
-directory.
+## Building
+
+Run the following:
+
+```
+autoreconf -i
+./configure
+make
+sudo make install
+```
+
+This installs the underlying obfuscation library `libobf` to your system.  To install the python front-end, proceed as follows:
+
+```
+cd python
+python2 setup.py test
+python2 setup.py build
+```
+
+## Contact
 
 For any questions/comments, please e-mail amaloz at cs dot umd dot edu.
