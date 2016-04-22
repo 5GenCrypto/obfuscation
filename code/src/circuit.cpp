@@ -353,11 +353,11 @@ circ_evaluate_encoding(const struct circuit *circ, const mpz_t *xs,
             break;
         default:
             (void) fprintf(stderr, "error: unknown gate type!\n");
-            return OBFUSCATOR_ERR;
+            return 1;
         }
     }
     mpz_set(out, circ->gates[circ->ngates - 1].value);
-    return OBFUSCATOR_OK;
+    return 0;
 }
 
 void

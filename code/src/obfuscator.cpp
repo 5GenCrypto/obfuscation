@@ -1,4 +1,5 @@
 #include "obfuscator.h"
+#include "thpool.h"
 #include "thpool_fns.h"
 
 #include <mife/mife_internals.h>
@@ -8,20 +9,20 @@
 
 typedef struct obf_state_s {
     threadpool thpool;
-    unsigned long secparam;
+    uint64_t secparam;
     enum mmap_e type;
     mmap_sk mmap;
     const mmap_vtable *vtable;
     aes_randstate_t rand;
     const char *dir;
-    long nzs;
+    uint64_t nzs;
     fmpz_mat_t *randomizer;
+    bool verbose;
 } obf_state_t;
 
 obf_state_t *
-obf_init(enum mmap_e type, const char *dir,
-         unsigned long secparam, unsigned long kappa, unsigned long nzs,
-         unsigned long nthreads, unsigned long ncores)
+obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
+         uint64_t nzs, uint64_t nthreads, uint64_t ncores, bool verbose)
 {
     obf_state_t *s = NULL;
 
@@ -33,10 +34,11 @@ obf_init(enum mmap_e type, const char *dir,
     s->type = type;
     s->dir = dir;
     s->nzs = nzs;
+    s->verbose = verbose;
 
     switch (s->type) {
     case MMAP_CLT:
-        s->vtable = &clt13_vtable;
+        s->vtable = &clt_vtable;
         break;
     case MMAP_GGHLITE:
         s->vtable = &gghlite_vtable;
@@ -49,12 +51,12 @@ obf_init(enum mmap_e type, const char *dir,
     s->thpool = thpool_init(nthreads);
     (void) omp_set_num_threads(ncores);
 
-    if (g_verbose) {
+    if (s->verbose) {
         fprintf(stderr, "  # Threads: %ld\n", nthreads);
         fprintf(stderr, "  # Cores: %ld\n", ncores);
     }
 
-    s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, s->rand);
+    s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, s->rand, s->verbose);
     {
         char fname[100];
         FILE *fp;
@@ -74,16 +76,12 @@ obf_clear(obf_state_t *s)
     if (s) {
         s->vtable->sk->clear(&s->mmap);
         aes_randclear(s->rand);
+        if (s->randomizer)
+            free(s->randomizer);
         // XXX: this hangs
         // thpool_destroy(s->thpool);
     }
     free(s);
-}
-
-void
-obf_get_field(obf_state_t *s, fmpz_t *field)
-{
-    s->vtable->sk->plaintext_field(&s->mmap, *field);
 }
 
 static void
@@ -144,33 +142,28 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
 
     s->vtable->sk->plaintext_field(&s->mmap, field);
 
-    if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST
-        && rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_LAST) {
+    if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST) {
         fmpz_mat_t first;
-        fmpz_mat_t last;
-
         fmpz_mat_init(first, nrows, nrows);
         fmpz_mat_one(first);
         fmpz_randm_aes(rand, s->rand, field);
         fmpz_mat_scalar_mul_fmpz(first, first, rand);
         fmpz_layer_mul_left(zero, one, first, field);
         fmpz_mat_clear(first);
-
+    }
+    if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_LAST) {
+        fmpz_mat_t last;
         fmpz_mat_init(last, ncols, ncols);
         fmpz_mat_one(last);
         fmpz_randm_aes(rand, s->rand, field);
         fmpz_mat_scalar_mul_fmpz(last, last, rand);
         fmpz_layer_mul_right(zero, one, last, field);
         fmpz_mat_clear(last);
+    }
+
+    if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST
+        && rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_LAST) {
     } else if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST) {
-        fmpz_mat_t first;
-        fmpz_mat_init(first, nrows, nrows);
-        fmpz_mat_one(first);
-        fmpz_randm_aes(rand, s->rand, field);
-        fmpz_mat_scalar_mul_fmpz(first, first, rand);
-        fmpz_layer_mul_left(zero, one, first, field);
-        fmpz_mat_clear(first);
-        
         s->randomizer = (fmpz_mat_t *) malloc(sizeof(fmpz_mat_t));
         _fmpz_mat_init_rand(*s->randomizer, ncols, s->rand, field);
         fmpz_layer_mul_right(zero, one, *s->randomizer, field);
@@ -183,19 +176,11 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
         _fmpz_mat_init_rand(*s->randomizer, ncols, s->rand, field);
         fmpz_layer_mul_right(zero, one, *s->randomizer, field);
     } else if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_LAST) {
-        fmpz_mat_t last;
         fmpz_modp_matrix_inverse(*s->randomizer, *s->randomizer, nrows, field);
         fmpz_layer_mul_left(zero, one, *s->randomizer, field);
-
         fmpz_mat_clear(*s->randomizer);
         free(s->randomizer);
-
-        fmpz_mat_init(last, ncols, ncols);
-        fmpz_mat_one(last);
-        fmpz_randm_aes(rand, s->rand, field);
-        fmpz_mat_scalar_mul_fmpz(last, last, rand);
-        fmpz_layer_mul_right(zero, one, last, field);
-        fmpz_mat_clear(last);
+        s->randomizer = NULL;
     }
 
     fmpz_clear(rand);
@@ -235,6 +220,7 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
     wl_s->nrows = nrows;
     wl_s->ncols = ncols;
     wl_s->start = start;
+    wl_s->verbose = s->verbose;
 
     (void) thpool_add_tag(s->thpool, idx_s, 2 * nrows * ncols,
                           thpool_write_layer, wl_s);
@@ -269,8 +255,8 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
 }
 
 int
-obf_evaluate(enum mmap_e type, char *dir, char *input, unsigned long bplen,
-             unsigned long ncores)
+obf_evaluate(enum mmap_e type, char *dir, char *input, uint64_t bplen,
+             uint64_t ncores, bool verbose)
 {
     const mmap_vtable *vtable;
     mmap_pp pp;
@@ -285,7 +271,7 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, unsigned long bplen,
 
     switch (type) {
     case MMAP_CLT:
-        vtable = &clt13_vtable;
+        vtable = &clt_vtable;
         break;
     case MMAP_GGHLITE:
         vtable = &gghlite_vtable;
@@ -373,7 +359,7 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, unsigned long bplen,
 
         end = current_time();
 
-        if (layer && g_verbose)
+        if (verbose)
             (void) fprintf(stderr, "  Multiplying matrices: %f\n", end - start);
     }
 
@@ -381,7 +367,7 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, unsigned long bplen,
         start = current_time();
         iszero = vtable->enc->is_zero(result[0]->m[0][1], &pp);
         end = current_time();
-        if (g_verbose)
+        if (verbose)
             (void) fprintf(stderr, "  Zero test: %f\n", end - start);
     }
 

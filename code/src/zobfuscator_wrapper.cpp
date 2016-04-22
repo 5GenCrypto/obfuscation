@@ -41,7 +41,7 @@ write_element(const char *dir, mmap_enc *elem, const char *name)
 
     (void) snprintf(fname, 100, "%s/%s", dir, name);
     fp = fopen(fname, "w+b");
-    clt13_vtable.enc->fwrite(elem, fp);
+    clt_vtable.enc->fwrite(elem, fp);
     fclose(fp);
     return 0;
 }
@@ -116,11 +116,11 @@ create_work(struct state *s, const char *str, int i,
     struct encode_elem_s *args;
     mmap_enc *out;
     fmpz_t *plaintext;
-    const mmap_pp *pp = clt13_vtable.sk->pp((mmap_sk *) &s->mlm);
+    const mmap_pp *pp = clt_vtable.sk->pp((mmap_sk *) &s->mlm);
 
     out = (mmap_enc *) malloc(sizeof(mmap_enc));
     plaintext = (fmpz_t *) calloc(2, sizeof(fmpz_t));
-    clt13_vtable.enc->init(out, pp);
+    clt_vtable.enc->init(out, pp);
     fmpz_init(plaintext[0]);
     fmpz_init(plaintext[1]);
     fmpz_set_mpz(plaintext[0], elem0);
@@ -138,7 +138,7 @@ create_work(struct state *s, const char *str, int i,
     (void) thpool_add_tag(s->thpool, we_s->name, 1, thpool_write_element, we_s);
 
     args = (struct encode_elem_s *) malloc(sizeof(struct encode_elem_s));
-    args->vtable = &clt13_vtable;
+    args->vtable = &clt_vtable;
     args->sk = (mmap_sk *) &s->mlm;
     args->enc = out;
     args->n = 2;
@@ -413,6 +413,19 @@ obf_evaluate(PyObject *self, PyObject *args)
     mpz_clears(c_1, c_2, z, w, NULL);
 
     return Py_BuildValue("i", iszero ? 0 : 1);
+}
+
+static PyObject *
+obf_verbose(PyObject *self, PyObject *args)
+{
+    PyObject *py_verbose;
+
+    if (!PyArg_ParseTuple(args, "O", &py_verbose))
+        return NULL;
+
+    g_verbose = PyObject_IsTrue(py_verbose);
+
+    Py_RETURN_NONE;
 }
 
 static PyMethodDef

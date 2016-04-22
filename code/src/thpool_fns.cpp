@@ -72,7 +72,7 @@ thpool_write_layer(void *vargs)
     fclose(fp);
 
     end = current_time();
-    if (g_verbose)
+    if (args->verbose)
         (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
                        2 * args->nrows * args->ncols, end - args->start);
 
@@ -92,7 +92,7 @@ thpool_write_element(void *vargs)
 
     (void) snprintf(fname, 100, "%s/%s", args->dir, args->name);
     fp = fopen(fname, "w+b");
-    clt13_vtable.enc->fwrite(args->elem, fp);
+    clt_vtable.enc->fwrite(args->elem, fp);
     fclose(fp);
     return NULL;
 }

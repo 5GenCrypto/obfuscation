@@ -22,9 +22,9 @@ py_to_mpz(mpz_t out, PyObject *in)
 {
     if (mpz_set_pylong(out, in) == -1) {
         fprintf(stderr, "error converting python object to mpz\n");
-        return OBFUSCATOR_ERR;
+        return 1;
     }
-    return OBFUSCATOR_OK;
+    return 0;
 }
 
 PyObject *
@@ -45,26 +45,11 @@ py_to_fmpz(fmpz_t out, PyObject *in)
 {
     mpz_t tmp;
     mpz_init(tmp);
-    if (py_to_mpz(tmp, in) == OBFUSCATOR_ERR)
-        return OBFUSCATOR_ERR;
+    if (py_to_mpz(tmp, in) == 1)
+        return 1;
     fmpz_set_mpz(out, tmp);
     mpz_clear(tmp);
-    return OBFUSCATOR_OK;
-}
-
-PyObject *
-obf_verbose(PyObject *self, PyObject *args)
-{
-    PyObject *py_verbose;
-
-    if (!PyArg_ParseTuple(args, "O", &py_verbose))
-        return NULL;
-
-    g_verbose = PyObject_IsTrue(py_verbose);
-    if (g_verbose == -1)
-        return NULL;
-
-    Py_RETURN_NONE;
+    return 0;
 }
 
 PyObject *

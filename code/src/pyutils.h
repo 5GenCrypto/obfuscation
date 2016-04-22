@@ -18,9 +18,6 @@ int
 py_to_fmpz(fmpz_t out, PyObject *in);
 
 PyObject *
-obf_verbose(PyObject *self, PyObject *args);
-
-PyObject *
 obf_max_mem_usage(PyObject *self, PyObject *args);
 
 #endif

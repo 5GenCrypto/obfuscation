@@ -10,8 +10,6 @@
 #include <unistd.h>
 #include <mmap/mmap_gghlite.h>
 
-int g_verbose;
-
 double
 current_time(void)
 {
@@ -32,19 +30,3 @@ load_mpz_scalar(const char *fname, mpz_t x)
     (void) fclose(f);
     return 0;
 }
-
-// int
-// save_mpz_scalar(const char *fname, const mpz_t x)
-// {
-//     FILE *f;
-//     if ((f = fopen(fname, "w")) == NULL) {
-//         perror(fname);
-//         return 1;
-//     }
-//     if (mpz_out_raw(f, x) == 0) {
-//         (void) fclose(f);
-//         return 1;
-//     }
-//     (void) fclose(f);
-//     return 0;
-// }

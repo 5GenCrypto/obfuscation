@@ -2,6 +2,8 @@
 #include "obfuscator.h"
 #include "pyutils.h"
 
+static bool g_verbose;
+
 static void
 obf_clear_wrapper(PyObject *self)
 {
@@ -26,7 +28,7 @@ obf_init_wrapper(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    s = obf_init(type, dir, secparam, kappa, nzs, nthreads, ncores);
+    s = obf_init(type, dir, secparam, kappa, nzs, nthreads, ncores, g_verbose);
     if (s == NULL)
         return NULL;
 
@@ -99,7 +101,7 @@ obf_evaluate_wrapper(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    iszero = obf_evaluate(type, dir, input, bplen, ncores);
+    iszero = obf_evaluate(type, dir, input, bplen, ncores, g_verbose);
     if (iszero == -1) {
         PyErr_SetString(PyExc_RuntimeError, "zero test failed");
         return NULL;
@@ -122,6 +124,19 @@ obf_wait_wrapper(PyObject *self, PyObject *args)
         return NULL;
 
     obf_wait(s);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+obf_verbose(PyObject *self, PyObject *args)
+{
+    PyObject *py_verbose;
+
+    if (!PyArg_ParseTuple(args, "O", &py_verbose))
+        return NULL;
+
+    g_verbose = PyObject_IsTrue(py_verbose);
 
     Py_RETURN_NONE;
 }
