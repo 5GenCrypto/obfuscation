@@ -1,6 +1,5 @@
 #include "pyutils.h"
 #include "utils.h"
-#include "mpz_pylong.h"
 
 #include <sys/resource.h>
 
@@ -21,10 +20,6 @@ int
 py_to_mpz(mpz_t out, PyObject *in)
 {
     mpz_set_si(out, PyLong_AsLong(in));
-    // if (mpz_set_pylong(out, in) == -1) {
-    //     fprintf(stderr, "error converting python object to mpz\n");
-    //     return 1;
-    // }
     return 0;
 }
 
