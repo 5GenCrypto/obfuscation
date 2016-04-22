@@ -1,7 +1,7 @@
 from __future__ import print_function
 
-from obf.circuit import ParseException
-import obf.utils as utils
+from pyobf.circuit import ParseException
+import pyobf.utils as utils
 
 failstr = utils.clr_error('Fail')
 

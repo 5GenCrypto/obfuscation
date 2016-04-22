@@ -3,7 +3,7 @@
 from setuptools import setup, Extension
 
 library_dirs = [
-    '../src/.libs'
+    'src/.libs'
 ]
 
 libraries = [
@@ -15,8 +15,8 @@ compile_args = [
     # Is this a python bug?
     '-O0',
     '-Wall',
-    '-I../src/',
-    '-L../src/'
+    '-Isrc/',
+    '-Lsrc/'
 ]
 
 zobfuscator = Extension(
@@ -25,10 +25,10 @@ zobfuscator = Extension(
     libraries=libraries,
     extra_compile_args=compile_args,
     sources=[
-        'src/zobfuscator_wrapper.cpp',
-        'src/mpn_pylong.cpp',
-        'src/mpz_pylong.cpp',
-        'src/pyutils.cpp',
+        'pywrapper/zobfuscator_wrapper.cpp',
+        'pywrapper/mpn_pylong.cpp',
+        'pywrapper/mpz_pylong.cpp',
+        'pywrapper/pyutils.cpp',
     ]
 )
 
@@ -38,10 +38,10 @@ obfuscator = Extension(
     libraries=libraries,
     extra_compile_args=compile_args,
     sources=[
-        'src/obfuscator_wrapper.cpp',
-        'src/mpn_pylong.cpp',
-        'src/mpz_pylong.cpp',
-        'src/pyutils.cpp',
+        'pywrapper/obfuscator_wrapper.cpp',
+        'pywrapper/mpn_pylong.cpp',
+        'pywrapper/mpz_pylong.cpp',
+        'pywrapper/pyutils.cpp',
     ]
 )
 
@@ -52,7 +52,7 @@ setup(name='obfuscator',
       description='Implementation of cryptographic program obfuscation',
       license='GPLv2',
       url='https://github.com/amaloz/obfuscation',
-      packages=['obf'],
+      packages=['pyobf'],
       ext_modules=[obfuscator, zobfuscator],
       scripts=['obfuscator'],
       test_suite='t',

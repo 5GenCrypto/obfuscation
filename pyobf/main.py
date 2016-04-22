@@ -1,10 +1,10 @@
 from __future__ import print_function
 
-from obf.circuit import ParseException
-from obf.test import test_file
+from pyobf.circuit import ParseException
+from pyobf.test import test_file
 
 import argparse, os, sys, time
-import obf.utils as utils
+import pyobf.utils as utils
 
 __all__ = ['main']
 
@@ -48,10 +48,10 @@ def bp(args):
     check_args(args)
 
     if args.sahai_zhandry:
-        from obf.sz_bp import SZBranchingProgram
+        from pyobf.sz_bp import SZBranchingProgram
         cls = SZBranchingProgram
     if args.zimmerman:
-        from obf.z_obfuscator import Circuit
+        from pyobf.z_obfuscator import Circuit
         cls = Circuit
 
     try:
@@ -81,12 +81,12 @@ def obf(args):
     check_args(args)
 
     if args.sahai_zhandry:
-        from obf.sz_bp import SZBranchingProgram
-        from obf.sz_obfuscator import SZObfuscator
+        from pyobf.sz_bp import SZBranchingProgram
+        from pyobf.sz_obfuscator import SZObfuscator
         bpclass = SZBranchingProgram
         obfclass = SZObfuscator
     if args.zimmerman:
-        from obf.z_obfuscator import ZObfuscator
+        from pyobf.z_obfuscator import ZObfuscator
         bpclass = None
         obfclass = ZObfuscator
 
@@ -107,8 +107,8 @@ def obf(args):
                                nthreads=args.nthreads, ncores=args.ncores)
                 directory = args.save if args.save \
                             else '%s.obf.%d' % (args.load, args.secparam)
-                obf.obfuscate(args.load, args.secparam, directory,
-                              obliviate=args.obliviate, kappa=args.kappa,
+                pyobf.obfuscate(args.load, args.secparam, directory,
+                                obliviate=args.obliviate, kappa=args.kappa,
                               formula=formula)
                 end = time.time()
                 print('Obfuscation took: %f seconds' % (end - start))
@@ -121,7 +121,7 @@ def obf(args):
                 assert directory
                 obf = obfclass(args.mlm, verbose=args.verbose,
                                nthreads=args.nthreads, ncores=args.ncores)
-                r = obf.evaluate(directory, args.eval)
+                r = pyobf.evaluate(directory, args.eval)
                 print('Output = %d' % r)
     except ParseException as e:
         print('%s %s' % (errorstr, e))

@@ -1,6 +1,0 @@
-#!/usr/bin/env sage
-
-import obf
-from obf.main import main
-
-main()

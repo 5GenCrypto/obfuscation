@@ -1,0 +1,6 @@
+#!/usr/bin/env python2
+
+import pyobf
+from pyobf.main import main
+
+main()

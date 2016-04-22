@@ -33,7 +33,13 @@ This installs the underlying obfuscation library `libobf` to your system.  To in
 ```
 cd python
 python2 setup.py test
-python2 setup.py build
+```
+
+This runs a bunch of test, all of which should hopefully pass.
+
+You can then run the obfuscator by running
+```
+./obfuscator obf --test-circuit circuits/and.circ --secparam 16 -v
 ```
 
 ## Contact
