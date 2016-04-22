@@ -1,10 +1,10 @@
 from __future__ import print_function
 
-from test import test_file
-from circuit import ParseException
+from obf.circuit import ParseException
+from obf.test import test_file
 
 import argparse, os, sys, time
-import utils
+import obf.utils as utils
 
 __all__ = ['main']
 
@@ -48,10 +48,10 @@ def bp(args):
     check_args(args)
 
     if args.sahai_zhandry:
-        from sz_bp import SZBranchingProgram
+        from obf.sz_bp import SZBranchingProgram
         cls = SZBranchingProgram
     if args.zimmerman:
-        from z_obfuscator import Circuit
+        from obf.z_obfuscator import Circuit
         cls = Circuit
 
     try:
@@ -81,12 +81,12 @@ def obf(args):
     check_args(args)
 
     if args.sahai_zhandry:
-        from sz_bp import SZBranchingProgram
-        from sz_obfuscator import SZObfuscator
+        from obf.sz_bp import SZBranchingProgram
+        from obf.sz_obfuscator import SZObfuscator
         bpclass = SZBranchingProgram
         obfclass = SZObfuscator
     if args.zimmerman:
-        from z_obfuscator import ZObfuscator
+        from obf.z_obfuscator import ZObfuscator
         bpclass = None
         obfclass = ZObfuscator
 

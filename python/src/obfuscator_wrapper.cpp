@@ -16,7 +16,7 @@ obf_init_wrapper(PyObject *self, PyObject *args)
     long secparam, kappa, nzs, nthreads, ncores;
     enum mmap_e type;
     char *dir;
-    obf_state_t *s;
+    obf_state_t *s = NULL;
 
     if (!PyArg_ParseTuple(args, "sllllll", &dir, &type, &secparam, &kappa,
                           &nzs, &nthreads, &ncores)) {
@@ -72,9 +72,9 @@ obf_encode_layer_wrapper(PyObject *self, PyObject *args)
     for (long i = 0; i < nrows; ++i) {
         for (long j = 0; j < ncols; ++j) {
             py_to_fmpz(fmpz_mat_entry(zero, i, j),
-                       PyList_GET_ITEM(py_zero_ms, i * ncols + j));
+                       PyList_GetItem(PyList_GetItem(py_zero_ms, i), j));
             py_to_fmpz(fmpz_mat_entry(one, i, j),
-                       PyList_GET_ITEM(py_one_ms, i * ncols + j));
+                       PyList_GetItem(PyList_GetItem(py_one_ms, i), j));
         }
     }
 
@@ -91,10 +91,10 @@ obf_encode_layer_wrapper(PyObject *self, PyObject *args)
 static PyObject *
 obf_evaluate_wrapper(PyObject *self, PyObject *args)
 {
-    char *dir, *input;
+    char *dir = NULL, *input = NULL;
     int iszero = -1;
     enum mmap_e type;
-    long bplen, ncores;
+    uint64_t bplen, ncores;
 
     if (!PyArg_ParseTuple(args, "sslll", &dir, &input, &bplen, &type, &ncores)) {
         PyErr_SetString(PyExc_RuntimeError, "error parsing arguments");

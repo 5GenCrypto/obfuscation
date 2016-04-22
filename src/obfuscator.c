@@ -210,7 +210,7 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
     if (rflag != ENCODE_LAYER_RANDOMIZATION_TYPE_NONE)
         obf_randomize_layer(s, nrows, ncols, rflag, zero, one);
 
-    wl_s = (struct write_layer_s *) malloc(sizeof(write_layer_s));
+    wl_s = (struct write_layer_s *) malloc(sizeof(struct write_layer_s));
     wl_s->vtable = s->vtable;
     wl_s->dir = s->dir;
     wl_s->zero_enc = zero_enc;

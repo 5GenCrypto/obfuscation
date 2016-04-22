@@ -1,8 +1,11 @@
 from __future__ import print_function
 
-from bp import AbstractBranchingProgram, Layer
-from circuit import ParseException
-from sage.all import matrix, MatrixSpace, ZZ
+from obf.bp import AbstractBranchingProgram, Layer
+from obf.circuit import ParseException
+
+import numpy as np
+from numpy import matrix
+# from sage.all import matrix
 
 import json, random, sys
 
@@ -16,13 +19,19 @@ def transpose(bps):
 
 def augment(bps, r):
     def _augment(M, r):
-        nrows, ncols = M.dimensions()
-        Z_1 = matrix.zero(nrows, r)
-        Z_2 = matrix.zero(r, ncols)
-        I_r = matrix.identity(r)
-        tmp1 = M.augment(Z_1).transpose()
-        tmp2 = Z_2.augment(I_r).transpose()
-        return tmp1.augment(tmp2).transpose()
+        nrows, ncols = M.shape
+        Z_1 = np.zeros([nrows, r], int)
+        Z_2 = np.zeros([r, ncols], int)
+        I_r = np.identity(r, int)
+        tmp1 = np.concatenate((M, Z_1), 1).transpose()
+        tmp2 = np.concatenate((Z_2, I_r), 1).transpose()
+        return np.concatenate((tmp1, tmp2), 1).transpose()
+        # Z_1 = matrix.zero(nrows, r)
+        # Z_2 = matrix.zero(r, ncols)
+        # I_r = matrix.identity(r)
+        # tmp1 = M.augment(Z_1).transpose()
+        # tmp2 = Z_2.augment(I_r).transpose()
+        # return tmp1.augment(tmp2).transpose()
     newbps = []
     for bp in bps:
         newbps.append(Layer(bp.inp, _augment(bp.zero, r), _augment(bp.one, r),

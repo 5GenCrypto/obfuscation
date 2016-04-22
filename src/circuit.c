@@ -1,6 +1,7 @@
 #include "circuit.h"
 #include "utils.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -13,7 +14,7 @@ enum GATE_TYPE {
 };
 
 struct gate {
-    GATE_TYPE type;
+    enum GATE_TYPE type;
     mpz_t value;
     mpz_t one_value;
     struct gate *left;
@@ -29,7 +30,7 @@ struct circuit {
 };
 
 static void
-gate_init(struct gate *gate, GATE_TYPE type, struct gate *left,
+gate_init(struct gate *gate, enum GATE_TYPE type, struct gate *left,
           struct gate *right)
 {
     gate->type = type;

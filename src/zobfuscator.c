@@ -93,7 +93,7 @@ create_work(zobf_state_t *s, const char *str, int i,
     fmpz_set_mpz(plaintext[0], elem0);
     fmpz_set_mpz(plaintext[1], elem1);
 
-    we_s = (struct write_element_s *) malloc(sizeof(write_element_s));
+    we_s = (struct write_element_s *) malloc(sizeof(struct write_element_s));
     we_s->dir = s->dir;
     we_s->elem = out;
     we_s->name = (char *) calloc(sizeof(int) + 10, sizeof(char));
@@ -112,7 +112,7 @@ create_work(zobf_state_t *s, const char *str, int i,
     args->plaintext = plaintext;
     args->group = (int *) calloc(s->mlm.nzs, sizeof(int));
     va_start(vals, num);
-    for (unsigned int i = 0; i < num; ++i) {
+    for (unsigned int j = 0; j < num; ++j) {
         int idx = va_arg(vals, int);
         args->group[idx] = va_arg(vals, int);
     }
@@ -262,25 +262,18 @@ int
 zobf_evaluate(const char *dir, const char *circuit, const char *input,
               int n, int m, uint64_t nthreads)
 {
-    char *fname;
-    int fnamelen;
+    char fname[100];
+    int fnamelen = 100;
     int iszero;
     clt_pp pp;
     mpz_t c_1, c_2, z, w;
     mpz_t *xs, *xones, *ys, *yones;
 
-    fnamelen = strlen(dir) + sizeof(int) + 5;
-    fname = (char *) malloc(sizeof(char) * fnamelen);
-    if (fname == NULL)
-        return -1;
-
     mpz_inits(c_1, c_2, z, w, NULL);
 
     {
-        char fname[100];
         FILE *fp;
-
-        (void) snprintf(fname, 100, "%s/params", dir);
+        (void) snprintf(fname, fnamelen, "%s/params", dir);
         fp = fopen(fname, "r+b");
         clt_pp_fread(fp, &pp);
         fclose(fp);
@@ -357,7 +350,6 @@ zobf_evaluate(const char *dir, const char *circuit, const char *input,
         mpz_clears(tmp, NULL);
     }
 
-    free(fname);
     for (int i = 0; i < m; ++i) {
         mpz_clears(ys[i], yones[i], NULL);
     }

@@ -116,7 +116,7 @@ static PyMethodDef
 ObfMethods[] = {
     {"verbose", zobf_verbose, METH_VARARGS,
      "Set verbosity."},
-    {"setup", zobf_init_wrapper, METH_VARARGS,
+    {"init", zobf_init_wrapper, METH_VARARGS,
      "Set up obfuscator."},
     {"encode_circuit", zobf_encode_circuit_wrapper, METH_VARARGS,
      "Encode circuit."},

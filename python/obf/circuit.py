@@ -1,4 +1,3 @@
-
 __all__ = ['parse', 'ParseException']
 
 class ParseException(Exception):

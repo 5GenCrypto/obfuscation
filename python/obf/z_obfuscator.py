@@ -120,8 +120,8 @@ class ZObfuscator(Obfuscator):
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        self._state = _zobf.setup(secparam, kappa, nzs, pows, directory,
-                                  self._nthreads, self._nthreads)
+        self._state = _zobf.init(secparam, kappa, nzs, pows, directory,
+                                 self._nthreads, self._nthreads)
         end = time.time()
         self.logger('Took: %f' % (end - start))
 

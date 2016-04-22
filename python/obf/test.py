@@ -1,10 +1,7 @@
 from __future__ import print_function
 
-from circuit import ParseException
-from sage.all import random_prime
-import utils
-
-__all__ = ['test_circuit']
+from obf.circuit import ParseException
+import obf.utils as utils
 
 failstr = utils.clr_error('Fail')
 
@@ -28,9 +25,9 @@ def test_bp(path, cls, testcases, args):
         if args.zimmerman:
             c = cls(path, verbose=args.verbose)
         else:
-            prime = random_prime(2 ** args.secparam - 1)
+            # prime = random_prime(2 ** args.secparam - 1)
             c = cls(path, verbose=args.verbose, obliviate=args.obliviate)
-            c.randomize(prime)
+            # c.randomize(prime)
     except ParseException as e:
         print('%s %s' % (utils.clr_warn('Parse Error:'), e))
         return False

@@ -43,10 +43,9 @@ class SZObfuscator(Obfuscator):
     def _obfuscate(self, bp, nzs):
         for i in xrange(len(bp)):
             self.logger('Obfuscating layer...')
-            zeros = to_long(bp[i].zero.list())
-            ones = to_long(bp[i].one.list())
-            nrows = bp[i].zero.nrows()
-            ncols = bp[i].zero.ncols()
+            zeros = bp[i].zero.tolist()
+            ones = bp[i].one.tolist()
+            nrows, ncols = bp[i].zero.shape
             typ = 0
             if i == 0:
                 typ = typ | 1
@@ -78,10 +77,6 @@ class SZObfuscator(Obfuscator):
 
         self._gen_mlm_params(secparam, kappa, nzs, directory)
         bp = self._construct_bps(fname, obliviate, formula=formula)
-        # if self._mlm == 'CLT':
-        # self._randomize(secparam, bps, primes)
-        # else:
-        #     print("Warning: No randomization for GGH yet")
         self._obfuscate(bp, nzs)
 
         _obf.wait(self._state)
