@@ -7,16 +7,14 @@ library_dirs = [
 ]
 
 libraries = [
-    'gmp',
-    'flint',
     'obf',
 ]
 compile_args = [
-    '-fopenmp',
+    # XXX: Setting this to anything higher than 0 causes the program to crash
+    # when reading in the directory string in obf_evaluate_wrapper.
+    # Is this a python bug?
     '-O0',
-    '-g',
     '-Wall',
-    '-pthread',
     '-I../src/',
     '-L../src/'
 ]
