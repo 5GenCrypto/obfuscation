@@ -121,7 +121,7 @@ def obf(args):
                 assert directory
                 obf = obfclass(args.mlm, verbose=args.verbose,
                                nthreads=args.nthreads, ncores=args.ncores)
-                r = pyobf.evaluate(directory, args.eval)
+                r = obf.evaluate(directory, args.eval)
                 print('Output = %d' % r)
     except ParseException as e:
         print('%s %s' % (errorstr, e))
