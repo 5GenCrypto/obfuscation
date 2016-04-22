@@ -194,11 +194,9 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
 {
     struct write_layer_s *wl_s;
     mmap_enc_mat_t *zero_enc, *one_enc;
-    double start;
+    double start, end;
     char idx_s[10];
     const mmap_pp *pp = s->vtable->sk->pp(&s->mmap);
-
-    start = current_time();
 
     (void) snprintf(idx_s, 10, "%ld", idx);
 
@@ -207,8 +205,15 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
     mmap_enc_mat_init(s->vtable, pp, *zero_enc, nrows, ncols);
     mmap_enc_mat_init(s->vtable, pp, *one_enc, nrows, ncols);
 
-    if (rflag != ENCODE_LAYER_RANDOMIZATION_TYPE_NONE)
+    if (rflag != ENCODE_LAYER_RANDOMIZATION_TYPE_NONE) {
+        start = current_time();
         obf_randomize_layer(s, nrows, ncols, rflag, zero, one);
+        end = current_time();
+        if (s->verbose)
+            (void) fprintf(stderr, "  Randomizing matrix: %f\n", end - start);
+    }
+
+    start = current_time();
 
     wl_s = (struct write_layer_s *) malloc(sizeof(struct write_layer_s));
     wl_s->vtable = s->vtable;
