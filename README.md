@@ -1,6 +1,6 @@
 # Cryptographic Program Obfuscation
 
-This porject provides the following implementations of cryptographic program obfuscation:
+This project provides the following implementations of cryptographic program obfuscation:
 
 Scheme | Authors | ePrint Reference
 ------ | ------- | ----------------
