@@ -1,4 +1,4 @@
-import obf.utils as utils
+import pyobf.utils as utils
 
 class Layer(object):
     def __init__(self, inp, zero, one, zeroset=None, oneset=None):

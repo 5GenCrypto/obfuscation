@@ -1,8 +1,8 @@
 from __future__ import print_function
 
-import _zobfuscator as _zobf
-from circuit import parse
-from obfuscator import Obfuscator
+import pyobf._zobfuscator as _zobf
+from pyobf.circuit import parse
+from pyobf.obfuscator import Obfuscator
 
 import networkx as nx
 import os, time

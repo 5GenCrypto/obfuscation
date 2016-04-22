@@ -1,6 +1,6 @@
-import _obfuscator as _obf
-from obfuscator import Obfuscator
-from sz_bp import SZBranchingProgram
+import pyobf._obfuscator as _obf
+from pyobf.obfuscator import Obfuscator
+from pyobf.sz_bp import SZBranchingProgram
 
 import os, time
 

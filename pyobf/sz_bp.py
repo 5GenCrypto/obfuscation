@@ -1,7 +1,7 @@
 from __future__ import print_function
 
-from obf.bp import AbstractBranchingProgram, Layer
-from obf.circuit import ParseException
+from pyobf.bp import AbstractBranchingProgram, Layer
+from pyobf.circuit import ParseException
 
 import numpy as np
 from numpy import matrix
