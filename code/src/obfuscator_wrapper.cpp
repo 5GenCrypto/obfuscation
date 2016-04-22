@@ -36,18 +36,33 @@ obf_init_wrapper(PyObject *self, PyObject *args)
 static PyObject *
 obf_encode_layer_wrapper(PyObject *self, PyObject *args)
 {
-    PyObject *py_state, *py_zero_ms, *py_one_ms;
-    long inp, idx, nrows, ncols, type;
+    PyObject *py_state, *py_zero_pows, *py_one_pows, *py_zero_ms, *py_one_ms;
+    long inp, idx, nrows, ncols, rflag;
+    ssize_t length;
+    int *zero_pows, *one_pows;
     fmpz_mat_t zero, one;
     obf_state_t *s;
 
-    if (!PyArg_ParseTuple(args, "OlllllOO", &py_state, &idx, &nrows, &ncols,
-                          &inp, &type, &py_zero_ms, &py_one_ms))
+    if (!PyArg_ParseTuple(args, "OlllllOOOO", &py_state, &idx, &nrows, &ncols,
+                          &inp, &rflag, &py_zero_pows, &py_one_pows, &py_zero_ms,
+                          &py_one_ms))
         return NULL;
 
     s = (obf_state_t *) PyCapsule_GetPointer(py_state, NULL);
     if (s == NULL)
         return NULL;
+
+    length = PyList_Size(py_zero_pows);
+    if (PyList_Size(py_one_pows) != length)
+        return NULL;
+
+    zero_pows = (int *) calloc(length, sizeof(int));
+    one_pows = (int *) calloc(length, sizeof(int));
+
+    for (ssize_t i = 0; i < length; ++i) {
+        zero_pows[i] = PyLong_AsLong(PyList_GetItem(py_zero_pows, i));
+        one_pows[i] = PyLong_AsLong(PyList_GetItem(py_one_pows, i));
+    }
 
     fmpz_mat_init(zero, nrows, ncols);
     fmpz_mat_init(one, nrows, ncols);
@@ -55,19 +70,15 @@ obf_encode_layer_wrapper(PyObject *self, PyObject *args)
     for (long i = 0; i < nrows; ++i) {
         for (long j = 0; j < ncols; ++j) {
             py_to_fmpz(fmpz_mat_entry(zero, i, j),
-                       PyList_GET_ITEM(PyList_GET_ITEM(py_zero_ms, 0), i * ncols + j));
+                       PyList_GET_ITEM(py_zero_ms, i * ncols + j));
             py_to_fmpz(fmpz_mat_entry(one, i, j),
-                       PyList_GET_ITEM(PyList_GET_ITEM(py_one_ms, 0), i * ncols + j));
+                       PyList_GET_ITEM(py_one_ms, i * ncols + j));
         }
     }
 
-    // fprintf(stderr, "RESULTS!\n");
-    // fmpz_mat_fprint_pretty(stderr, zero);
-    // fprintf(stderr, "\n");
-    // fmpz_mat_fprint_pretty(stderr, one);
-    // fprintf(stderr, "\n");
-
-    obf_encode_layer(s, idx, inp, nrows, ncols, type, zero, one);
+    obf_encode_layer(s, idx, inp, nrows, ncols,
+                     (encode_layer_randomization_flag_t) rflag, zero_pows,
+                     one_pows, zero, one);
 
     fmpz_mat_clear(zero);
     fmpz_mat_clear(one);

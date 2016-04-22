@@ -155,40 +155,6 @@ class SZBranchingProgram(AbstractBranchingProgram):
                             'Line %d: incorrect number of arguments given' % lineno)
         return bp[-1]
 
-    def randomize(self, prime):
-        assert not self.randomized
-        prev = None
-        for i in xrange(0, len(self.bp)):
-            print(i)
-            nrows = self.bp[i].zero.nrows()
-            ncols = self.bp[i].zero.ncols()
-            MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), nrows, ncols)
-            if i != 0:
-                self.bp[i] = self.bp[i].group(MSZp, prime).mult_left(prev.inverse())
-            if i != len(self.bp) - 1:
-                MSZp_square = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), ncols, ncols)
-                cur = MSZp_square.random_element()
-                self.bp[i] = self.bp[i].group(MSZp, prime).mult_right(cur)
-                prev = cur
-            print(self.bp[i])
-        # compute S * B_0
-        # d_0 = self.bp[0].zero.nrows()
-        # d_1 = self.bp[0].zero.ncols()
-        # S = matrix.identity(d_0)
-        # for i in xrange(d_0):
-        #     S[i, i] = random.randint(0, prime - 1)
-        # MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), d_0, d_1)
-        # self.bp[0] = self.bp[0].group(MSZp, prime).mult_left(S)
-        # # compute B_ell * T
-        # r = self.bp[-1].zero.nrows()
-        # c = self.bp[-1].zero.ncols()
-        # T = matrix.identity(c)
-        # for i in xrange(c):
-        #     T[i, i] = random.randint(0, prime - 1)
-        # MSZp = MatrixSpace(ZZ.residue_field(ZZ.ideal(prime)), r, c)
-        # self.bp[-1] = self.bp[-1].group(MSZp, prime).mult_right(T)
-        self.randomized = True
-
     def evaluate(self, x):
         assert self.bp
         m = self.bp[0]

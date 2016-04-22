@@ -30,50 +30,44 @@ class SZObfuscator(Obfuscator):
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
-    def _construct_bps(self, bpclass, nslots, fname, obliviate, formula=True):
-        self.logger('Constructing %d BP...' % nslots)
+    def _construct_bps(self, fname, obliviate, formula=True):
+        self.logger('Constructing BP...')
         start = time.time()
-        bps = []
-        for _ in xrange(nslots):
-            bp = bpclass(fname, verbose=self._verbose, obliviate=obliviate,
-                         formula=formula)
-            bp.set_straddling_sets()
-            bps.append(bp)
+        bp = SZBranchingProgram(fname, verbose=self._verbose, obliviate=obliviate,
+                                formula=formula)
+        bp.set_straddling_sets()
         end = time.time()
         self.logger('Took: %f' % (end - start))
-        return bps
+        return bp
 
-    def _obfuscate(self, bps, length):
-        for i in xrange(len(bps[0])):
+    def _obfuscate(self, bp, nzs):
+        for i in xrange(len(bp)):
             self.logger('Obfuscating layer...')
-            bplength = len(bps[0][i].zero.list())
-            zeros = pad([to_long(bp[i].zero.list()) for bp in bps],
-                        length, bplength)
-            ones = pad([to_long(bp[i].one.list()) for bp in bps],
-                       length, bplength)
-            nrows = bps[0][i].zero.nrows()
-            ncols = bps[0][i].zero.ncols()
-            assert(len(bps[0][i].zeroset) == 1)
-            assert(len(bps[0][i].oneset) == 1)
-            assert(bps[0][i].zeroset[0] == bps[0][i].oneset[0])
-            # print(zeros)
-            # print(ones)
+            zeros = to_long(bp[i].zero.list())
+            ones = to_long(bp[i].one.list())
+            nrows = bp[i].zero.nrows()
+            ncols = bp[i].zero.ncols()
             typ = 0
             if i == 0:
                 typ = typ | 1
-            if i == len(bps[0]) - 1:
+            if i == len(bp) - 1:
                 typ = typ | 4
-            if 0 < i < len(bps[0]) - 1:
-                typ = 2
-            _obf.encode_layer(self._state, i, nrows, ncols, bps[0][i].inp, typ,
-                              zeros, ones)
+            if 0 < i < len(bp) - 1:
+                typ = typ | 2
+            zero_pows = [0] * nzs
+            one_pows = [0] * nzs
+            for j in bp[i].zeroset:
+                zero_pows[j] = 1
+            for j in bp[i].oneset:
+                one_pows[j] = 1
+            _obf.encode_layer(self._state, i, nrows, ncols, bp[i].inp, typ,
+                              zero_pows, one_pows, zeros, ones)
 
     def obfuscate(self, fname, secparam, directory, obliviate=False,
                   kappa=None, formula=True):
         start = time.time()
 
         self._remove_old(directory)
-        nslots = 1
 
         # create a dummy branching program to determine parameters
         bp = SZBranchingProgram(fname, verbose=self._verbose,
@@ -83,13 +77,12 @@ class SZObfuscator(Obfuscator):
             kappa = nzs
 
         self._gen_mlm_params(secparam, kappa, nzs, directory)
-        bps = self._construct_bps(SZBranchingProgram, nslots, fname, obliviate,
-                                  formula=formula)
+        bp = self._construct_bps(fname, obliviate, formula=formula)
         # if self._mlm == 'CLT':
         # self._randomize(secparam, bps, primes)
         # else:
         #     print("Warning: No randomization for GGH yet")
-        self._obfuscate(bps, 1)
+        self._obfuscate(bp, nzs)
 
         _obf.wait(self._state)
         if self._verbose:
