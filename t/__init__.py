@@ -65,13 +65,13 @@ def test_all():
     print("TESTING BP")
     test(test_bp, "SZ")
     test(test_bp, "Z")
-    print("TESTING OBFUSCATION w SECPARAM = 8")
-    test(test_obf, "SZ", "CLT", 8)
-    test(test_obf, "SZ", "GGH", 8)
+    print("TESTING OBFUSCATION")
+    test(test_obf, "SZ", "CLT", 12)
+    test(test_obf, "SZ", "GGH", 12)
     test(test_obf, "Z", "CLT", 8)
     print("TESTING LOAD")
-    test(test_load, "SZ", "CLT", 8)
-    test(test_load, "SZ", "GGH", 8)
+    test(test_load, "SZ", "CLT", 12)
+    test(test_load, "SZ", "GGH", 12)
     test(test_load, "Z", "CLT", 8)
 
 try:
