@@ -32,15 +32,16 @@ if test -z "$PKG_CONFIG"; then
   AC_MSG_ERROR(cannot find pkg-config)
 fi
 
+
 AC_MSG_CHECKING([if debug option is enabled])
 AC_ARG_ENABLE(debug,
   [AS_HELP_STRING([--enable-debug], [enable debugging, default: no])],
   [with_debug=y],
   [with_debug=n])
 
-CFLAGS="$CFLAGS -Wall -Wformat -Wformat-security -Wextra -Wunused \
+CFLAGS="-Wall -Wformat -Wformat-security -Wextra -Wunused \
 -Wshadow -Wmissing-prototypes -Wfloat-equal -Wpointer-arith -Wcast-align \
--Wstrict-prototypes -Wredundant-decls -Wendif-labels -Wcast-qual -march=native \
+-Wstrict-prototypes -Wredundant-decls -Wendif-labels -Wcast-qual \
 -std=gnu11 -Wpedantic"
 if test x"$with_debug" == x"y"; then
    CFLAGS="$CFLAGS -g3 -O0"
