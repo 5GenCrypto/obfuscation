@@ -1,4 +1,4 @@
-import utils
+import pyobf.utils as utils
 import os, time
 
 class Obfuscator(object):
@@ -30,7 +30,7 @@ class Obfuscator(object):
         start = time.time()
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        result = f(directory, inp, len(inputs), mlm, self._ncores)
+        result = f(directory, inp, mlm, len(inputs), self._ncores)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         if self._verbose:

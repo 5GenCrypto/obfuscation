@@ -68,7 +68,6 @@ class SZObfuscator(Obfuscator):
 
         self._remove_old(directory)
 
-        # create a dummy branching program to determine parameters
         bp = SZBranchingProgram(fname, verbose=self._verbose,
                                 obliviate=obliviate, formula=formula)
         nzs = bp.set_straddling_sets()

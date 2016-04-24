@@ -13,12 +13,12 @@ obf_clear_wrapper(PyObject *self)
 static PyObject *
 obf_init_wrapper(PyObject *self, PyObject *args)
 {
-    long secparam, kappa, nzs, nthreads, ncores;
+    long type_ = 0, secparam = 0, kappa = 0, nzs = 0, nthreads = 0, ncores = 0;
     enum mmap_e type;
-    char *dir;
+    char *dir = NULL;
     obf_state_t *s = NULL;
 
-    if (!PyArg_ParseTuple(args, "sllllll", &dir, &type, &secparam, &kappa,
+    if (!PyArg_ParseTuple(args, "sllllll", &dir, &type_, &secparam, &kappa,
                           &nzs, &nthreads, &ncores)) {
         PyErr_SetString(PyExc_RuntimeError, "unable to parse input");
         return NULL;
@@ -28,9 +28,23 @@ obf_init_wrapper(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    s = obf_init(type, dir, secparam, kappa, nzs, nthreads, ncores, g_verbose);
-    if (s == NULL)
+    switch (type_) {
+    case 0:
+        type = MMAP_CLT;
+        break;
+    case 1:
+        type = MMAP_GGHLITE;
+        break;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "invalid mmap type");
         return NULL;
+    }
+
+    s = obf_init(type, dir, secparam, kappa, nzs, nthreads, ncores, g_verbose);
+    if (s == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "initialization failed");
+        return NULL;
+    }
 
     return PyCapsule_New((void *) s, NULL, obf_clear_wrapper);
 }
@@ -39,24 +53,30 @@ static PyObject *
 obf_encode_layer_wrapper(PyObject *self, PyObject *args)
 {
     PyObject *py_state, *py_zero_pows, *py_one_pows, *py_zero_ms, *py_one_ms;
-    long inp, idx, nrows, ncols, rflag;
+    long idx, nrows, ncols, inp, rflag;
     ssize_t length;
     int *zero_pows, *one_pows;
     fmpz_mat_t zero, one;
     obf_state_t *s;
 
-    if (!PyArg_ParseTuple(args, "OlllllOOOO", &py_state, &idx, &nrows, &ncols,
-                          &inp, &rflag, &py_zero_pows, &py_one_pows, &py_zero_ms,
-                          &py_one_ms))
+    // TODO: can probably get nrows, ncols length from matrices
+    if (!PyArg_ParseTuple(args, "OlllllOOOO", &py_state,
+                          &idx, &nrows, &ncols, &inp, &rflag,
+                          &py_zero_pows, &py_one_pows,
+                          &py_zero_ms, &py_one_ms))
         return NULL;
 
     s = (obf_state_t *) PyCapsule_GetPointer(py_state, NULL);
-    if (s == NULL)
+    if (s == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "unable to extract obf state");
         return NULL;
+    }
 
     length = PyList_Size(py_zero_pows);
-    if (PyList_Size(py_one_pows) != length)
+    if (PyList_Size(py_one_pows) != length) {
+        PyErr_SetString(PyExc_RuntimeError, "pow lengths unequal");
         return NULL;
+    }
 
     zero_pows = (int *) calloc(length, sizeof(int));
     one_pows = (int *) calloc(length, sizeof(int));
@@ -92,12 +112,24 @@ static PyObject *
 obf_evaluate_wrapper(PyObject *self, PyObject *args)
 {
     char *dir = NULL, *input = NULL;
-    int iszero = -1;
+    long iszero, type_;
     enum mmap_e type;
-    uint64_t bplen, ncores;
+    uint64_t bplen = 0, ncores = 0;
 
-    if (!PyArg_ParseTuple(args, "sslll", &dir, &input, &bplen, &type, &ncores)) {
+    if (!PyArg_ParseTuple(args, "zzlll", &dir, &input, &type_, &bplen, &ncores)) {
         PyErr_SetString(PyExc_RuntimeError, "error parsing arguments");
+        return NULL;
+    }
+
+    switch (type_) {
+    case 0:
+        type = MMAP_CLT;
+        break;
+    case 1:
+        type = MMAP_GGHLITE;
+        break;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "invalid mmap type");
         return NULL;
     }
 
@@ -158,8 +190,25 @@ ObfMethods[] = {
     {NULL, NULL, 0, NULL}
 };
 
+
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef obfmodule = {
+    PyModuleDef_HEAD_INIT,
+    "_obfuscator",
+    NULL,
+    -1,
+    ObfMethods
+};
+
+PyMODINIT_FUNC
+PyInit__obfuscator(void)
+{
+    return PyModule_Create(&obfmodule);
+}
+#else
 PyMODINIT_FUNC
 init_obfuscator(void)
 {
     (void) Py_InitModule("_obfuscator", ObfMethods);
 }
+#endif

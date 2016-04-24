@@ -1,6 +1,4 @@
 #include "pyutils.h"
-#include "utils.h"
-
 #include <sys/resource.h>
 
 PyObject *
@@ -41,8 +39,7 @@ py_to_fmpz(fmpz_t out, PyObject *in)
 {
     mpz_t tmp;
     mpz_init(tmp);
-    if (py_to_mpz(tmp, in) == 1)
-        return 1;
+    mpz_set_si(tmp, PyLong_AsLong(in));
     fmpz_set_mpz(out, tmp);
     mpz_clear(tmp);
     return 0;

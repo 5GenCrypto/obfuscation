@@ -10,25 +10,12 @@ libraries = [
     'obf',
 ]
 compile_args = [
-    # XXX: Setting this to anything higher than 0 causes the program to crash
-    # when reading in the directory string in obf_evaluate_wrapper.
-    # Is this a python bug?
-    '-O0',
+    '-O3',
     '-Wall',
+    '-Wextra',
     '-Isrc/',
     '-Lsrc/'
 ]
-
-zobfuscator = Extension(
-    'pyobf._zobfuscator',
-    library_dirs=library_dirs,
-    libraries=libraries,
-    extra_compile_args=compile_args,
-    sources=[
-        'pywrapper/zobfuscator_wrapper.cpp',
-        'pywrapper/pyutils.cpp',
-    ]
-)
 
 obfuscator = Extension(
     'pyobf._obfuscator',
@@ -37,6 +24,17 @@ obfuscator = Extension(
     extra_compile_args=compile_args,
     sources=[
         'pywrapper/obfuscator_wrapper.cpp',
+        'pywrapper/pyutils.cpp',
+    ]
+)
+
+zobfuscator = Extension(
+    'pyobf._zobfuscator',
+    library_dirs=library_dirs,
+    libraries=libraries,
+    extra_compile_args=compile_args,
+    sources=[
+        'pywrapper/zobfuscator_wrapper.cpp',
         'pywrapper/pyutils.cpp',
     ]
 )
