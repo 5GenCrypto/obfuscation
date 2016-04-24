@@ -19,11 +19,10 @@ thpool_encode_elem(void *vargs)
                               args->group, rand);
     aes_randclear(rand);
 
-    // for (int i = 0; i < args->n; ++i)
-    //     fmpz_clear(args->plaintext[i]);
-    // free(args->plaintext);
-    // free(args->group);
-    // free(args);
+    for (int i = 0; i < args->n; ++i)
+        fmpz_clear(args->plaintext[i]);
+    free(args->plaintext);
+    free(args);
 
     return NULL;
 }
