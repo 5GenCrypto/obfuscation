@@ -26,12 +26,6 @@ def augment(bps, r):
         tmp1 = np.concatenate((M, Z_1), 1).transpose()
         tmp2 = np.concatenate((Z_2, I_r), 1).transpose()
         return np.concatenate((tmp1, tmp2), 1).transpose()
-        # Z_1 = matrix.zero(nrows, r)
-        # Z_2 = matrix.zero(r, ncols)
-        # I_r = matrix.identity(r)
-        # tmp1 = M.augment(Z_1).transpose()
-        # tmp2 = Z_2.augment(I_r).transpose()
-        # return tmp1.augment(tmp2).transpose()
     newbps = []
     for bp in bps:
         newbps.append(Layer(bp.inp, _augment(bp.zero, r), _augment(bp.one, r),
@@ -169,5 +163,5 @@ class SZBranchingProgram(AbstractBranchingProgram):
         m = self.bp[0]
         comp = m.zero if x[m.inp] == '0' else m.one
         for m in self.bp[1:]:
-            comp *= m.zero if x[m.inp] == '0' else m.one
-        return comp[0, comp.ncols() - 1] != 0
+            comp = np.dot(comp, m.zero if x[m.inp] == '0' else m.one)
+        return comp[0, comp.shape[1] - 1] != 0
