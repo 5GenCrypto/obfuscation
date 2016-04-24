@@ -5,7 +5,6 @@ from pyobf.circuit import ParseException
 
 import numpy as np
 from numpy import matrix
-# from sage.all import matrix
 
 import json, random, sys
 

@@ -158,9 +158,6 @@ def main():
     parser_bp.add_argument('--test-all',
                            metavar='DIR', nargs='?', const='circuits/',
                            help='test branching program conversion for all circuits in DIR (default: %(const)s)')
-    parser_bp.add_argument('--secparam',
-                           metavar='N', action='store', type=int, default=secparam,
-                           help='security parameter (default: %(default)s)')
     parser_bp.add_argument('--obliviate',
                            action='store_true',
                            help='obliviate the branching program')
