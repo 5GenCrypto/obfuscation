@@ -1,5 +1,5 @@
 m4_define([version_major], [0])
-m4_define([version_minor], [0])
+m4_define([version_minor], [2])
 m4_define([version_micro], [0])
 
 AC_PREREQ(2.64)

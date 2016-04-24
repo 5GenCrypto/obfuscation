@@ -1,6 +1,7 @@
-# Cryptographic Program Obfuscation
+# Cryptographic Program Obfuscation (v0.2a)
 
-This project provides the following implementations of cryptographic program obfuscation:
+This project provides the following implementations of cryptographic program
+obfuscation:
 
 Scheme | Authors | ePrint Reference
 ------ | ------- | ----------------
@@ -14,8 +15,9 @@ across the board) appears in the work:
 Jonathan Katz, Alex J. Malozemoff. Cryptology ePrint Archive 2014/779.
 https://eprint.iacr.org/2014/779.
 
-The implementation uses [libmmap](https://github.com/amaloz/gghlite-flint) to support both the CLT13 and GGHlite graded
-encoding schemes for SZ; Z only works with CLT13.
+The implementation uses [libmmap](https://github.com/amaloz/gghlite-flint) to
+support both the CLT13 and GGHlite graded encoding schemes for SZ; Z only works
+with CLT13.
 
 ## Building
 
@@ -28,7 +30,8 @@ make
 sudo make install
 ```
 
-This installs the underlying obfuscation library `libobf` to your system.  To install the python front-end, proceed as follows:
+This installs the underlying obfuscation library `libobf` to your system.  To
+install the python front-end, proceed as follows:
 
 ```
 cd python
