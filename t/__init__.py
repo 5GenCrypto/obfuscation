@@ -24,8 +24,14 @@ def run(lst):
     print('%s' % ' '.join(lst))
     return subprocess.call(lst)
 
-def test_circuits(scheme, mlm, secparam):
-    print_test('Testing all circuits for scheme %s' % scheme)
+def test_bp(scheme):
+    print_test('Testing bp for scheme %s' % scheme)
+    lst = [CMD, "bp", "--test-all", CIRCUIT_PATH]
+    lst.append(schemedict[scheme])
+    return run(lst)
+
+def test_obf(scheme, mlm, secparam):
+    print_test('Testing obfuscation for scheme %s' % scheme)
     lst = [CMD, "obf", "--test-all", CIRCUIT_PATH, "--secparam", str(secparam),
            "--mlm", mlm]
     lst.append(schemedict[scheme])
@@ -56,14 +62,17 @@ def test(f, *args):
         print(success_str)
 
 def test_all():
+    print("TESTING BP")
+    test(test_bp, "SZ")
+    test(test_bp, "Z")
     print("TESTING LOAD")
     test(test_load, "SZ", "CLT", 8)
     test(test_load, "SZ", "GGH", 8)
     test(test_load, "Z", "CLT", 8)
-    print("TESTING CIRCUITS w SECPARAM = 8")
-    test(test_circuits, "SZ", "CLT", 8)
-    test(test_circuits, "SZ", "GGH", 8)
-    test(test_circuits, "Z", "CLT", 8)
+    print("TESTING OBFUSCATION w SECPARAM = 8")
+    test(test_obf, "SZ", "CLT", 8)
+    test(test_obf, "SZ", "GGH", 8)
+    test(test_obf, "Z", "CLT", 8)
 
 try:
     test_all()

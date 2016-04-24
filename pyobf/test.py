@@ -25,9 +25,7 @@ def test_bp(path, cls, testcases, args):
         if args.zimmerman:
             c = cls(path, verbose=args.verbose)
         else:
-            # prime = random_prime(2 ** args.secparam - 1)
             c = cls(path, verbose=args.verbose, obliviate=args.obliviate)
-            # c.randomize(prime)
     except ParseException as e:
         print('%s %s' % (utils.clr_warn('Parse Error:'), e))
         return False

@@ -79,6 +79,9 @@ def bp(args):
 
 def obf(args):
     check_args(args)
+    if args.mlm not in ('CLT', 'GGH'):
+        print('--mlm must be either CLT or GGH')
+        sys.exit(1)
 
     if args.sahai_zhandry:
         from pyobf.sz_bp import SZBranchingProgram
@@ -155,9 +158,6 @@ def main():
     parser_bp.add_argument('--test-all',
                            metavar='DIR', nargs='?', const='circuits/',
                            help='test branching program conversion for all circuits in DIR (default: %(const)s)')
-    parser_bp.add_argument('--mlm', metavar='MLM', type=str, default='CLT',
-                           action='store',
-                           help='use multilinear map MLM [either CLT or GGH] (default: %(default)s)')
     parser_bp.add_argument('--secparam',
                            metavar='N', action='store', type=int, default=secparam,
                            help='security parameter (default: %(default)s)')
@@ -229,7 +229,4 @@ def main():
     parser_obf.set_defaults(func=obf)
 
     args = parser.parse_args()
-    if args.mlm not in ('CLT', 'GGH'):
-        print('--mlm must be either CLT or GGH')
-        sys.exit(1)
     args.func(args)
