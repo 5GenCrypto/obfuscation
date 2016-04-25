@@ -4,7 +4,7 @@
 #include "utils.h"
 
 #include <aesrand.h>
-#include <mife/mife_defs.h>
+#include <mmap/mmap.h>
 
 struct encode_elem_s {
     const mmap_vtable *vtable;
