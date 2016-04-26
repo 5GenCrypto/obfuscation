@@ -115,8 +115,8 @@ class ZObfuscator(Obfuscator):
         super(ZObfuscator, self).__init__(_zobf, mlm, verbose=verbose,
                                           nthreads=nthreads, ncores=ncores)
 
-    def _gen_mlm_params(self, secparam, kappa, nzs, pows, directory):
-        self.logger('Generating MLM parameters...')
+    def _init_mmap(self, secparam, kappa, nzs, pows, directory):
+        self.logger('Initializing mmap...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
@@ -156,7 +156,7 @@ class ZObfuscator(Obfuscator):
         if not kappa:
             kappa = circ.y_deg + 2 * sum(circ.x_degs) + 2 * circ.n_xins
 
-        self._gen_mlm_params(secparam, kappa, nzs, pows, directory)
+        self._init_mmap(secparam, kappa, nzs, pows, directory)
         self._obfuscate(circname, circ)
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))
@@ -175,6 +175,3 @@ class ZObfuscator(Obfuscator):
                         m += 1
             return _zobf.evaluate(directory, circname, inp, len(inp), m, nthreads)
         return self._evaluate(directory, inp, f, _zobf)
-
-    def cleanup(self):
-        pass

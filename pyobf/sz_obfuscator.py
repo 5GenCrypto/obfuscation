@@ -9,8 +9,18 @@ class SZObfuscator(Obfuscator):
         super(SZObfuscator, self).__init__(_obf, mlm, verbose=verbose,
                                            nthreads=nthreads, ncores=ncores)
 
-    def _gen_mlm_params(self, secparam, kappa, nzs, directory):
-        self.logger('Generating MLM parameters...')
+    def _construct_bp(self, fname, obliviate, formula=True):
+        self.logger('Constructing BP...')
+        start = time.time()
+        bp = SZBranchingProgram(fname, verbose=self._verbose,
+                                obliviate=obliviate, formula=formula)
+        nzs = bp.set_straddling_sets()
+        end = time.time()
+        self.logger('Took: %f' % (end - start))
+        return bp, nzs
+
+    def _init_mmap(self, secparam, kappa, nzs, directory):
+        self.logger('Initializing mmap...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
@@ -19,16 +29,6 @@ class SZObfuscator(Obfuscator):
                                 self._nthreads, self._ncores)
         end = time.time()
         self.logger('Took: %f' % (end - start))
-
-    def _construct_bps(self, fname, obliviate, formula=True):
-        self.logger('Constructing BP...')
-        start = time.time()
-        bp = SZBranchingProgram(fname, verbose=self._verbose, obliviate=obliviate,
-                                formula=formula)
-        bp.set_straddling_sets()
-        end = time.time()
-        self.logger('Took: %f' % (end - start))
-        return bp
 
     def _obfuscate(self, bp, nzs):
         for i in xrange(len(bp)):
@@ -55,25 +55,17 @@ class SZObfuscator(Obfuscator):
     def obfuscate(self, fname, secparam, directory, obliviate=False,
                   kappa=None, formula=True):
         start = time.time()
-
         self._remove_old(directory)
-
-        bp = SZBranchingProgram(fname, verbose=self._verbose,
-                                obliviate=obliviate, formula=formula)
-        nzs = bp.set_straddling_sets()
+        bp, nzs = self._construct_bp(fname, obliviate, formula=formula)
         if not kappa:
             kappa = nzs
-
-        self._gen_mlm_params(secparam, kappa, nzs, directory)
-        bp = self._construct_bps(fname, obliviate, formula=formula)
+        self._init_mmap(secparam, kappa, nzs, directory)
         self._obfuscate(bp, nzs)
-
         _obf.wait(self._state)
-        if self._verbose:
-            _obf.max_mem_usage()
-
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))
+        if self._verbose:
+            _obf.max_mem_usage()
 
     def evaluate(self, directory, inp):
         return self._evaluate(directory, inp, _obf.evaluate, _obf)
