@@ -188,7 +188,7 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
     fmpz_clear(field);
 }
 
-void
+int
 obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
                  encode_layer_randomization_flag_t rflag, int *zero_pows,
                  int *one_pows, fmpz_mat_t zero, fmpz_mat_t one)
@@ -228,8 +228,11 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
     wl_s->start = start;
     wl_s->verbose = s->verbose;
 
-    (void) thpool_add_tag(s->thpool, idx_s, 2 * nrows * ncols,
-                          thpool_write_layer, wl_s);
+    if (thpool_add_tag(s->thpool, idx_s, 2 * nrows * ncols, thpool_write_layer,
+                       wl_s) == -1) {
+        /* XXX: memory leak here */
+        return OBFUSCATOR_ERR;
+    }
 
     for (long c = 0; c < 2; ++c) {
         for (long i = 0; i < nrows; ++i) {
@@ -258,6 +261,8 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
             }
         }
     }
+
+    return OBFUSCATOR_OK;
 }
 
 int

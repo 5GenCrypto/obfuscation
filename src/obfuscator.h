@@ -5,6 +5,9 @@
 #include <stdbool.h>
 #include <flint/fmpz_mat.h>
 
+#define OBFUSCATOR_OK 0
+#define OBFUSCATOR_ERR (-1)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -32,7 +35,7 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
                     encode_layer_randomization_flag_t rflag,
                     fmpz_mat_t zero, fmpz_mat_t one);
 
-void
+int
 obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
                  encode_layer_randomization_flag_t rflag, int *zero_pows,
                  int *one_pows, fmpz_mat_t zero, fmpz_mat_t one);
