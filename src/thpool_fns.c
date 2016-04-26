@@ -37,21 +37,37 @@ thpool_write_layer(void *vargs)
 
     (void) snprintf(fname, 100, "%s/%ld.input", args->dir, args->idx);
     fp = fopen(fname, "w+b");
+    if (fp == NULL) {
+        fprintf(stderr, "Unable to write '%s'\n", fname);
+        goto done;
+    }
     fwrite(&args->inp, sizeof args->inp, 1, fp);
     fclose(fp);
 
     (void) snprintf(fname, 100, "%s/%ld.nrows", args->dir, args->idx);
     fp = fopen(fname, "w+b");
+    if (fp == NULL) {
+        fprintf(stderr, "Unable to write '%s'\n", fname);
+        goto done;
+    }
     fwrite(&args->nrows, sizeof args->nrows, 1, fp);
     fclose(fp);
 
     (void) snprintf(fname, 100, "%s/%ld.ncols", args->dir, args->idx);
     fp = fopen(fname, "w+b");
+    if (fp == NULL) {
+        fprintf(stderr, "Unable to write '%s'\n", fname);
+        goto done;
+    }
     fwrite(&args->ncols, sizeof args->ncols, 1, fp);
     fclose(fp);
 
     (void) snprintf(fname, 100, "%s/%ld.zero", args->dir, args->idx);
     fp = fopen(fname, "w+b");
+    if (fp == NULL) {
+        fprintf(stderr, "Unable to write '%s'\n", fname);
+        goto done;
+    }
     for (long i = 0; i < args->nrows; ++i) {
         for (long j = 0; j < args->ncols; ++j) {
             args->vtable->enc->fwrite(args->zero_enc[0]->m[i][j], fp);
@@ -62,6 +78,10 @@ thpool_write_layer(void *vargs)
 
     (void) snprintf(fname, 100, "%s/%ld.one", args->dir, args->idx);
     fp = fopen(fname, "w+b");
+    if (fp == NULL) {
+        fprintf(stderr, "Unable to write '%s'\n", fname);
+        goto done;
+    }
     for (long i = 0; i < args->nrows; ++i) {
         for (long j = 0; j < args->ncols; ++j) {
             args->vtable->enc->fwrite(args->one_enc[0]->m[i][j], fp);
@@ -70,6 +90,7 @@ thpool_write_layer(void *vargs)
     mmap_enc_mat_clear(args->vtable, args->one_enc[0]);
     fclose(fp);
 
+done:
     end = current_time();
     if (args->verbose)
         (void) fprintf(stderr, "  Encoding %ld elements: %f\n",

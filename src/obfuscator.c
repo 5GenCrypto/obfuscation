@@ -78,8 +78,9 @@ obf_clear(obf_state_t *s)
         aes_randclear(s->rand);
         if (s->randomizer)
             free(s->randomizer);
-        // XXX: this hangs
-        // thpool_destroy(s->thpool);
+        /* XXX: the hangs on this version of thpool.c, but later versions don't
+         * quite work yet */
+        /* thpool_destroy(s->thpool); */
     }
     free(s);
 }
@@ -269,10 +270,8 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, uint64_t bplen,
     FILE *fp;
     mmap_enc_mat_t *result = NULL;
     long nrows, ncols, nrows_prev;
-    int err = 0, iszero = -1;
+    int err = 1, iszero = -1;
     double start, end;
-
-    (void) omp_set_num_threads(ncores);
 
     switch (type) {
     case MMAP_CLT:
@@ -282,11 +281,17 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, uint64_t bplen,
         vtable = &gghlite_vtable;
         break;
     default:
-        return 1;
+        return err;
     }
+
+    (void) omp_set_num_threads(ncores);
 
     (void) snprintf(fname, 100, "%s/params", dir);
     fp = fopen(fname, "r+b");
+    if (fp == NULL) {
+        fprintf(stderr, "Unable to open '%s\n", fname);
+        goto done;
+    }
     vtable->pp->fread(&pp, fp);
     fclose(fp);
 
@@ -299,35 +304,47 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, uint64_t bplen,
         // determine the size of the matrix
         (void) snprintf(fname, 100, "%s/%ld.nrows", dir, layer);
         fp = fopen(fname, "r+b");
+        if (fp == NULL) {
+            fprintf(stderr, "Unable to open '%s'\n", fname);
+            goto done;
+        }
         fread(&nrows, sizeof nrows, 1, fp);
         fclose(fp);
 
         (void) snprintf(fname, 100, "%s/%ld.ncols", dir, layer);
         fp = fopen(fname, "r+b");
+        if (fp == NULL) {
+            fprintf(stderr, "Unable to open '%s'\n", fname);
+            goto done;
+        }
         fread(&ncols, sizeof ncols, 1, fp);
         fclose(fp);
 
         // find out the input bit for the given layer
         (void) snprintf(fname, 100, "%s/%ld.input", dir, layer);
         fp = fopen(fname, "r+b");
+        if (fp == NULL) {
+            fprintf(stderr, "Unable to open '%s'\n", fname);
+            goto done;
+        }
         fread(&inp, sizeof inp, 1, fp);
         fclose(fp);
 
         if (inp >= strlen(input)) {
             fprintf(stderr, "Error: invalid input: %d >= %ld\n", inp, strlen(input));
-            err = 1;
-            break;
-        }
-        if (input[inp] != '0' && input[inp] != '1') {
-            fprintf(stderr, "Error: input must be 0 or 1, got %d\n", input[inp]);
-            err = 1;
-            break;
+            goto done;
         }
         // load in appropriate matrix for the given input value
-        if (input[inp] == '0') {
+        switch(input[inp]) {
+        case '0':
             (void) snprintf(fname, 100, "%s/%ld.zero", dir, layer);
-        } else {
+            break;
+        case '1':
             (void) snprintf(fname, 100, "%s/%ld.one", dir, layer);
+            break;
+        default:
+            fprintf(stderr, "Error: input must be 0 or 1, got %d\n", input[inp]);
+            goto done;
         }
 
         if (layer == 0) {
@@ -367,7 +384,9 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, uint64_t bplen,
         if (verbose)
             (void) fprintf(stderr, "  Multiplying matrices: %f\n", end - start);
     }
+    err = 0;
 
+done:
     if (!err) {
         start = current_time();
         iszero = vtable->enc->is_zero(result[0]->m[0][1], &pp);
