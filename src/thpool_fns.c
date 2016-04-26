@@ -30,12 +30,13 @@ thpool_encode_elem(void *vargs)
 void *
 thpool_write_layer(void *vargs)
 {
-    char fname[100];
+    char fname[1024];
+    int fnamelen = 1024;
     FILE *fp;
     double end;
     struct write_layer_s *args = (struct write_layer_s *) vargs;
 
-    (void) snprintf(fname, 100, "%s/%ld.input", args->dir, args->idx);
+    (void) snprintf(fname, fnamelen, "%s/%ld.input", args->dir, args->idx);
     fp = fopen(fname, "w+b");
     if (fp == NULL) {
         fprintf(stderr, "Unable to write '%s'\n", fname);
@@ -44,7 +45,7 @@ thpool_write_layer(void *vargs)
     fwrite(&args->inp, sizeof args->inp, 1, fp);
     fclose(fp);
 
-    (void) snprintf(fname, 100, "%s/%ld.nrows", args->dir, args->idx);
+    (void) snprintf(fname, fnamelen, "%s/%ld.nrows", args->dir, args->idx);
     fp = fopen(fname, "w+b");
     if (fp == NULL) {
         fprintf(stderr, "Unable to write '%s'\n", fname);
@@ -53,7 +54,7 @@ thpool_write_layer(void *vargs)
     fwrite(&args->nrows, sizeof args->nrows, 1, fp);
     fclose(fp);
 
-    (void) snprintf(fname, 100, "%s/%ld.ncols", args->dir, args->idx);
+    (void) snprintf(fname, fnamelen, "%s/%ld.ncols", args->dir, args->idx);
     fp = fopen(fname, "w+b");
     if (fp == NULL) {
         fprintf(stderr, "Unable to write '%s'\n", fname);
@@ -62,7 +63,7 @@ thpool_write_layer(void *vargs)
     fwrite(&args->ncols, sizeof args->ncols, 1, fp);
     fclose(fp);
 
-    (void) snprintf(fname, 100, "%s/%ld.zero", args->dir, args->idx);
+    (void) snprintf(fname, fnamelen, "%s/%ld.zero", args->dir, args->idx);
     fp = fopen(fname, "w+b");
     if (fp == NULL) {
         fprintf(stderr, "Unable to write '%s'\n", fname);
@@ -76,7 +77,7 @@ thpool_write_layer(void *vargs)
     mmap_enc_mat_clear(args->vtable, args->zero_enc[0]);
     fclose(fp);
 
-    (void) snprintf(fname, 100, "%s/%ld.one", args->dir, args->idx);
+    (void) snprintf(fname, fnamelen, "%s/%ld.one", args->dir, args->idx);
     fp = fopen(fname, "w+b");
     if (fp == NULL) {
         fprintf(stderr, "Unable to write '%s'\n", fname);
@@ -107,10 +108,11 @@ void *
 thpool_write_element(void *vargs)
 {
     FILE *fp;
-    char fname[100];
+    char fname[1024];
+    int fnamelen = 1024;
     struct write_element_s *args = (struct write_element_s *) vargs;
 
-    (void) snprintf(fname, 100, "%s/%s", args->dir, args->name);
+    (void) snprintf(fname, fnamelen, "%s/%s", args->dir, args->name);
     fp = fopen(fname, "w+b");
     clt_vtable.enc->fwrite(args->elem, fp);
     fclose(fp);

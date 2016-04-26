@@ -4,16 +4,6 @@ from pyobf.sz_bp import SZBranchingProgram
 
 import os, time
 
-def to_long(lst):
-    return [long(i) for i in lst]
-
-def pad(array, length, bplength):
-    if len(array) < length:
-        zeros = [to_long([0] * bplength)]
-        return array + (zeros * (length - len(array)))
-    else:
-        return array
-
 class SZObfuscator(Obfuscator):
     def __init__(self, mlm, verbose=False, nthreads=None, ncores=None):
         super(SZObfuscator, self).__init__(_obf, mlm, verbose=verbose,
