@@ -110,8 +110,8 @@ def obf(args):
                                nthreads=args.nthreads, ncores=args.ncores)
                 directory = args.save if args.save \
                             else '%s.obf.%d' % (args.load, args.secparam)
-                pyobf.obfuscate(args.load, args.secparam, directory,
-                                obliviate=args.obliviate, kappa=args.kappa,
+                obf.obfuscate(args.load, args.secparam, directory,
+                              obliviate=args.obliviate, kappa=args.kappa,
                               formula=formula)
                 end = time.time()
                 print('Obfuscation took: %f seconds' % (end - start))
