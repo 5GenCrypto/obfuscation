@@ -78,9 +78,7 @@ obf_clear(obf_state_t *s)
         aes_randclear(s->rand);
         if (s->randomizer)
             free(s->randomizer);
-        /* XXX: the hangs on this version of thpool.c, but later versions don't
-         * quite work yet */
-        /* thpool_destroy(s->thpool); */
+        thpool_destroy(s->thpool);
     }
     free(s);
 }
@@ -230,7 +228,11 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
 
     if (thpool_add_tag(s->thpool, idx_s, 2 * nrows * ncols, thpool_write_layer,
                        wl_s) == -1) {
-        /* XXX: memory leak here */
+        mmap_enc_mat_clear(s->vtable, *zero_enc);
+        mmap_enc_mat_clear(s->vtable, *one_enc);
+        free(zero_enc);
+        free(one_enc);
+        free(wl_s);
         return OBFUSCATOR_ERR;
     }
 
@@ -257,7 +259,9 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
                 args->vtable = s->vtable;
                 args->sk = &s->mmap;
                 args->enc = enc;
-                thpool_add_work(s->thpool, thpool_encode_elem, (void *) args, idx_s);
+
+                thpool_add_work(s->thpool, thpool_encode_elem, (void *) args,
+                                idx_s);
             }
         }
     }

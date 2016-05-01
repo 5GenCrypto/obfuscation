@@ -101,7 +101,7 @@ typedef struct thpool_{
 
 
 static int  thread_init(thpool_* thpool_p, struct thread** thread_p, int id);
-static void* thread_do(struct thread* thread_p);
+static void* thread_do(void* varg);
 static void  thread_hold();
 static void  thread_destroy(struct thread* thread_p);
 
@@ -386,8 +386,9 @@ thread_hold (int num)
 * @return nothing
 */
 static void *
-thread_do(struct thread* thread_p)
+thread_do(void* varg)
 {
+    struct thread* thread_p = (struct thread *) varg;
 	/* Set thread name for profiling and debuging */
 	char thread_name[128] = {0};
 	sprintf(thread_name, "thread-pool-%d", thread_p->id);
