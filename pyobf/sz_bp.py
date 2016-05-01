@@ -123,7 +123,11 @@ class SZBranchingProgram(AbstractBranchingProgram):
                     continue
                 if line.startswith(':'):
                     continue
-                num, rest = line.split(None, 1)
+                try:
+                    num, rest = line.split(None, 1)
+                except ValueError:
+                    raise ParseException(
+                        'Line %d: unable to parse line' % lineno)
                 try:
                     num = int(num)
                 except ValueError:
