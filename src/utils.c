@@ -18,6 +18,26 @@ current_time(void)
     return (double) (t.tv_sec + (double) (t.tv_usec / 1000000.0));
 }
 
+FILE *
+open_file(const char *dir, const char *file, const char *mode)
+{
+    FILE *fp;
+    char *fname;
+    int fnamelen;
+
+    fnamelen = strlen(dir) + strlen(file) + 2;
+    fname = malloc(fnamelen);
+    if (fname == NULL)
+        return NULL;
+    (void) snprintf(fname, fnamelen, "%s/%s", dir, file);
+    fp = fopen(fname, mode);
+    if (fp == NULL) {
+        fprintf(stderr, "unable to open '%s'\n", fname);
+    }
+    free(fname);
+    return fp;
+}
+
 int
 load_mpz_scalar(const char *fname, mpz_t x)
 {

@@ -20,6 +20,17 @@ typedef struct obf_state_s {
     bool verbose;
 } obf_state_t;
 
+
+static FILE *
+open_indexed_file(const char *dir, const char *file, uint64_t index,
+                  const char *mode)
+{
+    char fname[50];
+
+    (void) snprintf(fname, 50, "%lu.%s", index, file);
+    return open_file(dir, fname, mode);
+}
+
 obf_state_t *
 obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
          uint64_t nzs, uint64_t nthreads, uint64_t ncores, bool verbose)
@@ -58,11 +69,7 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
 
     s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, s->rand, s->verbose);
     {
-        char fname[100];
-        FILE *fp;
-
-        snprintf(fname, 100, "%s/params", s->dir);
-        fp = fopen(fname, "w+b");
+        FILE *fp = open_file(dir, "params", "w+b");
         s->vtable->pp->fwrite(s->vtable->sk->pp(&s->mmap), fp);
         fclose(fp);
     }
@@ -275,10 +282,9 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, uint64_t bplen,
 {
     const mmap_vtable *vtable;
     mmap_pp pp;
-    char fname[100];
     FILE *fp;
     mmap_enc_mat_t *result = NULL;
-    long nrows, ncols, nrows_prev;
+    uint64_t nrows, ncols, nrows_prev = 0;
     int err = 1, iszero = -1;
     double start, end;
 
@@ -295,89 +301,71 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, uint64_t bplen,
 
     (void) omp_set_num_threads(ncores);
 
-    (void) snprintf(fname, 100, "%s/params", dir);
-    fp = fopen(fname, "r+b");
-    if (fp == NULL) {
-        fprintf(stderr, "Unable to open '%s\n", fname);
+    if ((fp = open_file(dir, "params", "r+b")) == NULL)
         goto done;
-    }
     vtable->pp->fread(&pp, fp);
     fclose(fp);
 
-    for (unsigned long layer = 0; layer < bplen; ++layer) {
-        unsigned int inp;
+    for (uint64_t layer = 0; layer < bplen; ++layer) {
+        uint64_t inp;
         mmap_enc_mat_t *left, *right;
 
         start = current_time();
 
         // determine the size of the matrix
-        (void) snprintf(fname, 100, "%s/%ld.nrows", dir, layer);
-        fp = fopen(fname, "r+b");
-        if (fp == NULL) {
-            fprintf(stderr, "Unable to open '%s'\n", fname);
+        if ((fp = open_indexed_file(dir, "nrows", layer, "r+b")) == NULL)
             goto done;
-        }
         fread(&nrows, sizeof nrows, 1, fp);
         fclose(fp);
-
-        (void) snprintf(fname, 100, "%s/%ld.ncols", dir, layer);
-        fp = fopen(fname, "r+b");
-        if (fp == NULL) {
-            fprintf(stderr, "Unable to open '%s'\n", fname);
+        if ((fp = open_indexed_file(dir, "ncols", layer, "r+b")) == NULL)
             goto done;
-        }
         fread(&ncols, sizeof ncols, 1, fp);
         fclose(fp);
 
         // find out the input bit for the given layer
-        (void) snprintf(fname, 100, "%s/%ld.input", dir, layer);
-        fp = fopen(fname, "r+b");
-        if (fp == NULL) {
-            fprintf(stderr, "Unable to open '%s'\n", fname);
+        if ((fp = open_indexed_file(dir, "input", layer, "r+b")) == NULL)
             goto done;
-        }
         fread(&inp, sizeof inp, 1, fp);
         fclose(fp);
 
         if (inp >= strlen(input)) {
-            fprintf(stderr, "Error: invalid input: %d >= %ld\n", inp, strlen(input));
+            fprintf(stderr, "invalid input: %lu >= %ld\n", inp,
+                    strlen(input));
             goto done;
         }
         // load in appropriate matrix for the given input value
         switch(input[inp]) {
         case '0':
-            (void) snprintf(fname, 100, "%s/%ld.zero", dir, layer);
+            if ((fp = open_indexed_file(dir, "zero", layer, "r+b")) == NULL)
+                goto done;
             break;
         case '1':
-            (void) snprintf(fname, 100, "%s/%ld.one", dir, layer);
+            if ((fp = open_indexed_file(dir, "one", layer, "r+b")) == NULL)
+                goto done;
             break;
         default:
-            fprintf(stderr, "Error: input must be 0 or 1, got %d\n", input[inp]);
+            fprintf(stderr, "input must be 0 or 1, got %d\n", input[inp]);
             goto done;
         }
 
         if (layer == 0) {
             result = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
             mmap_enc_mat_init(vtable, &pp, *result, nrows, ncols);
-            fp = fopen(fname, "r+b");
-            for (int i = 0; i < nrows; ++i) {
-                for (int j = 0; j < ncols; ++j) {
+            for (uint64_t i = 0; i < nrows; ++i) {
+                for (uint64_t j = 0; j < ncols; ++j) {
                     vtable->enc->fread(result[0]->m[i][j], fp);
                 }
             }
-            fclose(fp);
             nrows_prev = nrows;
         } else {
             left = result;
             right = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
             mmap_enc_mat_init(vtable, &pp, *right, nrows, ncols);
-            fp = fopen(fname, "r+b");
-            for (int i = 0; i < nrows; ++i) {
-                for (int j = 0; j < ncols; ++j) {
+            for (uint64_t i = 0; i < nrows; ++i) {
+                for (uint64_t j = 0; j < ncols; ++j) {
                     vtable->enc->fread(right[0]->m[i][j], fp);
                 }
             }
-            fclose(fp);
 
             result = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
             mmap_enc_mat_init(vtable, &pp, *result, nrows_prev, ncols);
@@ -387,6 +375,8 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, uint64_t bplen,
             free(left);
             free(right);
         }
+
+        fclose(fp);
 
         end = current_time();
 

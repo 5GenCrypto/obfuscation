@@ -44,12 +44,10 @@ zobf_init(const char *dir, uint64_t secparam, uint64_t kappa, uint64_t nzs,
     clt_state_init(&s->mlm, kappa, secparam, nzs, pows, flags, s->rand);
     {
         clt_pp pp;
-        char fname[100];
         FILE *fp;
 
         clt_pp_init(&pp, &s->mlm);
-        (void) snprintf(fname, 100, "%s/params", s->dir);
-        fp = fopen(fname, "w+b");
+        fp = open_file(s->dir, "params", "w+b");
         clt_pp_fsave(fp, &pp);
         fclose(fp);
         clt_pp_clear(&pp);
@@ -125,10 +123,8 @@ static int
 write_element(const char *dir, mmap_enc *elem, const char *name)
 {
     FILE *fp;
-    char fname[100];
 
-    (void) snprintf(fname, 100, "%s/%s", dir, name);
-    fp = fopen(fname, "w+b");
+    fp = open_file(dir, name, "w+b");
     clt_vtable.enc->fwrite(elem, fp);
     fclose(fp);
     return 0;
@@ -272,9 +268,7 @@ zobf_evaluate(const char *dir, const char *circuit, const char *input,
     mpz_inits(c_1, c_2, z, w, NULL);
 
     {
-        FILE *fp;
-        (void) snprintf(fname, fnamelen, "%s/params", dir);
-        fp = fopen(fname, "r+b");
+        FILE *fp = open_file(dir, "params", "r+b");
         clt_pp_fread(fp, &pp);
         fclose(fp);
 
