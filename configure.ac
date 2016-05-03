@@ -2,10 +2,7 @@ m4_define([version_major], [0])
 m4_define([version_minor], [2])
 m4_define([version_micro], [0])
 
-AC_PREREQ(2.64)
 AC_INIT([libobf], [version_major.version_minor.version_micro], [amaloz@cs.umd.edu])
-
-dnl AC_CANONICAL_HOST
 
 AC_CONFIG_HEADERS([src/config.h])
 AC_CONFIG_SRCDIR([./])
@@ -20,18 +17,11 @@ AC_DEFINE(VERSION_MICRO, version_micro, [libgarble micro version])
 
 AM_PROG_AR
 
-LT_PREREQ([2.2.2])
 LT_INIT
 
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_LIBTOOL
-
-PKG_PROG_PKG_CONFIG(0.9)
-if test -z "$PKG_CONFIG"; then
-  AC_MSG_ERROR(cannot find pkg-config)
-fi
-
 
 AC_MSG_CHECKING([if debug option is enabled])
 AC_ARG_ENABLE(debug,
