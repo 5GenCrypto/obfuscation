@@ -2,7 +2,6 @@
 #include "thpool.h"
 #include "thpool_fns.h"
 
-#include <mife/mife_internals.h>
 #include <mmap/mmap_clt.h>
 #include <mmap/mmap_gghlite.h>
 #include <omp.h>
@@ -206,11 +205,6 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
 
     (void) snprintf(idx_s, 10, "%ld", idx);
 
-    zero_enc = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
-    one_enc = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
-    mmap_enc_mat_init(s->vtable, pp, *zero_enc, nrows, ncols);
-    mmap_enc_mat_init(s->vtable, pp, *one_enc, nrows, ncols);
-
     if (rflag != ENCODE_LAYER_RANDOMIZATION_TYPE_NONE) {
         start = current_time();
         obf_randomize_layer(s, nrows, ncols, rflag, zero, one);
@@ -220,6 +214,11 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
     }
 
     start = current_time();
+
+    zero_enc = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
+    one_enc = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
+    mmap_enc_mat_init(s->vtable, pp, *zero_enc, nrows, ncols);
+    mmap_enc_mat_init(s->vtable, pp, *one_enc, nrows, ncols);
 
     wl_s = (struct write_layer_s *) malloc(sizeof(struct write_layer_s));
     wl_s->vtable = s->vtable;
