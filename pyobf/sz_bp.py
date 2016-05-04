@@ -115,7 +115,7 @@ class SZBranchingProgram(AbstractBranchingProgram):
             left = matrix([[0, 1, 1], [1, -2, 0]])
             right = matrix([[0, 1], [1, 0]])
             return _two_input_gate(bp0, bp1, left, right)
-        with open(fname) as f:
+        def _parse_file(f):
             wires = set()
             bp = []
             for lineno, line in enumerate(f, 1):
@@ -159,7 +159,12 @@ class SZBranchingProgram(AbstractBranchingProgram):
                     except TypeError:
                         raise ParseException(
                             'Line %d: incorrect number of arguments given' % lineno)
-        return bp[-1]
+            return bp[-1]
+        try:
+            with open(fname) as f:
+                return _parse_file(f)
+        except IOError as err:
+            raise ParseException(err)
 
     def evaluate(self, x):
         assert self.bp
