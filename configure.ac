@@ -44,6 +44,10 @@ AC_FUNC_MALLOC
 
 AC_CHECK_HEADERS([omp.h])
 
+AC_SEARCH_LIBS(aes_randinit,aesrand)
+if test "x$ac_cv_search_aes_randinit" = "xno"; then
+  AC_MSG_ERROR([libaesrand not found])
+fi
 AC_SEARCH_LIBS(fmpz_init,flint)
 if test "x$ac_cv_search_fmpz_init" = "xno"; then
   AC_MSG_ERROR([libflint not found])
