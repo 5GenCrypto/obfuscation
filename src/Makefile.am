@@ -1,5 +1,6 @@
 AUTOMAKE_OPTIONS = foreign -Wall
-AM_CFLAGS  = ${DEBUG_CFLAGS} -I$(top_srcdir) -I$(top_srcdir)/dgs
+AM_CFLAGS  = $(COMMON_CFLAGS) $(EXTRA_CFLAGS) -I$(top_srcdir) -I$(top_srcdir)/dgs
+AM_LDFLAGS = -lgomp
 
 lib_LTLIBRARIES=libobf.la
 

@@ -23,23 +23,26 @@ AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_LIBTOOL
 
-AC_MSG_CHECKING([if debug option is enabled])
-AC_ARG_ENABLE(debug,
-  [AS_HELP_STRING([--enable-debug], [enable debugging, default: no])],
-  [with_debug=y],
-  [with_debug=n])
+AC_ARG_ENABLE(debug,        [  --enable-debug          Enable assert() statements for debugging.], [enable_debug=yes])
 
-CFLAGS="-Wall -Wformat -Wformat-security -Wextra -Wunused \
+CFLAGS=                         dnl get rid of default -g -O2
+COMMON_CFLAGS="-Wall -Wformat -Wformat-security -Wextra -Wunused \
 -Wshadow -Wmissing-prototypes -Wfloat-equal -Wpointer-arith -Wcast-align \
 -Wstrict-prototypes -Wredundant-decls -Wendif-labels -Wcast-qual \
 -std=gnu11 -Wpedantic"
-if test x"$with_debug" == x"y"; then
-   CFLAGS="$CFLAGS -g3 -O0"
+
+if test "x$enable_debug" = x"yes"; then
+  EXTRA_CFLAGS="-O0 -g"
 else
-    CFLAGS="$CFLAGS -fomit-frame-pointer -O3"
+  EXTRA_CFLAGS="-O3"
+  AC_DEFINE(NDEBUG,1,[Define whether debugging is enabled])
 fi
+AC_SUBST(COMMON_CFLAGS)
+AC_SUBST(EXTRA_CFLAGS)
 
 AC_FUNC_MALLOC
+
+AC_CHECK_HEADERS([omp.h])
 
 AC_SEARCH_LIBS(fmpz_init,flint)
 if test "x$ac_cv_search_fmpz_init" = "xno"; then
