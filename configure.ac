@@ -52,6 +52,10 @@ AC_SEARCH_LIBS(fmpz_init,flint)
 if test "x$ac_cv_search_fmpz_init" = "xno"; then
   AC_MSG_ERROR([libflint not found])
 fi
+AC_SEARCH_LIBS(clt_state_init,clt13)
+if test "x$ac_cv_search_clt_state_init" = "xno"; then
+  AC_MSG_ERROR([libclt13 not found])
+fi
 AC_SEARCH_LIBS(mmap_enc_mat_init,mmap)
 if test "x$ac_cv_search_mmap_enc_mat_init" = "xno"; then
   AC_MSG_ERROR([libmmap not found])
