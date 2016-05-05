@@ -13,6 +13,7 @@ compile_args = [
     '-O3',
     '-Wall',
     '-Wextra',
+    '-Isrc',
 ]
 
 obfuscator = Extension(
