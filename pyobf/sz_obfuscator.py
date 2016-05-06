@@ -4,6 +4,11 @@ from pyobf.sz_bp import SZBranchingProgram
 
 import os, time
 
+OBFUSCATOR_FLAG_NONE = 0x00
+OBFUSCATOR_FLAG_NO_RANDOMIZATION = 0x01
+OBFUSCATOR_FLAG_DUAL_INPUT_BP = 0x02
+OBFUSCATOR_FLAG_VERBOSE = 0x04
+
 class SZObfuscator(Obfuscator):
     def __init__(self, mlm, verbose=False, nthreads=None, ncores=None):
         super(SZObfuscator, self).__init__(_obf, mlm, verbose=verbose,
@@ -25,8 +30,11 @@ class SZObfuscator(Obfuscator):
         if not os.path.exists(directory):
             os.mkdir(directory)
         mlm = 0 if self._mlm == 'CLT' else 1
+        flags = OBFUSCATOR_FLAG_NONE
+        if self._verbose:
+            flags |= OBFUSCATOR_FLAG_VERBOSE
         self._state = _obf.init(directory, mlm, secparam, kappa, nzs,
-                                self._nthreads, self._ncores)
+                                self._nthreads, self._ncores, flags)
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
@@ -68,4 +76,7 @@ class SZObfuscator(Obfuscator):
             _obf.max_mem_usage()
 
     def evaluate(self, directory, inp):
-        return self._evaluate(directory, inp, _obf.evaluate, _obf)
+        flags = OBFUSCATOR_FLAG_NONE
+        if self._verbose:
+            flags |= OBFUSCATOR_FLAG_VERBOSE
+        return self._evaluate(directory, inp, _obf.evaluate, _obf, flags)

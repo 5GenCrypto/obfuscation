@@ -16,7 +16,7 @@ typedef struct obf_state_s {
     const char *dir;
     uint64_t nzs;
     fmpz_mat_t *randomizer;
-    bool verbose;
+    uint64_t flags;
 } obf_state_t;
 
 
@@ -32,7 +32,7 @@ open_indexed_file(const char *dir, const char *file, uint64_t index,
 
 obf_state_t *
 obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
-         uint64_t nzs, uint64_t nthreads, uint64_t ncores, bool verbose)
+         uint64_t nzs, uint64_t nthreads, uint64_t ncores, uint64_t flags)
 {
     obf_state_t *s = NULL;
 
@@ -44,7 +44,7 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
     s->type = type;
     s->dir = dir;
     s->nzs = nzs;
-    s->verbose = verbose;
+    s->flags = flags;
 
     switch (s->type) {
     case MMAP_CLT:
@@ -61,12 +61,13 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
     s->thpool = thpool_init(nthreads);
     (void) omp_set_num_threads(ncores);
 
-    if (s->verbose) {
+    if (s->flags & OBFUSCATOR_FLAG_VERBOSE) {
         fprintf(stderr, "  # Threads: %ld\n", nthreads);
         fprintf(stderr, "  # Cores: %ld\n", ncores);
     }
 
-    s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, s->rand, s->verbose);
+    s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, s->rand,
+                        s->flags & OBFUSCATOR_FLAG_VERBOSE);
     {
         FILE *fp = open_file(dir, "params", "w+b");
         s->vtable->pp->fwrite(s->vtable->sk->pp(&s->mmap), fp);
@@ -205,11 +206,11 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
 
     (void) snprintf(idx_s, 10, "%ld", idx);
 
-    if (rflag != ENCODE_LAYER_RANDOMIZATION_TYPE_NONE) {
+    if (!(s->flags & OBFUSCATOR_FLAG_NO_RANDOMIZATION)) {
         start = current_time();
         obf_randomize_layer(s, nrows, ncols, rflag, zero, one);
         end = current_time();
-        if (s->verbose)
+        if (s->flags & OBFUSCATOR_FLAG_VERBOSE)
             (void) fprintf(stderr, "  Randomizing matrix: %f\n", end - start);
     }
 
@@ -230,7 +231,7 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
     wl_s->nrows = nrows;
     wl_s->ncols = ncols;
     wl_s->start = start;
-    wl_s->verbose = s->verbose;
+    wl_s->verbose = s->flags & OBFUSCATOR_FLAG_VERBOSE;
 
     if (thpool_add_tag(s->thpool, idx_s, 2 * nrows * ncols, thpool_write_layer,
                        wl_s) == -1) {

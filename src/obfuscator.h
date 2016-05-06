@@ -8,6 +8,10 @@
 #define OBFUSCATOR_OK 0
 #define OBFUSCATOR_ERR (-1)
 
+#define OBFUSCATOR_FLAG_NO_RANDOMIZATION 0x01
+#define OBFUSCATOR_FLAG_DUAL_INPUT_BP 0x02
+#define OBFUSCATOR_FLAG_VERBOSE 0x04
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -25,7 +29,7 @@ typedef enum {
 
 obf_state_t *
 obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
-         uint64_t nzs, uint64_t nthreads, uint64_t ncores, bool verbose);
+         uint64_t nzs, uint64_t nthreads, uint64_t ncores, uint64_t flags);
 
 void
 obf_clear(obf_state_t *s);

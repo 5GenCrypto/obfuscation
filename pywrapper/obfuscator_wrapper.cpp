@@ -2,8 +2,6 @@
 #include "obfuscator.h"
 #include "pyutils.h"
 
-static bool g_verbose;
-
 static void
 obf_clear_wrapper(PyObject *self)
 {
@@ -13,13 +11,14 @@ obf_clear_wrapper(PyObject *self)
 static PyObject *
 obf_init_wrapper(PyObject *self, PyObject *args)
 {
-    long type_ = 0, secparam = 0, kappa = 0, nzs = 0, nthreads = 0, ncores = 0;
+    long type_ = 0, secparam = 0, kappa = 0, nzs = 0, nthreads = 0,
+        ncores = 0, flags = 0;
     enum mmap_e type;
     char *dir = NULL;
     obf_state_t *s = NULL;
 
-    if (!PyArg_ParseTuple(args, "sllllll", &dir, &type_, &secparam, &kappa,
-                          &nzs, &nthreads, &ncores)) {
+    if (!PyArg_ParseTuple(args, "slllllll", &dir, &type_, &secparam, &kappa,
+                          &nzs, &nthreads, &ncores, &flags)) {
         PyErr_SetString(PyExc_RuntimeError, "unable to parse input");
         return NULL;
     }
@@ -40,7 +39,7 @@ obf_init_wrapper(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    s = obf_init(type, dir, secparam, kappa, nzs, nthreads, ncores, g_verbose);
+    s = obf_init(type, dir, secparam, kappa, nzs, nthreads, ncores, flags);
     if (s == NULL) {
         PyErr_SetString(PyExc_RuntimeError, "initialization failed");
         return NULL;
@@ -112,11 +111,12 @@ static PyObject *
 obf_evaluate_wrapper(PyObject *self, PyObject *args)
 {
     char *dir = NULL, *input = NULL;
-    long iszero, type_;
+    long iszero, type_, flags;
     enum mmap_e type;
     uint64_t bplen = 0, ncores = 0;
 
-    if (!PyArg_ParseTuple(args, "zzlll", &dir, &input, &type_, &bplen, &ncores)) {
+    if (!PyArg_ParseTuple(args, "zzllll", &dir, &input, &type_, &bplen,
+                          &ncores, &flags)) {
         PyErr_SetString(PyExc_RuntimeError, "error parsing arguments");
         return NULL;
     }
@@ -133,7 +133,7 @@ obf_evaluate_wrapper(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    iszero = obf_evaluate(type, dir, input, bplen, ncores, g_verbose);
+    iszero = obf_evaluate(type, dir, input, bplen, ncores, flags);
     if (iszero == -1) {
         PyErr_SetString(PyExc_RuntimeError, "zero test failed");
         return NULL;
@@ -160,23 +160,8 @@ obf_wait_wrapper(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-static PyObject *
-obf_verbose(PyObject *self, PyObject *args)
-{
-    PyObject *py_verbose;
-
-    if (!PyArg_ParseTuple(args, "O", &py_verbose))
-        return NULL;
-
-    g_verbose = PyObject_IsTrue(py_verbose);
-
-    Py_RETURN_NONE;
-}
-
 static PyMethodDef
 ObfMethods[] = {
-    {"verbose", obf_verbose, METH_VARARGS,
-     "Set verbosity."},
     {"init", obf_init_wrapper, METH_VARARGS,
      "Set up obfuscator."},
     {"encode_layer", obf_encode_layer_wrapper, METH_VARARGS,

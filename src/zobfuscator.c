@@ -16,14 +16,15 @@ typedef struct zobf_state_s {
     const char *dir;
     mpz_t nchk;
     mpz_t nev;
+    uint64_t flags;
 } zobf_state_t;
 
 zobf_state_t *
 zobf_init(const char *dir, uint64_t secparam, uint64_t kappa, uint64_t nzs,
-         int *pows, uint64_t nthreads, uint64_t ncores, bool verbose)
+         int *pows, uint64_t nthreads, uint64_t ncores, uint64_t flags)
 {
     zobf_state_t *s;
-    int flags = CLT_FLAG_DEFAULT | CLT_FLAG_OPT_PARALLEL_ENCODE;
+    int clt_flags = CLT_FLAG_DEFAULT | CLT_FLAG_OPT_PARALLEL_ENCODE;
 
     s = (zobf_state_t *) malloc(sizeof(zobf_state_t));
     if (s == NULL)
@@ -34,14 +35,15 @@ zobf_init(const char *dir, uint64_t secparam, uint64_t kappa, uint64_t nzs,
     (void) aes_randinit(s->rand);
     s->thpool = thpool_init(nthreads);
     (void) omp_set_num_threads(ncores);
+    s->flags = flags;
 
-    if (verbose) {
+    if (s->flags & ZOBFUSCATOR_FLAG_VERBOSE) {
         fprintf(stderr, "  # Threads: %ld\n", nthreads);
         fprintf(stderr, "  # Cores: %ld\n", ncores);
-        flags |= CLT_FLAG_VERBOSE;
+        clt_flags |= CLT_FLAG_VERBOSE;
     }
 
-    clt_state_init(&s->mlm, kappa, secparam, nzs, pows, flags, s->rand);
+    clt_state_init(&s->mlm, kappa, secparam, nzs, pows, clt_flags, s->rand);
     {
         clt_pp pp;
         FILE *fp;
@@ -65,7 +67,7 @@ zobf_clear(zobf_state_t *s)
     if (s) {
         aes_randclear(s->rand);
         clt_state_clear(&s->mlm);
-        // thpool_destroy(s->thpool);
+        thpool_destroy(s->thpool);
         mpz_clears(s->nev, s->nchk, NULL);
     }
 
@@ -256,7 +258,7 @@ zobf_encode_circuit(zobf_state_t *s, const char *circuit, const mpz_t *ys,
 
 int
 zobf_evaluate(const char *dir, const char *circuit, const char *input,
-              int n, int m, uint64_t nthreads)
+              int n, int m, uint64_t nthreads, uint64_t flags)
 {
     char fname[100];
     int fnamelen = 100;

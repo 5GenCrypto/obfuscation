@@ -5,7 +5,7 @@ class Obfuscator(object):
     def __init__(self, obf, mlm, verbose=False, nthreads=None, ncores=None):
         self._state = None
         self._verbose = verbose
-        obf.verbose(self._verbose)
+        # obf.verbose(self._verbose)
         self._nthreads = nthreads
         self._ncores = ncores
         self.logger = utils.make_logger(self._verbose)
@@ -24,13 +24,13 @@ class Obfuscator(object):
                   kappa=None, formula=True):
         raise NotImplementedError
 
-    def _evaluate(self, directory, inp, f, obf):
+    def _evaluate(self, directory, inp, f, obf, flags):
         mlm = 0 if self._mlm == 'CLT' else 1
         self.logger('Evaluating %s...' % inp)
         start = time.time()
         files = os.listdir(directory)
         inputs = sorted(filter(lambda s: 'input' in s, files))
-        result = f(directory, inp, mlm, len(inputs), self._ncores)
+        result = f(directory, inp, mlm, len(inputs), self._ncores, flags)
         end = time.time()
         self.logger('Took: %f' % (end - start))
         if self._verbose:

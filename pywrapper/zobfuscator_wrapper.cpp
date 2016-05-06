@@ -10,8 +10,6 @@
 #include <mmap/mmap_clt.h>
 #include <omp.h>
 
-static bool g_verbose;
-
 static void
 zobf_state_destructor(PyObject *self)
 {
@@ -24,14 +22,14 @@ zobf_state_destructor(PyObject *self)
 static PyObject *
 zobf_init_wrapper(PyObject *self, PyObject *args)
 {
-    long secparam, kappa, nzs, nthreads, ncores;
+    long secparam, kappa, nzs, nthreads, ncores, flags;
     char *dir;
     PyObject *py_pows;
     int *pows;
     zobf_state_t *s;
 
-    if (!PyArg_ParseTuple(args, "lllOsll", &secparam, &kappa, &nzs, &py_pows,
-                          &dir, &nthreads, &ncores)) {
+    if (!PyArg_ParseTuple(args, "lllOslll", &secparam, &kappa, &nzs, &py_pows,
+                          &dir, &nthreads, &ncores, &flags)) {
         return NULL;
     }
 
@@ -40,7 +38,7 @@ zobf_init_wrapper(PyObject *self, PyObject *args)
         pows[i] = (int) PyLong_AsLong(PyList_GET_ITEM(py_pows, i));
     }
 
-    s = zobf_init(dir, secparam, kappa, nzs, pows, nthreads, ncores, g_verbose);
+    s = zobf_init(dir, secparam, kappa, nzs, pows, nthreads, ncores, flags);
 
     return PyCapsule_New((void *) s, NULL, zobf_state_destructor);
 }
@@ -88,34 +86,19 @@ static PyObject *
 zobf_evaluate_wrapper(PyObject *self, PyObject *args)
 {
     char *circuit, *dir, *input;
-    long n, m, nthreads;
+    long n, m, nthreads, flags;
     int iszero;
 
-    if (!PyArg_ParseTuple(args, "ssslll", &dir, &circuit, &input, &n, &m,
-                          &nthreads))
+    if (!PyArg_ParseTuple(args, "sssllll", &dir, &circuit, &input, &n, &m,
+                          &nthreads, &flags))
         return NULL;
 
-    iszero = zobf_evaluate(dir, circuit, input, n, m, nthreads);
+    iszero = zobf_evaluate(dir, circuit, input, n, m, nthreads, flags);
     return Py_BuildValue("i", iszero ? 0 : 1);
-}
-
-static PyObject *
-zobf_verbose(PyObject *self, PyObject *args)
-{
-    PyObject *py_verbose;
-
-    if (!PyArg_ParseTuple(args, "O", &py_verbose))
-        return NULL;
-
-    g_verbose = PyObject_IsTrue(py_verbose);
-
-    Py_RETURN_NONE;
 }
 
 static PyMethodDef
 ObfMethods[] = {
-    {"verbose", zobf_verbose, METH_VARARGS,
-     "Set verbosity."},
     {"init", zobf_init_wrapper, METH_VARARGS,
      "Set up obfuscator."},
     {"encode_circuit", zobf_encode_circuit_wrapper, METH_VARARGS,
