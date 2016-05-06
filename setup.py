@@ -13,8 +13,7 @@ compile_args = [
     '-O3',
     '-Wall',
     '-Wextra',
-    '-Isrc/',
-    '-Lsrc/'
+    '-Isrc',
 ]
 
 obfuscator = Extension(
@@ -58,5 +57,5 @@ setup(name='obfuscator',
           'Operating System :: Unix',
           'License :: OSI Approved :: Free For Educational Use',
           'Programming Language :: C',
-          'Programming Language :: Sage',
+          'Programming Language :: Python',
       ])
