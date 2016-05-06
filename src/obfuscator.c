@@ -130,6 +130,17 @@ _fmpz_mat_init_rand(fmpz_mat_t mat, long m, long n, aes_randstate_t rand,
     }
 }
 
+static void
+_fmpz_mat_init_diagonal_rand(fmpz_mat_t mat, long n, aes_randstate_t rand,
+                             fmpz_t field)
+{
+    fmpz_mat_init(mat, n, n);
+    fmpz_mat_one(mat);
+    for (int i = 0; i < n; i++) {
+        fmpz_randm_aes(fmpz_mat_entry(mat, i, i), rand, field);
+    }
+}
+
 static inline void
 fmpz_mat_mul_mod(fmpz_mat_t a, fmpz_mat_t b, fmpz_mat_t c, fmpz_t p)
 {
@@ -156,28 +167,21 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
                     encode_layer_randomization_flag_t rflag,
                     fmpz_mat_t zero, fmpz_mat_t one)
 {
-    fmpz_t rand, field;
+    fmpz_t field;
 
-    fmpz_init(rand);
     fmpz_init(field);
 
     s->vtable->sk->plaintext_field(&s->mmap, field);
 
     if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST) {
         fmpz_mat_t first;
-        fmpz_mat_init(first, nrows, nrows);
-        fmpz_mat_one(first);
-        fmpz_randm_aes(rand, s->rand, field);
-        fmpz_mat_scalar_mul_fmpz(first, first, rand);
+        _fmpz_mat_init_diagonal_rand(first, nrows, s->rand, field);
         fmpz_layer_mul_left(zero, one, first, field);
         fmpz_mat_clear(first);
     }
     if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_LAST) {
         fmpz_mat_t last;
-        fmpz_mat_init(last, ncols, ncols);
-        fmpz_mat_one(last);
-        fmpz_randm_aes(rand, s->rand, field);
-        fmpz_mat_scalar_mul_fmpz(last, last, rand);
+        _fmpz_mat_init_diagonal_rand(last, ncols, s->rand, field);
         fmpz_layer_mul_right(zero, one, last, field);
         fmpz_mat_clear(last);
     }
@@ -204,7 +208,16 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
         s->randomizer = NULL;
     }
 
-    fmpz_clear(rand);
+    {
+        fmpz_t alpha;
+        fmpz_init(alpha);
+        fmpz_randm_aes(alpha, s->rand, field);
+        fmpz_mat_scalar_mul_fmpz(zero, zero, alpha);
+        fmpz_randm_aes(alpha, s->rand, field);
+        fmpz_mat_scalar_mul_fmpz(one, one, alpha);
+        fmpz_clear(alpha);
+    }
+
     fmpz_clear(field);
 }
 
