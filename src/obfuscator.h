@@ -34,13 +34,8 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
 void
 obf_clear(obf_state_t *s);
 
-void
-obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
-                    encode_layer_randomization_flag_t rflag,
-                    fmpz_mat_t zero, fmpz_mat_t one);
-
 int
-obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
+obf_encode_layer(obf_state_t *s, long idx, long inp,
                  encode_layer_randomization_flag_t rflag, int *zero_pows,
                  int *one_pows, fmpz_mat_t zero, fmpz_mat_t one);
 

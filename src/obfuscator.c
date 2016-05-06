@@ -162,7 +162,7 @@ fmpz_layer_mul_right(fmpz_mat_t zero, fmpz_mat_t one, fmpz_mat_t m, fmpz_t p)
     fmpz_mat_mul_mod(one, one, m, p);
 }
 
-void
+static void
 obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
                     encode_layer_randomization_flag_t rflag,
                     fmpz_mat_t zero, fmpz_mat_t one)
@@ -221,6 +221,37 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
     fmpz_clear(field);
 }
 
+static int
+add_work_write_layer(obf_state_t *s, long inp, long idx, long nrows, long ncols,
+                     char *m0_name, char *m1_name, char *tag,
+                     mmap_enc_mat_t *m0_enc, mmap_enc_mat_t *m1_enc)
+{
+    struct write_layer_s *wl_s;
+    wl_s = malloc(sizeof(struct write_layer_s));
+    wl_s->vtable = s->vtable;
+    wl_s->dir = s->dir;
+    wl_s->zero_enc = m0_enc;
+    wl_s->one_enc = m1_enc;
+    wl_s->inp = inp;
+    wl_s->idx = idx;
+    wl_s->nrows = nrows;
+    wl_s->ncols = ncols;
+    wl_s->zero = m0_name;
+    wl_s->one = m1_name;
+    wl_s->start = current_time();
+    wl_s->verbose = s->flags & OBFUSCATOR_FLAG_VERBOSE;
+    if (thpool_add_tag(s->thpool, tag, 2 * nrows * ncols,
+                       thpool_write_layer, wl_s) == -1) {
+        mmap_enc_mat_clear(s->vtable, *m0_enc);
+        mmap_enc_mat_clear(s->vtable, *m1_enc);
+        free(m0_enc);
+        free(m1_enc);
+        free(wl_s);
+        return OBFUSCATOR_ERR;
+    }
+    return OBFUSCATOR_OK;
+}
+
 static void
 add_work(obf_state_t *s, fmpz_mat_t m0, fmpz_mat_t m1, mmap_enc_mat_t *m0_enc,
          mmap_enc_mat_t *m1_enc, int *zero_pows, int *one_pows, long i, long j,
@@ -251,17 +282,25 @@ add_work(obf_state_t *s, fmpz_mat_t m0, fmpz_mat_t m1, mmap_enc_mat_t *m0_enc,
 }
 
 int
-obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
+obf_encode_layer(obf_state_t *s, long idx, long inp,
                  encode_layer_randomization_flag_t rflag, int *zero_pows,
                  int *one_pows, fmpz_mat_t zero, fmpz_mat_t one)
 {
     char tag[10], di_tag[10];
     mmap_enc_mat_t *zero_enc, *one_enc;
-    double start, end;
     const mmap_pp *pp = s->vtable->sk->pp(&s->mmap);
     /* For dual input BPs */
     fmpz_mat_t zero_one, one_zero;
     mmap_enc_mat_t *zero_one_enc = NULL, *one_zero_enc = NULL;
+    long nrows, ncols;
+
+    if (zero->r != one->r || zero->c != one->c) {
+        fprintf(stderr, "Error: mismatching matrices\n");
+        return OBFUSCATOR_ERR;
+    }
+
+    nrows = zero->r;
+    ncols = zero->c;
 
     (void) snprintf(tag, 10, "%ld", idx);
     (void) snprintf(di_tag, 10, "%ld_di", idx);
@@ -276,14 +315,13 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
     }
 
     if (!(s->flags & OBFUSCATOR_FLAG_NO_RANDOMIZATION)) {
+        double start, end;
         start = current_time();
         obf_randomize_layer(s, nrows, ncols, rflag, zero, one);
         end = current_time();
         if (s->flags & OBFUSCATOR_FLAG_VERBOSE)
             (void) fprintf(stderr, "  Randomizing matrix: %f\n", end - start);
     }
-
-    start = current_time();
 
     zero_enc = malloc(sizeof(mmap_enc_mat_t));
     one_enc = malloc(sizeof(mmap_enc_mat_t));
@@ -296,56 +334,14 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
         mmap_enc_mat_init(s->vtable, pp, *one_zero_enc, nrows, ncols);
     }
 
-    {
-        struct write_layer_s *wl_s;
-        wl_s = malloc(sizeof(struct write_layer_s));
-        wl_s->vtable = s->vtable;
-        wl_s->dir = s->dir;
-        wl_s->zero_enc = zero_enc;
-        wl_s->one_enc = one_enc;
-        wl_s->inp = inp;
-        wl_s->idx = idx;
-        wl_s->nrows = nrows;
-        wl_s->ncols = ncols;
-        wl_s->zero = "zero";
-        wl_s->one = "one";
-        wl_s->start = start;
-        wl_s->verbose = s->flags & OBFUSCATOR_FLAG_VERBOSE;
-        if (thpool_add_tag(s->thpool, tag, 2 * nrows * ncols,
-                           thpool_write_layer, wl_s) == -1) {
-            mmap_enc_mat_clear(s->vtable, *zero_enc);
-            mmap_enc_mat_clear(s->vtable, *one_enc);
-            free(zero_enc);
-            free(one_enc);
-            free(wl_s);
-            return OBFUSCATOR_ERR;
-        }
-    }
-
+    if (add_work_write_layer(s, inp, idx, nrows, ncols, "zero", "one", tag,
+                             zero_enc, one_enc) == OBFUSCATOR_ERR)
+        return OBFUSCATOR_ERR;
     if (s->flags & OBFUSCATOR_FLAG_DUAL_INPUT_BP) {
-        struct write_layer_s *wl_s;
-        wl_s = malloc(sizeof(struct write_layer_s));
-        wl_s->vtable = s->vtable;
-        wl_s->dir = s->dir;
-        wl_s->zero_enc = zero_one_enc;
-        wl_s->one_enc = one_zero_enc;
-        wl_s->inp = inp;
-        wl_s->idx = idx;
-        wl_s->nrows = nrows;
-        wl_s->ncols = ncols;
-        wl_s->zero = "zero_one";
-        wl_s->one = "one_zero";
-        wl_s->start = start;
-        wl_s->verbose = s->flags & OBFUSCATOR_FLAG_VERBOSE;
-        if (thpool_add_tag(s->thpool, di_tag, 2 * nrows * ncols,
-                           thpool_write_layer, wl_s) == -1) {
-            mmap_enc_mat_clear(s->vtable, *zero_one_enc);
-            mmap_enc_mat_clear(s->vtable, *one_zero_enc);
-            free(zero_one_enc);
-            free(one_zero_enc);
-            free(wl_s);
+        if (add_work_write_layer(s, inp, idx, nrows, ncols, "zero_one",
+                                 "one_zero", di_tag, zero_one_enc, one_zero_enc)
+            == OBFUSCATOR_ERR)
             return OBFUSCATOR_ERR;
-        }
     }
 
     for (long c = 0; c < 2; ++c) {

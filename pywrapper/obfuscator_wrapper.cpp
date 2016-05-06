@@ -97,9 +97,8 @@ obf_encode_layer_wrapper(PyObject *self, PyObject *args)
         }
     }
 
-    obf_encode_layer(s, idx, inp, nrows, ncols,
-                     (encode_layer_randomization_flag_t) rflag, zero_pows,
-                     one_pows, zero, one);
+    obf_encode_layer(s, idx, inp, (encode_layer_randomization_flag_t) rflag,
+                     zero_pows, one_pows, zero, one);
 
     fmpz_mat_clear(zero);
     fmpz_mat_clear(one);
