@@ -64,6 +64,8 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
     if (s->flags & OBFUSCATOR_FLAG_VERBOSE) {
         fprintf(stderr, "  # Threads: %ld\n", nthreads);
         fprintf(stderr, "  # Cores: %ld\n", ncores);
+        if (s->flags & OBFUSCATOR_FLAG_DUAL_INPUT_BP)
+            fprintf(stderr, "  Using dual input branching programs\n");
     }
 
     s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, s->rand,
@@ -91,7 +93,8 @@ obf_clear(obf_state_t *s)
 }
 
 static void
-_fmpz_mat_init_rand(fmpz_mat_t m, long n, aes_randstate_t rand, fmpz_t field)
+_fmpz_mat_init_square_rand(fmpz_mat_t m, long n, aes_randstate_t rand,
+                           fmpz_t field)
 {
     fmpz_mat_t inverse;
 
@@ -113,6 +116,18 @@ _fmpz_mat_init_rand(fmpz_mat_t m, long n, aes_randstate_t rand, fmpz_t field)
     }
 done:
     fmpz_mat_clear(inverse);
+}
+
+static void
+_fmpz_mat_init_rand(fmpz_mat_t mat, long m, long n, aes_randstate_t rand,
+                    fmpz_t field)
+{
+    fmpz_mat_init(mat, m, n);
+    for (int i = 0; i < m; i++) {
+        for(int j = 0; j < n; j++) {
+            fmpz_randm_aes(fmpz_mat_entry(mat, i, j), rand, field);
+        }
+    }
 }
 
 static inline void
@@ -171,7 +186,7 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
         && rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_LAST) {
     } else if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST) {
         s->randomizer = (fmpz_mat_t *) malloc(sizeof(fmpz_mat_t));
-        _fmpz_mat_init_rand(*s->randomizer, ncols, s->rand, field);
+        _fmpz_mat_init_square_rand(*s->randomizer, ncols, s->rand, field);
         fmpz_layer_mul_right(zero, one, *s->randomizer, field);
     } else if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_MIDDLE) {
         fmpz_modp_matrix_inverse(*s->randomizer, *s->randomizer, nrows, field);
@@ -179,7 +194,7 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
         fmpz_mat_clear(*s->randomizer);
         free(s->randomizer);
         s->randomizer = (fmpz_mat_t *) malloc(sizeof(fmpz_mat_t));
-        _fmpz_mat_init_rand(*s->randomizer, ncols, s->rand, field);
+        _fmpz_mat_init_square_rand(*s->randomizer, ncols, s->rand, field);
         fmpz_layer_mul_right(zero, one, *s->randomizer, field);
     } else if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_LAST) {
         fmpz_modp_matrix_inverse(*s->randomizer, *s->randomizer, nrows, field);
@@ -193,18 +208,59 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
     fmpz_clear(field);
 }
 
+static void
+add_work(obf_state_t *s, fmpz_mat_t m0, fmpz_mat_t m1, mmap_enc_mat_t *m0_enc,
+         mmap_enc_mat_t *m1_enc, int *zero_pows, int *one_pows, long i, long j,
+         long c, char *tag)
+{
+    fmpz_t *plaintext;
+    mmap_enc *enc;
+    struct encode_elem_s *args;
+
+    plaintext = malloc(sizeof(fmpz_t));
+    args = malloc(sizeof(struct encode_elem_s));
+    if (c == 0) {
+        fmpz_init_set(*plaintext, fmpz_mat_entry(m0, i, j));
+        enc = m0_enc[0]->m[i][j];
+        args->group = zero_pows;
+    } else {
+        fmpz_init_set(*plaintext, fmpz_mat_entry(m1, i, j));
+        enc = m1_enc[0]->m[i][j];
+        args->group = one_pows;
+    }
+    args->n = 1;
+    args->plaintext = plaintext;
+    args->vtable = s->vtable;
+    args->sk = &s->mmap;
+    args->enc = enc;
+
+    thpool_add_work(s->thpool, thpool_encode_elem, (void *) args, tag);
+}
+
 int
 obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
                  encode_layer_randomization_flag_t rflag, int *zero_pows,
                  int *one_pows, fmpz_mat_t zero, fmpz_mat_t one)
 {
-    struct write_layer_s *wl_s;
+    char tag[10], di_tag[10];
     mmap_enc_mat_t *zero_enc, *one_enc;
     double start, end;
-    char idx_s[10];
     const mmap_pp *pp = s->vtable->sk->pp(&s->mmap);
+    /* For dual input BPs */
+    fmpz_mat_t zero_one, one_zero;
+    mmap_enc_mat_t *zero_one_enc = NULL, *one_zero_enc = NULL;
 
-    (void) snprintf(idx_s, 10, "%ld", idx);
+    (void) snprintf(tag, 10, "%ld", idx);
+    (void) snprintf(di_tag, 10, "%ld_di", idx);
+
+    if (s->flags & OBFUSCATOR_FLAG_DUAL_INPUT_BP) {
+        fmpz_t field;
+        fmpz_init(field);
+        s->vtable->sk->plaintext_field(&s->mmap, field);
+        _fmpz_mat_init_rand(zero_one, nrows, ncols, s->rand, field);
+        _fmpz_mat_init_rand(one_zero, nrows, ncols, s->rand, field);
+        fmpz_clear(field);
+    }
 
     if (!(s->flags & OBFUSCATOR_FLAG_NO_RANDOMIZATION)) {
         start = current_time();
@@ -216,59 +272,78 @@ obf_encode_layer(obf_state_t *s, long idx, long inp, long nrows, long ncols,
 
     start = current_time();
 
-    zero_enc = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
-    one_enc = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
+    zero_enc = malloc(sizeof(mmap_enc_mat_t));
+    one_enc = malloc(sizeof(mmap_enc_mat_t));
     mmap_enc_mat_init(s->vtable, pp, *zero_enc, nrows, ncols);
     mmap_enc_mat_init(s->vtable, pp, *one_enc, nrows, ncols);
+    if (s->flags & OBFUSCATOR_FLAG_DUAL_INPUT_BP) {
+        zero_one_enc = malloc(sizeof(mmap_enc_mat_t));
+        one_zero_enc = malloc(sizeof(mmap_enc_mat_t));
+        mmap_enc_mat_init(s->vtable, pp, *zero_one_enc, nrows, ncols);
+        mmap_enc_mat_init(s->vtable, pp, *one_zero_enc, nrows, ncols);
+    }
 
-    wl_s = (struct write_layer_s *) malloc(sizeof(struct write_layer_s));
-    wl_s->vtable = s->vtable;
-    wl_s->dir = s->dir;
-    wl_s->zero_enc = zero_enc;
-    wl_s->one_enc = one_enc;
-    wl_s->inp = inp;
-    wl_s->idx = idx;
-    wl_s->nrows = nrows;
-    wl_s->ncols = ncols;
-    wl_s->start = start;
-    wl_s->verbose = s->flags & OBFUSCATOR_FLAG_VERBOSE;
+    {
+        struct write_layer_s *wl_s;
+        wl_s = malloc(sizeof(struct write_layer_s));
+        wl_s->vtable = s->vtable;
+        wl_s->dir = s->dir;
+        wl_s->zero_enc = zero_enc;
+        wl_s->one_enc = one_enc;
+        wl_s->inp = inp;
+        wl_s->idx = idx;
+        wl_s->nrows = nrows;
+        wl_s->ncols = ncols;
+        wl_s->zero = "zero";
+        wl_s->one = "one";
+        wl_s->start = start;
+        wl_s->verbose = s->flags & OBFUSCATOR_FLAG_VERBOSE;
+        if (thpool_add_tag(s->thpool, tag, 2 * nrows * ncols,
+                           thpool_write_layer, wl_s) == -1) {
+            mmap_enc_mat_clear(s->vtable, *zero_enc);
+            mmap_enc_mat_clear(s->vtable, *one_enc);
+            free(zero_enc);
+            free(one_enc);
+            free(wl_s);
+            return OBFUSCATOR_ERR;
+        }
+    }
 
-    if (thpool_add_tag(s->thpool, idx_s, 2 * nrows * ncols, thpool_write_layer,
-                       wl_s) == -1) {
-        mmap_enc_mat_clear(s->vtable, *zero_enc);
-        mmap_enc_mat_clear(s->vtable, *one_enc);
-        free(zero_enc);
-        free(one_enc);
-        free(wl_s);
-        return OBFUSCATOR_ERR;
+    if (s->flags & OBFUSCATOR_FLAG_DUAL_INPUT_BP) {
+        struct write_layer_s *wl_s;
+        wl_s = malloc(sizeof(struct write_layer_s));
+        wl_s->vtable = s->vtable;
+        wl_s->dir = s->dir;
+        wl_s->zero_enc = zero_one_enc;
+        wl_s->one_enc = one_zero_enc;
+        wl_s->inp = inp;
+        wl_s->idx = idx;
+        wl_s->nrows = nrows;
+        wl_s->ncols = ncols;
+        wl_s->zero = "zero_one";
+        wl_s->one = "one_zero";
+        wl_s->start = start;
+        wl_s->verbose = s->flags & OBFUSCATOR_FLAG_VERBOSE;
+        if (thpool_add_tag(s->thpool, di_tag, 2 * nrows * ncols,
+                           thpool_write_layer, wl_s) == -1) {
+            mmap_enc_mat_clear(s->vtable, *zero_one_enc);
+            mmap_enc_mat_clear(s->vtable, *one_zero_enc);
+            free(zero_one_enc);
+            free(one_zero_enc);
+            free(wl_s);
+            return OBFUSCATOR_ERR;
+        }
     }
 
     for (long c = 0; c < 2; ++c) {
         for (long i = 0; i < nrows; ++i) {
             for (long j = 0; j < ncols; ++j) {
-                fmpz_t *plaintext;
-                mmap_enc *enc;
-                struct encode_elem_s *args;
-
-                plaintext = (fmpz_t *) malloc(sizeof(fmpz_t));
-                args = (struct encode_elem_s *) malloc(sizeof(struct encode_elem_s));
-                if (c == 0) {
-                    fmpz_init_set(*plaintext, fmpz_mat_entry(zero, i, j));
-                    enc = zero_enc[0]->m[i][j];
-                    args->group = zero_pows;
-                } else {
-                    fmpz_init_set(*plaintext, fmpz_mat_entry(one, i, j));
-                    enc = one_enc[0]->m[i][j];
-                    args->group = one_pows;
+                add_work(s, zero, one, zero_enc, one_enc, zero_pows, one_pows,
+                         i, j, c, tag);
+                if (s->flags & OBFUSCATOR_FLAG_DUAL_INPUT_BP) {
+                    add_work(s, zero_one, one_zero, zero_one_enc, one_zero_enc,
+                             zero_pows, one_pows, i, j, c, di_tag);
                 }
-                args->n = 1;
-                args->plaintext = plaintext;
-                args->vtable = s->vtable;
-                args->sk = &s->mmap;
-                args->enc = enc;
-
-                thpool_add_work(s->thpool, thpool_encode_elem, (void *) args,
-                                idx_s);
             }
         }
     }

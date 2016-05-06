@@ -96,7 +96,8 @@ def obf(args):
     try:
         if args.test:
             formula = is_formula(args.test, args)
-            test_file(args.test, bpclass, obfclass, True, args, formula=formula)
+            test_file(args.test, bpclass, obfclass, True, args, formula=formula,
+                      dual_input=args.dual_input)
         elif args.test_all:
             test_all(args, bpclass, obfclass, True)
         else:
@@ -112,7 +113,7 @@ def obf(args):
                             else '%s.obf.%d' % (args.load, args.secparam)
                 obf.obfuscate(args.load, args.secparam, directory,
                               obliviate=args.obliviate, kappa=args.kappa,
-                              formula=formula)
+                              formula=formula, dual_input=args.dual_input)
                 end = time.time()
                 print('Obfuscation took: %f seconds' % (end - start))
             else:
@@ -214,6 +215,8 @@ def main():
     parser_obf.add_argument('--ncores',
                             metavar='N', action='store', type=int, default=ncores,
                             help='number of cores to use for OpenMP (default: %(default)s)')
+    parser_obf.add_argument('--dual-input', action='store_true',
+                            help='use dual input branching programs')
     parser_obf.add_argument('-v', '--verbose',
                             action='store_true', 
                             help='be verbose')

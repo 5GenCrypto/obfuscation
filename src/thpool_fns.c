@@ -63,7 +63,7 @@ thpool_write_layer(void *vargs)
     fwrite(&args->ncols, sizeof args->ncols, 1, fp);
     fclose(fp);
 
-    (void) snprintf(fname, fnamelen, "%s/%ld.zero", args->dir, args->idx);
+    (void) snprintf(fname, fnamelen, "%s/%ld.%s", args->dir, args->idx, args->zero);
     fp = fopen(fname, "w+b");
     if (fp == NULL) {
         fprintf(stderr, "Unable to write '%s'\n", fname);
@@ -77,7 +77,7 @@ thpool_write_layer(void *vargs)
     mmap_enc_mat_clear(args->vtable, args->zero_enc[0]);
     fclose(fp);
 
-    (void) snprintf(fname, fnamelen, "%s/%ld.one", args->dir, args->idx);
+    (void) snprintf(fname, fnamelen, "%s/%ld.%s", args->dir, args->idx, args->one);
     fp = fopen(fname, "w+b");
     if (fp == NULL) {
         fprintf(stderr, "Unable to write '%s'\n", fname);

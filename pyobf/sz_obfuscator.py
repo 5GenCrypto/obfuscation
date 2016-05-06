@@ -24,15 +24,12 @@ class SZObfuscator(Obfuscator):
         self.logger('Took: %f' % (end - start))
         return bp, nzs
 
-    def _init_mmap(self, secparam, kappa, nzs, directory):
+    def _init_mmap(self, secparam, kappa, nzs, directory, flags):
         self.logger('Initializing mmap...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
         mlm = 0 if self._mlm == 'CLT' else 1
-        flags = OBFUSCATOR_FLAG_NONE
-        if self._verbose:
-            flags |= OBFUSCATOR_FLAG_VERBOSE
         self._state = _obf.init(directory, mlm, secparam, kappa, nzs,
                                 self._nthreads, self._ncores, flags)
         end = time.time()
@@ -61,13 +58,18 @@ class SZObfuscator(Obfuscator):
                               zero_pows, one_pows, zeros, ones)
 
     def obfuscate(self, fname, secparam, directory, obliviate=False,
-                  kappa=None, formula=True):
+                  kappa=None, formula=True, dual_input=False):
         start = time.time()
         self._remove_old(directory)
         bp, nzs = self._construct_bp(fname, obliviate, formula=formula)
         if not kappa:
             kappa = nzs
-        self._init_mmap(secparam, kappa, nzs, directory)
+        flags = OBFUSCATOR_FLAG_NONE
+        if self._verbose:
+            flags |= OBFUSCATOR_FLAG_VERBOSE
+        if dual_input:
+            flags |= OBFUSCATOR_FLAG_DUAL_INPUT_BP
+        self._init_mmap(secparam, kappa, nzs, directory, flags)
         self._obfuscate(bp, nzs)
         _obf.wait(self._state)
         end = time.time()

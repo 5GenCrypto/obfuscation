@@ -5,14 +5,15 @@ import pyobf.utils as utils
 
 failstr = utils.clr_error('Fail')
 
-def test_obfuscation(path, cls, testcases, args, formula=True):
+def test_obfuscation(path, cls, testcases, args, formula=True,
+                     dual_input=False):
     success = True
     obf = cls(args.mlm, verbose=args.verbose, nthreads=args.nthreads,
               ncores=args.ncores)
     directory = args.save if args.save \
                 else '%s.obf.%d' % (path, args.secparam)
     obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate,
-                  kappa=args.kappa, formula=formula)
+                  kappa=args.kappa, formula=formula, dual_input=dual_input)
     for k, v in testcases.items():
         if obf.evaluate(directory, k) != v:
             print('%s (%s != %d) ' % (failstr, k, v))
@@ -35,7 +36,8 @@ def test_bp(path, cls, testcases, args):
             success = False
     return success
 
-def test_file(path, cclass, obfclass, obfuscate, args, formula=True):
+def test_file(path, cclass, obfclass, obfuscate, args, formula=True,
+              dual_input=False):
     testcases = {}
     print('Testing %s: ' % path, end='')
     if args.verbose:
@@ -53,7 +55,7 @@ def test_file(path, cclass, obfclass, obfuscate, args, formula=True):
         return
     if obfuscate:
         success = test_obfuscation(path, obfclass, testcases, args,
-                                   formula=formula)
+                                   formula=formula, dual_input=dual_input)
     else:
         success = test_bp(path, cclass, testcases, args)
     if success:

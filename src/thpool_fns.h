@@ -26,6 +26,8 @@ struct write_layer_s {
     long idx;
     long nrows;
     long ncols;
+    char *zero;
+    char *one;
     double start;
     bool verbose;
 };
