@@ -16,6 +16,7 @@ typedef struct obf_state_s {
     const char *dir;
     uint64_t nzs;
     fmpz_mat_t *randomizer;
+    fmpz_mat_t *inverse;
     uint64_t flags;
 } obf_state_t;
 
@@ -45,6 +46,8 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
     s->dir = dir;
     s->nzs = nzs;
     s->flags = flags;
+    s->randomizer = malloc(sizeof(fmpz_mat_t));
+    s->inverse = malloc(sizeof(fmpz_mat_t));
 
     switch (s->type) {
     case MMAP_CLT:
@@ -85,37 +88,36 @@ obf_clear(obf_state_t *s)
     if (s) {
         s->vtable->sk->clear(&s->mmap);
         aes_randclear(s->rand);
-        if (s->randomizer)
-            free(s->randomizer);
+        free(s->randomizer);
+        free(s->inverse);
         thpool_destroy(s->thpool);
     }
     free(s);
 }
 
 static void
-_fmpz_mat_init_square_rand(fmpz_mat_t m, long n, aes_randstate_t rand,
-                           fmpz_t field)
+_fmpz_mat_init_square_rand(obf_state_t *s, fmpz_mat_t mat, fmpz_mat_t inverse,
+                           long n, aes_randstate_t rand, fmpz_t field)
 {
-    fmpz_mat_t inverse;
-
-    fmpz_mat_init(m, n, n);
-    fmpz_mat_init(inverse, n, n);
     while (true) {
+        int nzeros = 0;
         for (int i = 0; i < n; i++) {
             for(int j = 0; j < n; j++) {
-                fmpz_randm_aes(fmpz_mat_entry(m, i, j), rand, field);
+                fmpz_randm_aes(fmpz_mat_entry(mat, i, j), rand, field);
             }
         }
-        fmpz_modp_matrix_inverse(inverse, m, n, field);
+        if (s->flags & OBFUSCATOR_FLAG_VERBOSE)
+            fprintf(stderr, "    Finding inverse...\n");
+        fmpz_modp_matrix_inverse(inverse, mat, n, field);
         for (int i = 0; i < n; i++) {
             for(int j = 0; j < n; j++) {
-                if (!fmpz_is_zero(fmpz_mat_entry(inverse, i, j)))
-                    goto done;
+                if (fmpz_is_zero(fmpz_mat_entry(inverse, i, j)))
+                    nzeros++;
             }
         }
+        if (nzeros != n * n)
+            break;
     }
-done:
-    fmpz_mat_clear(inverse);
 }
 
 static void
@@ -189,23 +191,25 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
     if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST
         && rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_LAST) {
     } else if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST) {
-        s->randomizer = (fmpz_mat_t *) malloc(sizeof(fmpz_mat_t));
-        _fmpz_mat_init_square_rand(*s->randomizer, ncols, s->rand, field);
+        fmpz_mat_init(*s->randomizer, ncols, ncols);
+        fmpz_mat_init(*s->inverse, ncols, ncols);
+        _fmpz_mat_init_square_rand(s, *s->randomizer, *s->inverse, ncols,
+                                   s->rand, field);
         fmpz_layer_mul_right(zero, one, *s->randomizer, field);
     } else if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_MIDDLE) {
-        fmpz_modp_matrix_inverse(*s->randomizer, *s->randomizer, nrows, field);
-        fmpz_layer_mul_left(zero, one, *s->randomizer, field);
+        fmpz_layer_mul_left(zero, one, *s->inverse, field);
         fmpz_mat_clear(*s->randomizer);
-        free(s->randomizer);
-        s->randomizer = (fmpz_mat_t *) malloc(sizeof(fmpz_mat_t));
-        _fmpz_mat_init_square_rand(*s->randomizer, ncols, s->rand, field);
+        fmpz_mat_clear(*s->inverse);
+
+        fmpz_mat_init(*s->randomizer, ncols, ncols);
+        fmpz_mat_init(*s->inverse, ncols, ncols);
+        _fmpz_mat_init_square_rand(s, *s->randomizer, *s->inverse, ncols,
+                                   s->rand, field);
         fmpz_layer_mul_right(zero, one, *s->randomizer, field);
     } else if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_LAST) {
-        fmpz_modp_matrix_inverse(*s->randomizer, *s->randomizer, nrows, field);
-        fmpz_layer_mul_left(zero, one, *s->randomizer, field);
+        fmpz_layer_mul_left(zero, one, *s->inverse, field);
         fmpz_mat_clear(*s->randomizer);
-        free(s->randomizer);
-        s->randomizer = NULL;
+        fmpz_mat_clear(*s->inverse);
     }
 
     {
