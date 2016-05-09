@@ -61,6 +61,8 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
     }
 
     (void) aes_randinit(s->rand);
+    if (nthreads == 0)
+        nthreads = ncores;
     s->thpool = thpool_init(nthreads);
     (void) omp_set_num_threads(ncores);
 
