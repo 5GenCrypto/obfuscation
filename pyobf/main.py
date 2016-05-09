@@ -65,6 +65,10 @@ def bp(args):
             bp = cls(args.load, verbose=args.verbose, formula=formula)
             if args.print:
                 print(bp)
+                size = 0
+                for i in bp:
+                    size += i.size()
+                print('Number of encodings: %d' % size)
             if args.obliviate:
                 bp.obliviate()
             if args.eval:

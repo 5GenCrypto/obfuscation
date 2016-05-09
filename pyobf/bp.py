@@ -7,6 +7,8 @@ class Layer(object):
         self.one = one
         self.zeroset = zeroset
         self.oneset = oneset
+    def size(self):
+        return len(self.zero) + len(self.one)
     def __repr__(self):
         return "input: %d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
             self.inp, self.zero, self.one, self.zeroset, self.oneset)
