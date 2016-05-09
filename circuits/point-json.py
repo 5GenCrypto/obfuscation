@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 
 from __future__ import print_function
-import random, subprocess, sys
+import os, random, subprocess, sys
 
 def usage():
     print('Usage: point-json.py <bitlength>')
@@ -13,8 +13,9 @@ def random_bitstring(bitlength):
     return '0' * (bitlength - len(bits)) + bits
 
 def run(lst):
-    print('%s' % ' '.join(lst))
-    return subprocess.call(lst)
+    # print('%s' % ' '.join(lst))
+    with open(os.devnull, 'w') as fnull:
+        return subprocess.call(lst, stdout=fnull, stderr=fnull)
 
 def binary_point(bitlength):
     secret = random_bitstring(bitlength)
