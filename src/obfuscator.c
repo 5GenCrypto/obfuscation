@@ -464,7 +464,7 @@ obf_evaluate(enum mmap_e type, char *dir, char *input, uint64_t bplen,
 
             result = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
             mmap_enc_mat_init(vtable, &pp, *result, nrows_prev, ncols);
-            mmap_enc_mat_mul(vtable, &pp, *result, *left, *right);
+            mmap_enc_mat_mul_par(vtable, &pp, *result, *left, *right);
             mmap_enc_mat_clear(vtable, *left);
             mmap_enc_mat_clear(vtable, *right);
             free(left);
