@@ -117,7 +117,8 @@ def obf(args):
                             else '%s.obf.%d' % (args.load, args.secparam)
                 obf.obfuscate(args.load, args.secparam, directory,
                               obliviate=args.obliviate, kappa=args.kappa,
-                              formula=formula, dual_input=args.dual_input)
+                              formula=formula, dual_input=args.dual_input,
+                              randomization=(not args.no_randomization))
                 end = time.time()
                 print('Obfuscation took: %f seconds' % (end - start))
             else:
@@ -221,6 +222,8 @@ def main():
                             help='number of cores to use for OpenMP (default: %(default)s)')
     parser_obf.add_argument('--dual-input', action='store_true',
                             help='use dual input branching programs')
+    parser_obf.add_argument('--no-randomization', action='store_true',
+                            help='turn of branching program randomization')
     parser_obf.add_argument('-v', '--verbose',
                             action='store_true', 
                             help='be verbose')

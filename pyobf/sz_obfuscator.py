@@ -58,7 +58,7 @@ class SZObfuscator(Obfuscator):
                               zero_pows, one_pows, zeros, ones)
 
     def obfuscate(self, fname, secparam, directory, obliviate=False,
-                  kappa=None, formula=True, dual_input=False):
+                  kappa=None, formula=True, dual_input=False, randomization=True):
         start = time.time()
         self._remove_old(directory)
         bp, nzs = self._construct_bp(fname, obliviate, formula=formula)
@@ -70,6 +70,8 @@ class SZObfuscator(Obfuscator):
             flags |= OBFUSCATOR_FLAG_VERBOSE
         if dual_input:
             flags |= OBFUSCATOR_FLAG_DUAL_INPUT_BP
+        if not randomization:
+            flags |= OBFUSCATOR_FLAG_NO_RANDOMIZATION
         self._init_mmap(secparam, kappa, nzs, directory, flags)
         self._obfuscate(bp, nzs)
         _obf.wait(self._state)
