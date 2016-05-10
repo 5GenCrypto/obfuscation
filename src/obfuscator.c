@@ -74,6 +74,8 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
         fprintf(stderr, "  # Cores: %ld\n", ncores);
         if (s->flags & OBFUSCATOR_FLAG_DUAL_INPUT_BP)
             fprintf(stderr, "  Using dual input branching programs\n");
+        if (s->flags & OBFUSCATOR_FLAG_NO_RANDOMIZATION)
+            fprintf(stderr, "  Not randomizing branching programs\n");
     }
 
     s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, s->rand,
