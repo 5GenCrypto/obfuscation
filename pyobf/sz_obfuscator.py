@@ -64,6 +64,7 @@ class SZObfuscator(Obfuscator):
         bp, nzs = self._construct_bp(fname, obliviate, formula=formula)
         if not kappa:
             kappa = nzs
+        self.logger('  kappa = %d' % kappa)
         flags = OBFUSCATOR_FLAG_NONE
         if self._verbose:
             flags |= OBFUSCATOR_FLAG_VERBOSE
@@ -81,4 +82,8 @@ class SZObfuscator(Obfuscator):
         flags = OBFUSCATOR_FLAG_NONE
         if self._verbose:
             flags |= OBFUSCATOR_FLAG_VERBOSE
-        return self._evaluate(directory, inp, _obf.evaluate, _obf, flags)
+        result = self._evaluate(directory, inp, _obf.evaluate, _obf, flags)
+        if self._verbose:
+            _obf.max_mem_usage()
+        return result
+
