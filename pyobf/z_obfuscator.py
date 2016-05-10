@@ -161,6 +161,7 @@ class ZObfuscator(Obfuscator):
 
         if not kappa:
             kappa = circ.y_deg + 2 * sum(circ.x_degs) + 2 * circ.n_xins
+        self.logger('  kappa = %d' % kappa)
 
         self._init_mmap(secparam, kappa, nzs, pows, directory)
         self._obfuscate(circname, circ)

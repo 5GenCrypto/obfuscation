@@ -37,7 +37,10 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
 {
     obf_state_t *s = NULL;
 
-    s = (obf_state_t *) calloc(1, sizeof(obf_state_t));
+    if (secparam == 0 || kappa == 0 || nzs == 0)
+        return NULL;
+
+    s = calloc(1, sizeof(obf_state_t));
     if (s == NULL)
         return NULL;
 

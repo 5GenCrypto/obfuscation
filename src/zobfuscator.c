@@ -26,7 +26,10 @@ zobf_init(const char *dir, uint64_t secparam, uint64_t kappa, uint64_t nzs,
     zobf_state_t *s;
     int clt_flags = CLT_FLAG_DEFAULT | CLT_FLAG_OPT_PARALLEL_ENCODE;
 
-    s = (zobf_state_t *) malloc(sizeof(zobf_state_t));
+    if (secparam == 0 || kappa == 0 || nzs == 0)
+        return NULL;
+
+    s = malloc(sizeof(zobf_state_t));
     if (s == NULL)
         return NULL;
 
