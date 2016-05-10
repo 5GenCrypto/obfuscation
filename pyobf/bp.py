@@ -1,30 +1,40 @@
 import pyobf.utils as utils
 
 class Layer(object):
-    def __init__(self, inp, zero, one, zeroset=None, oneset=None):
+    def __init__(self, inp, matrices, zeroset=None, oneset=None):
         self.inp = inp
-        self.zero = zero
-        self.one = one
+        self.matrices = matrices
+        # self.sets = sets
+        # self.zero = zero
+        # self.one = one
         self.zeroset = zeroset
         self.oneset = oneset
     def size(self):
-        return len(self.zero) + len(self.one)
+        size = 0
+        for matrix in self.matrices:
+            size += len(matrix)
+        return size
+        # return len(self.zero) + len(self.one)
     def __repr__(self):
-        return "input: %d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
-            self.inp, self.zero, self.one, self.zeroset, self.oneset)
+        return "\
+        input: %d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
+            self.inp, self.matrices[0], self.matrices[1], self.zeroset, self.oneset)
     def group(self, group, prime):
         return Layer(self.inp, group(self.zero), group(self.one),
                      zeroset=self.zeroset, oneset=self.oneset)
     def mult_scalar(self, alphas):
-        return Layer(self.inp, alphas[0] * self.zero, alphas[1] * self.one,
-                     zeroset=self.zeroset, oneset=self.oneset)
+        return Layer(self.inp,
+                     [alphas[0] * self.matrices[0],
+                      alphas[1] * self.matrices[1]],
+                      zeroset=self.zeroset, oneset=self.oneset)
     def mult_left(self, M):
-        return Layer(self.inp, M * self.zero, M * self.one,
-                     zeroset=self.zeroset, oneset=self.oneset)
+         return Layer(self.inp, [M * self.matrices[0], M * self.matrices[1]],
+                      zeroset=self.zeroset, oneset=self.oneset)
     def mult_right(self, M):
-        return Layer(self.inp, self.zero * M, self.one * M,
-                     zeroset=self.zeroset, oneset=self.oneset)
+         return Layer(self.inp, [self.matrices[0] * M, self.matrices[1] * M],
+                      zeroset=self.zeroset, oneset=self.oneset)
 
+    
 class AbstractBranchingProgram(object):
     def __init__(self, verbose=False):
         self._verbose = verbose

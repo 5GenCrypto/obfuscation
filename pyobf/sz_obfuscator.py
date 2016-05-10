@@ -38,9 +38,9 @@ class SZObfuscator(Obfuscator):
     def _obfuscate(self, bp, nzs):
         for i in xrange(len(bp)):
             self.logger('Obfuscating layer...')
-            zeros = bp[i].zero.tolist()
-            ones = bp[i].one.tolist()
-            nrows, ncols = bp[i].zero.shape
+            zeros = bp[i].matrices[0].tolist()
+            ones = bp[i].matrices[1].tolist()
+            nrows, ncols = bp[i].matrices[0].shape
             typ = 0
             if i == 0:
                 typ = typ | 1
