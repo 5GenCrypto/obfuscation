@@ -70,7 +70,7 @@ zobf_clear(zobf_state_t *s)
         thpool_destroy(s->thpool);
         mpz_clears(s->nev, s->nchk, NULL);
     }
-
+    free(s);
 }
 
 static void
