@@ -46,14 +46,14 @@ zobf_init_wrapper(PyObject *self, PyObject *args)
 static PyObject *
 zobf_encode_circuit_wrapper(PyObject *self, PyObject *args)
 {
-    PyObject *py_state, *py_ys, *py_xdegs;
+    PyObject *py_state, *py_xs, *py_ys, *py_xdegs;
     mpz_t *xs, *ys;
     int *xdegs;
     int n, m, ydeg;
     char *circuit;
     zobf_state_t *s;
 
-    if (!PyArg_ParseTuple(args, "OsOOiii", &py_state, &circuit, &py_ys,
+    if (!PyArg_ParseTuple(args, "OsOOOiii", &py_state, &circuit, &py_xs, &py_ys,
                           &py_xdegs, &ydeg, &n, &m))
         return NULL;
     s = (zobf_state_t *) PyCapsule_GetPointer(py_state, NULL);
@@ -62,7 +62,8 @@ zobf_encode_circuit_wrapper(PyObject *self, PyObject *args)
 
     xs = (mpz_t *) calloc(n, sizeof(mpz_t));
     for (int i = 0; i < n; ++i) {
-        mpz_init_set_ui(xs[i], 1);
+        mpz_init(xs[i]);
+        py_to_mpz(xs[i], PyList_GET_ITEM(py_xs, i));
     }
     ys = (mpz_t *) calloc(m, sizeof(mpz_t));
     for (int i = 0; i < m; ++i) {
@@ -77,7 +78,6 @@ zobf_encode_circuit_wrapper(PyObject *self, PyObject *args)
 
     zobf_encode_circuit(s, circuit, xs, ys, xdegs, ydeg, n, m);
 
-    free(xdegs);
     for (int i = 0; i < n; ++i) {
         mpz_clear(xs[i]);
     }
@@ -86,6 +86,7 @@ zobf_encode_circuit_wrapper(PyObject *self, PyObject *args)
         mpz_clear(ys[i]);
     }
     free(ys);
+    free(xdegs);
     
     Py_RETURN_NONE;
 }

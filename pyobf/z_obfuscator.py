@@ -135,7 +135,8 @@ class ZObfuscator(Obfuscator):
         self.logger('Encoding circuit...')
         self.logger('  n = %s, m = %s' % (circ.n_xins, circ.n_yins))
         start = time.time()
-        _zobf.encode_circuit(self._state, circname, circ.ys, circ.x_degs,
+        xs = [1] * circ.n_xins;
+        _zobf.encode_circuit(self._state, circname, xs, circ.ys, circ.x_degs,
                              circ.y_deg, circ.n_xins, circ.n_yins)
         end = time.time()
         self.logger('Took: %f' % (end - start))
