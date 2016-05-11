@@ -38,6 +38,7 @@ class AbstractBranchingProgram(object):
         self.nlayers = 0
         self.ninputs = None
         self.bp = None
+        self.base = None
         # self.zero = None
     def __len__(self):
         return len(self.bp)
@@ -56,20 +57,24 @@ class AbstractBranchingProgram(object):
             inpdir.setdefault(layer.inp, []).append(layer)
         n = 0
         for layers in inpdir.itervalues():
-            max = len(layers) - 1
-            for i, layer in enumerate(layers):
-                if i < max:
-                    for i in xrange(len(layer.sets)):
-                        layer.sets[i] = [n]
-                    # layer.sets[0] = [n - 1, n]  if i else [n]
-                    # layer.sets[1] = [n, n + 1]
-                    n += 2
-                else:
-                    for i in xrange(len(layer.sets)):
-                        layer.sets[i] = [n]
-                    # layer.sets[0] = [n - 1, n] if max else [n]
-                    # layer.sets[1] = [n]
-                    n += 1
+            if len(layers) == 1:
+                for i in xrange(len(layers[0].sets)):
+                    layers[0].sets[i] = [n]
+                n += 1
+            else:
+                print('Straddling sets not done yet for functions with repeated input bits')
+                raise NotImplementedError
+                # XXX: Below is wrong for bases beyond 2
+                # max = len(layers) - 1
+                # for i, layer in enumerate(layers):
+                #     if i < max:
+                #         layer.sets[0] = [n - 1, n]  if i else [n]
+                #         layer.sets[1] = [n, n + 1]
+                #         n += 2
+                #     else:
+                #         layer.sets[0] = [n - 1, n] if max else [n]
+                #         layer.sets[1] = [n]
+                #         n += 1
         return n
 
     def obliviate(self):
