@@ -37,6 +37,17 @@ def test_all(args, bpclass, obfclass, obfuscate):
             test_file(path, bpclass, obfclass, obfuscate, args, formula=False)
 
 def check_args(args):
+    if not args.sahai_zhandry and not args.zimmerman:
+        # guess based on file extension
+        def check(fname):
+            if fname.endswith('.circ') or fname.endswith('.json'):
+                args.sahai_zhandry = True
+            if fname.endswith('.acirc'):
+                args.zimmerman = True
+        if args.load:
+            check(args.load)
+        if args.test:
+            check(args.test)
     num_set = int(args.sahai_zhandry) + int(args.zimmerman)
     if num_set > 1:
         print('%s Only one of --sahai-zhandry, --zimmerman can be set' % errorstr)
@@ -204,8 +215,8 @@ def main():
                             metavar='DIR', nargs='?', const='circuits/',
                             help='test obfuscation for all circuits in DIR (default: %(const)s)')
     parser_obf.add_argument('--mmap', metavar='M', type=str, default='CLT',
-                           action='store',
-                           help='use multilinear map M [either CLT or GGH] (default: %(default)s)')
+                            action='store',
+                            help='use multilinear map M [either CLT or GGH] (default: %(default)s)')
     parser_obf.add_argument('--save',
                             metavar='DIR', action='store', type=str,
                             help='save obfuscation to DIR')
@@ -233,7 +244,7 @@ def main():
                             help='be verbose')
     parser_obf.add_argument('-s', '--sahai-zhandry',
                             action='store_true',
-                            help='use the Sahai/Zhandry construction (default)')
+                            help='use the Sahai/Zhandry construction')
     parser_obf.add_argument('-z', '--zimmerman',
                             action='store_true',
                             help='use the Zimmerman construction')
