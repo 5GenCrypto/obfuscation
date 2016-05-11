@@ -63,42 +63,32 @@ thpool_write_layer(void *vargs)
     fwrite(&args->ncols, sizeof args->ncols, 1, fp);
     fclose(fp);
 
-    (void) snprintf(fname, fnamelen, "%s/%ld.%s", args->dir, args->idx, args->zero);
-    fp = fopen(fname, "w+b");
-    if (fp == NULL) {
-        fprintf(stderr, "Unable to write '%s'\n", fname);
-        goto done;
-    }
-    for (long i = 0; i < args->nrows; ++i) {
-        for (long j = 0; j < args->ncols; ++j) {
-            args->vtable->enc->fwrite(args->zero_enc[0]->m[i][j], fp);
+    for (uint64_t c = 0; c < args->n; ++c) {
+        (void) snprintf(fname, fnamelen, "%s/%ld.%s", args->dir, args->idx, args->names[c]);
+        fp = fopen(fname, "w+b");
+        if (fp == NULL) {
+            fprintf(stderr, "Unable to write '%s'\n", fname);
+            goto done;
         }
-    }
-    mmap_enc_mat_clear(args->vtable, args->zero_enc[0]);
-    fclose(fp);
-
-    (void) snprintf(fname, fnamelen, "%s/%ld.%s", args->dir, args->idx, args->one);
-    fp = fopen(fname, "w+b");
-    if (fp == NULL) {
-        fprintf(stderr, "Unable to write '%s'\n", fname);
-        goto done;
-    }
-    for (long i = 0; i < args->nrows; ++i) {
-        for (long j = 0; j < args->ncols; ++j) {
-            args->vtable->enc->fwrite(args->one_enc[0]->m[i][j], fp);
+        for (long i = 0; i < args->nrows; ++i) {
+            for (long j = 0; j < args->ncols; ++j) {
+                args->vtable->enc->fwrite(args->enc_mats[c][0]->m[i][j], fp);
+            }
         }
+        mmap_enc_mat_clear(args->vtable, *args->enc_mats[c]);
+        free(args->enc_mats[c]);
+        free(args->names[c]);
+        fclose(fp);
     }
-    mmap_enc_mat_clear(args->vtable, args->one_enc[0]);
-    fclose(fp);
+    free(args->enc_mats);
+    free(args->names);
 
 done:
     end = current_time();
     if (args->verbose)
         (void) fprintf(stderr, "  Encoding %ld elements: %f\n",
-                       2 * args->nrows * args->ncols, end - args->start);
+                       args->n * args->nrows * args->ncols, end - args->start);
 
-    free(args->zero_enc);
-    free(args->one_enc);
     free(args);
 
     return NULL;

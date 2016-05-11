@@ -35,13 +35,12 @@ void
 obf_clear(obf_state_t *s);
 
 int
-obf_encode_layer(obf_state_t *s, long idx, long inp,
-                 encode_layer_randomization_flag_t rflag, int *zero_pows,
-                 int *one_pows, fmpz_mat_t zero, fmpz_mat_t one);
+obf_encode_layer(obf_state_t *s, uint64_t n, int **pows, fmpz_mat_t *mats,
+                 long idx, long inp, encode_layer_randomization_flag_t rflag);
 
 int
-obf_evaluate(enum mmap_e type, char *dir, char *input, unsigned long bplen,
-             unsigned long ncores, bool verbose);
+obf_evaluate(enum mmap_e type, char *dir, uint64_t len, uint64_t *input,
+             uint64_t bplen, uint64_t ncores, bool verbose);
 
 void
 obf_wait(obf_state_t *s);

@@ -1,28 +1,36 @@
 import pyobf.utils as utils
 
 class Layer(object):
-    def __init__(self, inp, zero, one, zeroset=None, oneset=None):
+    def __init__(self, inp, matrices, sets):
         self.inp = inp
-        self.zero = zero
-        self.one = one
-        self.zeroset = zeroset
-        self.oneset = oneset
+        self.matrices = matrices
+        if sets is None:
+            self.sets = [None] * len(matrices)
+        else:
+            self.sets = sets
+    def size(self):
+        size = 0
+        for matrix in self.matrices:
+            size += len(matrix)
+        return size
     def __repr__(self):
-        return "input: %d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
-            self.inp, self.zero, self.one, self.zeroset, self.oneset)
-    def group(self, group, prime):
-        return Layer(self.inp, group(self.zero), group(self.one),
-                     zeroset=self.zeroset, oneset=self.oneset)
+        str = "\ninput: %d\n" % self.inp
+        for i, mat in enumerate(self.matrices):
+            str += "%d-mat:\n%s\n" % (i, mat)
+        for i, set in enumerate(self.sets):
+            str += "%d-set: %s\n" % (i, set)
+        return str
     def mult_scalar(self, alphas):
-        return Layer(self.inp, alphas[0] * self.zero, alphas[1] * self.one,
-                     zeroset=self.zeroset, oneset=self.oneset)
+        mats = [alphas[i] * self.matrices[i] for i in len(self.matrices)]
+        return Layer(self.inp, mats, self.sets)
     def mult_left(self, M):
-        return Layer(self.inp, M * self.zero, M * self.one,
-                     zeroset=self.zeroset, oneset=self.oneset)
+        mats = [M * mat for mat in self.matrices]
+        return Layer(self.inp, mats, self.sets)
     def mult_right(self, M):
-        return Layer(self.inp, self.zero * M, self.one * M,
-                     zeroset=self.zeroset, oneset=self.oneset)
+        mats = [mat * M for mat in self.matrices]
+        return Layer(self.inp, mats, self.sets)
 
+    
 class AbstractBranchingProgram(object):
     def __init__(self, verbose=False):
         self._verbose = verbose
@@ -30,7 +38,8 @@ class AbstractBranchingProgram(object):
         self.nlayers = 0
         self.ninputs = None
         self.bp = None
-        self.zero = None
+        self.base = None
+        # self.zero = None
     def __len__(self):
         return len(self.bp)
     def __iter__(self):
@@ -48,16 +57,24 @@ class AbstractBranchingProgram(object):
             inpdir.setdefault(layer.inp, []).append(layer)
         n = 0
         for layers in inpdir.itervalues():
-            max = len(layers) - 1
-            for i, layer in enumerate(layers):
-                if i < max:
-                    layer.zeroset = [n - 1, n]  if i else [n]
-                    layer.oneset = [n, n + 1]
-                    n += 2
-                else:
-                    layer.zeroset = [n - 1, n] if max else [n]
-                    layer.oneset = [n]
-                    n += 1
+            if len(layers) == 1:
+                for i in xrange(len(layers[0].sets)):
+                    layers[0].sets[i] = [n]
+                n += 1
+            else:
+                print('Straddling sets not done yet for functions with repeated input bits')
+                raise NotImplementedError
+                # XXX: Below is wrong for bases beyond 2
+                # max = len(layers) - 1
+                # for i, layer in enumerate(layers):
+                #     if i < max:
+                #         layer.sets[0] = [n - 1, n]  if i else [n]
+                #         layer.sets[1] = [n, n + 1]
+                #         n += 2
+                #     else:
+                #         layer.sets[0] = [n - 1, n] if max else [n]
+                #         layer.sets[1] = [n]
+                #         n += 1
         return n
 
     def obliviate(self):

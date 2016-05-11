@@ -39,6 +39,10 @@ zobf_init_wrapper(PyObject *self, PyObject *args)
     }
 
     s = zobf_init(dir, secparam, kappa, nzs, pows, nthreads, ncores, flags);
+    if (s == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "initialization failed");
+        return NULL;
+    }
 
     return PyCapsule_New((void *) s, NULL, zobf_state_destructor);
 }

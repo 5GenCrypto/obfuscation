@@ -62,9 +62,14 @@ def bp(args):
         elif args.load:
             formula = is_formula(args.load, args)
             ext = os.path.splitext(args.load)[1]
-            bp = cls(args.load, verbose=args.verbose, formula=formula)
+            bp = cls(args.load, base=args.base, verbose=args.verbose,
+                     formula=formula)
             if args.print:
                 print(bp)
+                size = 0
+                for i in bp:
+                    size += i.size()
+                print('Number of encodings: %d' % size)
             if args.obliviate:
                 bp.obliviate()
             if args.eval:
@@ -79,8 +84,8 @@ def bp(args):
 
 def obf(args):
     check_args(args)
-    if args.mlm not in ('CLT', 'GGH'):
-        print('--mlm must be either CLT or GGH')
+    if args.mmap not in ('CLT', 'GGH'):
+        print('--mmap must be either CLT or GGH')
         sys.exit(1)
 
     if args.sahai_zhandry:
@@ -107,13 +112,14 @@ def obf(args):
             elif args.load:
                 formula = is_formula(args.load, args)
                 start = time.time()
-                obf = obfclass(args.mlm, verbose=args.verbose,
+                obf = obfclass(args.mmap, base=args.base, verbose=args.verbose,
                                nthreads=args.nthreads, ncores=args.ncores)
                 directory = args.save if args.save \
                             else '%s.obf.%d' % (args.load, args.secparam)
                 obf.obfuscate(args.load, args.secparam, directory,
                               obliviate=args.obliviate, kappa=args.kappa,
-                              formula=formula, dual_input=args.dual_input)
+                              formula=formula, dual_input=args.dual_input,
+                              randomization=(not args.no_randomization))
                 end = time.time()
                 print('Obfuscation took: %f seconds' % (end - start))
             else:
@@ -123,7 +129,7 @@ def obf(args):
 
             if args.eval:
                 assert directory
-                obf = obfclass(args.mlm, verbose=args.verbose,
+                obf = obfclass(args.mmap, base=args.base, verbose=args.verbose,
                                nthreads=args.nthreads, ncores=args.ncores)
                 r = obf.evaluate(directory, args.eval)
                 print('Output = %d' % r)
@@ -197,9 +203,9 @@ def main():
     parser_obf.add_argument('--test-all',
                             metavar='DIR', nargs='?', const='circuits/',
                             help='test obfuscation for all circuits in DIR (default: %(const)s)')
-    parser_obf.add_argument('--mlm', metavar='MLM', type=str, default='CLT',
+    parser_obf.add_argument('--mmap', metavar='M', type=str, default='CLT',
                            action='store',
-                           help='use multilinear map MLM [either CLT or GGH] (default: %(default)s)')
+                           help='use multilinear map M [either CLT or GGH] (default: %(default)s)')
     parser_obf.add_argument('--save',
                             metavar='DIR', action='store', type=str,
                             help='save obfuscation to DIR')
@@ -215,8 +221,13 @@ def main():
     parser_obf.add_argument('--ncores',
                             metavar='N', action='store', type=int, default=ncores,
                             help='number of cores to use for OpenMP (default: %(default)s)')
+    parser_obf.add_argument('--base',
+                            metavar='B', action='store', type=int, default=None,
+                            help='base of matrix branching program (default: guess)')
     parser_obf.add_argument('--dual-input', action='store_true',
                             help='use dual input branching programs')
+    parser_obf.add_argument('--no-randomization', action='store_true',
+                            help='turn of branching program randomization')
     parser_obf.add_argument('-v', '--verbose',
                             action='store_true', 
                             help='be verbose')

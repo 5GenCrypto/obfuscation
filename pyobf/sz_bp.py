@@ -12,8 +12,10 @@ def transpose(bps):
     bps.reverse()
     newbps = []
     for bp in bps:
-        newbps.append(Layer(bp.inp, bp.zero.transpose(), bp.one.transpose(),
-                            bp.zeroset, bp.oneset))
+        newbps.append(Layer(bp.inp,
+                            [bp.matrices[0].transpose(),
+                             bp.matrices[1].transpose()],
+                            bp.sets))
     return newbps
 
 def augment(bps, r):
@@ -27,8 +29,10 @@ def augment(bps, r):
         return np.concatenate((tmp1, tmp2), 1).transpose()
     newbps = []
     for bp in bps:
-        newbps.append(Layer(bp.inp, _augment(bp.zero, r), _augment(bp.one, r),
-                            bp.zeroset, bp.oneset))
+        newbps.append(Layer(bp.inp,
+                            [_augment(bp.matrices[0], r),
+                             _augment(bp.matrices[1], r)],
+                            bp.sets))
     return newbps
 
 def mult_left(bps, m):
@@ -44,16 +48,16 @@ class SZBranchingProgram(AbstractBranchingProgram):
         else:
             self.bp = self._load_bp(fname)
 
-    def obliviate(self):
-        assert self.ninputs and self.depth
-        newbp = []
-        for m in self.bp:
-            for i in xrange(self.ninputs):
-                if m.inp == i:
-                    newbp.append(m)
-                else:
-                    newbp.append(Layer(i, self.zero, self.zero))
-        self.bp = newbp
+    # def obliviate(self):
+    #     assert self.ninputs and self.depth
+    #     newbp = []
+    #     for m in self.bp:
+    #         for i in xrange(self.ninputs):
+    #             if m.inp == i:
+    #                 newbp.append(m)
+    #             else:
+    #                 newbp.append(Layer(i, [self.zero, self.zero], None))
+    #     self.bp = newbp
 
     def _load_bp(self, fname):
         bp = []
@@ -64,17 +68,22 @@ class SZBranchingProgram(AbstractBranchingProgram):
                         continue
                     bp_json = json.loads(line)
                     for step in bp_json['steps']:
+                        keys = list(step)
+                        keys = filter(lambda x: x != 'position', keys)
+                        keys = sorted(keys)
                         bp.append(
-                            Layer(int(step['position']), matrix(step['0']), matrix(step['1'])))
+                            Layer(int(step['position']),
+                                  [matrix(step[key]) for key in keys],
+                                  None))
 
                     assert len(bp_json['outputs'])    == 1 and \
                            len(bp_json['outputs'][0]) == 2
-                    first_out = bp_json['outputs'][0][0].lower()
-                    if first_out not in ['false', '0']:
-                        if first_out not in ['true', '1']:
-                            print('warning: interpreting %s as a truthy output' % first_out)
-                        bp[-1].zero.swap_columns(0,1)
-                        bp[-1].one .swap_columns(0,1)
+                    # first_out = bp_json['outputs'][0][0].lower()
+                    # if first_out not in ['false', '0']:
+                    #     if first_out not in ['true', '1']:
+                    #         print('warning: interpreting %s as a truthy output' % first_out)
+                    #     bp[-1].matrices[0].swap_columns(0,1)
+                    #     bp[-1].matrices[1].swap_columns(0,1)
                     return bp
         except IOError as e:
             print(e)
@@ -88,7 +97,7 @@ class SZBranchingProgram(AbstractBranchingProgram):
         def _new_gate(num):
             zero = matrix([1, 0])
             one = matrix([1, 1])
-            return [Layer(num, zero, one)]
+            return [Layer(num, [zero, one], None)]
         def _two_input_gate(bp0, bp1, left, right):
             bp1 = augment(transpose(bp1), 1)
             mult_left(bp1, left)
@@ -169,7 +178,7 @@ class SZBranchingProgram(AbstractBranchingProgram):
     def evaluate(self, x):
         assert self.bp
         m = self.bp[0]
-        comp = m.zero if x[m.inp] == '0' else m.one
+        comp = m.matrices[0] if x[m.inp] == '0' else m.matrices[1]
         for m in self.bp[1:]:
-            comp = np.dot(comp, m.zero if x[m.inp] == '0' else m.one)
+            comp = np.dot(comp, m.matrices[0] if x[m.inp] == '0' else m.matrices[1])
         return comp[0, comp.shape[1] - 1] != 0
