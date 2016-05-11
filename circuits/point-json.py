@@ -33,7 +33,7 @@ def digit_dary_repr(num_str, d):
     return "".join(L)
 
 def run(lst):
-    # print('%s' % ' '.join(lst))
+    print('%s' % ' '.join(lst))
     with open(os.devnull, 'w') as fnull:
         return subprocess.call(lst, stdout=fnull, stderr=fnull)
 
@@ -41,7 +41,7 @@ def point(length, base):
     secret = random.randint(0, base ** length - 1)
     repr = dary_repr(secret, base, length)
     base_2_len = len(str_base(base-1, 2))
-    inp = ''.join([dary_repr(int(i), 2, base_2_len) for i in repr])
+    inp = ''.join([dary_repr(int(i, base=base), 2, base_2_len) for i in repr])
     lst = []
     for i in xrange(length):
         for b in xrange(base_2_len):

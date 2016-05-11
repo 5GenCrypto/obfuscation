@@ -40,10 +40,10 @@ class SZObfuscator(Obfuscator):
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
-    def _obfuscate(self, bp, nzs, base):
+    def _obfuscate(self, bp, nzs):
         for i in xrange(len(bp)):
             self.logger('Obfuscating layer...')
-            mats = [bp[i].matrices[j].tolist() for j in xrange(base)]
+            mats = [bp[i].matrices[j].tolist() for j in xrange(self._base)]
             nrows, ncols = bp[i].matrices[0].shape
             rflags = ENCODE_LAYER_RANDOMIZATION_TYPE_NONE
             if i == 0:
@@ -52,12 +52,12 @@ class SZObfuscator(Obfuscator):
                 rflags |= ENCODE_LAYER_RANDOMIZATION_TYPE_LAST
             if 0 < i < len(bp) - 1:
                 rflags |= ENCODE_LAYER_RANDOMIZATION_TYPE_MIDDLE
-            pows = [[0] * nzs for _ in xrange(base)]
-            for j in xrange(base):
+            pows = [[0] * nzs for _ in xrange(self._base)]
+            for j in xrange(self._base):
                 for k in bp[i].sets[j]:
                     pows[j][k] = 1
-            _obf.encode_layer(self._state, base, pows, mats, i, nrows, ncols,
-                              bp[i].inp, rflags)
+            _obf.encode_layer(self._state, self._base, pows, mats, i, nrows,
+                              ncols, bp[i].inp, rflags)
 
     def obfuscate(self, fname, secparam, directory, obliviate=False, kappa=None,
                   formula=True, dual_input=False, randomization=True):
@@ -75,19 +75,21 @@ class SZObfuscator(Obfuscator):
         if not randomization:
             flags |= OBFUSCATOR_FLAG_NO_RANDOMIZATION
         self._init_mmap(secparam, kappa, nzs, directory, flags)
-        base = len(bp[0].matrices)
-        self._obfuscate(bp, nzs, base)
+        self._base = len(bp[0].matrices)
+        self._obfuscate(bp, nzs)
         _obf.wait(self._state)
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))
         if self._verbose:
             _obf.max_mem_usage()
 
-    def evaluate(self, directory, inp):
+    def evaluate(self, directory, inp, base=None):
+        if base is None:
+            base = self._base
         flags = OBFUSCATOR_FLAG_NONE
         if self._verbose:
             flags |= OBFUSCATOR_FLAG_VERBOSE
-        input = [int(i) for i in inp]
+        input = [int(i, base) for i in inp]
         result = self._evaluate(directory, input, _obf.evaluate, _obf, flags)
         if self._verbose:
             _obf.max_mem_usage()

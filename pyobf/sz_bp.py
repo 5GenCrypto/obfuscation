@@ -68,11 +68,12 @@ class SZBranchingProgram(AbstractBranchingProgram):
                         continue
                     bp_json = json.loads(line)
                     for step in bp_json['steps']:
-                        keys = sorted(list(step)[:-1])
+                        keys = list(step)
+                        keys = filter(lambda x: x != 'position', keys)
+                        keys = sorted(keys)
                         bp.append(
                             Layer(int(step['position']),
                                   [matrix(step[key]) for key in keys],
-                                  # [matrix(step['0']), matrix(step['1'])],
                                   None))
 
                     assert len(bp_json['outputs'])    == 1 and \
