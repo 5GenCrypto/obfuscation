@@ -47,7 +47,7 @@ static PyObject *
 zobf_encode_circuit_wrapper(PyObject *self, PyObject *args)
 {
     PyObject *py_state, *py_ys, *py_xdegs;
-    mpz_t *ys;
+    mpz_t *xs, *ys;
     int *xdegs;
     int n, m, ydeg;
     char *circuit;
@@ -60,6 +60,10 @@ zobf_encode_circuit_wrapper(PyObject *self, PyObject *args)
     if (s == NULL)
         return NULL;
 
+    xs = (mpz_t *) calloc(n, sizeof(mpz_t));
+    for (int i = 0; i < n; ++i) {
+        mpz_init_set_ui(xs[i], 1);
+    }
     ys = (mpz_t *) calloc(m, sizeof(mpz_t));
     for (int i = 0; i < m; ++i) {
         mpz_init(ys[i]);
@@ -71,9 +75,13 @@ zobf_encode_circuit_wrapper(PyObject *self, PyObject *args)
         xdegs[i] = PyLong_AsLong(PyList_GET_ITEM(py_xdegs, i));
     }
 
-    zobf_encode_circuit(s, circuit, ys, xdegs, ydeg, n, m);
+    zobf_encode_circuit(s, circuit, xs, ys, xdegs, ydeg, n, m);
 
     free(xdegs);
+    for (int i = 0; i < n; ++i) {
+        mpz_clear(xs[i]);
+    }
+    free(xs);
     for (int i = 0; i < m; ++i) {
         mpz_clear(ys[i]);
     }

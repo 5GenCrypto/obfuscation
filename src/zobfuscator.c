@@ -133,8 +133,8 @@ write_element(const char *dir, mmap_enc *elem, const char *name)
 }
 
 void
-zobf_encode_circuit(zobf_state_t *s, const char *circuit, const mpz_t *ys,
-                    const int *xdegs, int ydeg, int n, int m)
+zobf_encode_circuit(zobf_state_t *s, const char *circuit, const mpz_t *xs,
+                    const mpz_t *ys, const int *xdegs, int ydeg, int n, int m)
 {
     mpz_t tmp, c_star;
     mpz_t *alphas, *betas;
@@ -161,7 +161,7 @@ zobf_encode_circuit(zobf_state_t *s, const char *circuit, const mpz_t *ys,
         mpz_inits(elems[0], elems[1], NULL);
 
         create_work(s, "x_\%d_0", i, zero, alphas[i], 1, 2 * i, 1);
-        create_work(s, "x_\%d_1", i, one, alphas[i], 1, 2 * i + 1, 1);
+        create_work(s, "x_\%d_1", i, xs[i], alphas[i], 1, 2 * i + 1, 1);
         create_work(s, "u_\%d_0", i, one, one, 1, 2 * i, 1);
         create_work(s, "u_\%d_1", i, one, one, 1, 2 * i + 1, 1);
 

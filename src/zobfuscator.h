@@ -22,8 +22,8 @@ void
 zobf_clear(zobf_state_t *s);
 
 void
-zobf_encode_circuit(zobf_state_t *s, const char *circuit, const mpz_t *ys,
-                    const int *xdegs, int ydeg, int n, int m);
+zobf_encode_circuit(zobf_state_t *s, const char *circuit, const mpz_t *xs,
+                    const mpz_t *ys, const int *xdegs, int ydeg, int n, int m);
 
 int
 zobf_evaluate(const char *dir, const char *circuit, const char *input,
