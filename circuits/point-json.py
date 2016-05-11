@@ -42,10 +42,9 @@ def point(length, base):
     repr = dary_repr(secret, base, length)
     base_2_len = len(str_base(base-1, 2))
     inp = ''.join([dary_repr(int(i), 2, base_2_len) for i in repr])
-    print(base ** length)
     lst = []
     for i in xrange(length):
-        for b in xrange(base-1):
+        for b in xrange(base_2_len):
             lst.append('"%d"' % i)
     str = '[' + ','.join(lst) + ']'
     fname = 'point-%d-%d.json' % (length, base)
