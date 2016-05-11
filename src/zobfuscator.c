@@ -11,7 +11,7 @@
 typedef struct zobf_state_s {
     threadpool thpool;
     unsigned long secparam;
-    clt_state mlm;
+    clt_state mmap;
     aes_randstate_t rand;
     const char *dir;
     mpz_t nchk;
@@ -43,20 +43,20 @@ zobf_init(const char *dir, uint64_t secparam, uint64_t kappa, uint64_t nzs,
         clt_flags |= CLT_FLAG_VERBOSE;
     }
 
-    clt_state_init(&s->mlm, kappa, secparam, nzs, pows, clt_flags, s->rand);
+    clt_state_init(&s->mmap, kappa, secparam, nzs, pows, clt_flags, s->rand);
     {
         clt_pp pp;
         FILE *fp;
 
-        clt_pp_init(&pp, &s->mlm);
+        clt_pp_init(&pp, &s->mmap);
         fp = open_file(s->dir, "params", "w+b");
         clt_pp_fsave(fp, &pp);
         fclose(fp);
         clt_pp_clear(&pp);
     }
 
-    mpz_init_set(s->nev, s->mlm.gs[0]);
-    mpz_init_set(s->nchk, s->mlm.gs[1]);
+    mpz_init_set(s->nev, s->mmap.gs[0]);
+    mpz_init_set(s->nchk, s->mmap.gs[1]);
 
     return s;
 }
@@ -66,7 +66,7 @@ zobf_clear(zobf_state_t *s)
 {
     if (s) {
         aes_randclear(s->rand);
-        clt_state_clear(&s->mlm);
+        clt_state_clear(&s->mmap);
         thpool_destroy(s->thpool);
         mpz_clears(s->nev, s->nchk, NULL);
     }
@@ -83,7 +83,7 @@ create_work(zobf_state_t *s, const char *str, int i,
     struct encode_elem_s *args;
     mmap_enc *out;
     fmpz_t *plaintext;
-    const mmap_pp *pp = clt_vtable.sk->pp((mmap_sk *) &s->mlm);
+    const mmap_pp *pp = clt_vtable.sk->pp((mmap_sk *) &s->mmap);
 
     out = (mmap_enc *) malloc(sizeof(mmap_enc));
     plaintext = (fmpz_t *) calloc(2, sizeof(fmpz_t));
@@ -106,11 +106,11 @@ create_work(zobf_state_t *s, const char *str, int i,
 
     args = (struct encode_elem_s *) malloc(sizeof(struct encode_elem_s));
     args->vtable = &clt_vtable;
-    args->sk = (mmap_sk *) &s->mlm;
+    args->sk = (mmap_sk *) &s->mmap;
     args->enc = out;
     args->n = 2;
     args->plaintext = plaintext;
-    args->group = (int *) calloc(s->mlm.nzs, sizeof(int));
+    args->group = (int *) calloc(s->mmap.nzs, sizeof(int));
     va_start(vals, num);
     for (unsigned int j = 0; j < num; ++j) {
         int idx = va_arg(vals, int);
@@ -211,7 +211,7 @@ zobf_encode_circuit(zobf_state_t *s, const char *circuit, const mpz_t *ys,
             (void) circ_copy_circuit(circuit, circname);
             free(circname);
         }
-        (void) circ_evaluate(c, alphas, betas, c_star, s->mlm.x0);
+        (void) circ_evaluate(c, alphas, betas, c_star, s->mmap.x0);
         circ_cleanup(c);
     }
 
@@ -228,7 +228,7 @@ zobf_encode_circuit(zobf_state_t *s, const char *circuit, const mpz_t *ys,
         //   - The next n entries contain Z_i
         //   - The next n entries contain W_i
         //   - The final entry contains Y
-        pows = (int *) calloc(s->mlm.nzs, sizeof(int));
+        pows = (int *) calloc(s->mmap.nzs, sizeof(int));
         
         // The C* encoding contains everything but the W_i symbols.
         // Here we calculate the appropriate indices and powers.
@@ -244,7 +244,7 @@ zobf_encode_circuit(zobf_state_t *s, const char *circuit, const mpz_t *ys,
         pows[4 * n] = ydeg;
         // Encode against these indices/powers
 
-        clt_encode(tmp, &s->mlm, 2, elems, pows, s->rand);
+        clt_encode(tmp, &s->mmap, 2, elems, pows, s->rand);
 
         mpz_clears(elems[0], elems[1], NULL);
         free(pows);
