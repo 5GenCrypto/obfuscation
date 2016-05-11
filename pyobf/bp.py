@@ -5,7 +5,7 @@ class Layer(object):
         self.inp = inp
         self.matrices = matrices
         if sets is None:
-            self.sets = [None, None]
+            self.sets = [None] * len(matrices)
         else:
             self.sets = sets
     def size(self):
@@ -14,20 +14,21 @@ class Layer(object):
             size += len(matrix)
         return size
     def __repr__(self):
-        return "\
-        input: %d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
-            self.inp, self.matrices[0], self.matrices[1], self.sets[0], self.sets[1])
+        str = "\ninput: %d\n" % self.inp
+        for i, mat in enumerate(self.matrices):
+            str += "%d-mat:\n%s\n" % (i, mat)
+        for i, set in enumerate(self.sets):
+            str += "%d-set: %s\n" % (i, set)
+        return str
     def mult_scalar(self, alphas):
-        return Layer(self.inp,
-                     [alphas[0] * self.matrices[0],
-                      alphas[1] * self.matrices[1]],
-                     self.sets)
+        mats = [alphas[i] * self.matrices[i] for i in len(self.matrices)]
+        return Layer(self.inp, mats, self.sets)
     def mult_left(self, M):
-         return Layer(self.inp, [M * self.matrices[0], M * self.matrices[1]],
-                      self.sets)
+        mats = [M * mat for mat in self.matrices]
+        return Layer(self.inp, mats, self.sets)
     def mult_right(self, M):
-         return Layer(self.inp, [self.matrices[0] * M, self.matrices[1] * M],
-                      self.sets)
+        mats = [mat * M for mat in self.matrices]
+        return Layer(self.inp, mats, self.sets)
 
     
 class AbstractBranchingProgram(object):
@@ -37,7 +38,7 @@ class AbstractBranchingProgram(object):
         self.nlayers = 0
         self.ninputs = None
         self.bp = None
-        self.zero = None
+        # self.zero = None
     def __len__(self):
         return len(self.bp)
     def __iter__(self):
@@ -58,12 +59,16 @@ class AbstractBranchingProgram(object):
             max = len(layers) - 1
             for i, layer in enumerate(layers):
                 if i < max:
-                    layer.sets[0] = [n - 1, n]  if i else [n]
-                    layer.sets[1] = [n, n + 1]
+                    for i in xrange(len(layer.sets)):
+                        layer.sets[i] = [n]
+                    # layer.sets[0] = [n - 1, n]  if i else [n]
+                    # layer.sets[1] = [n, n + 1]
                     n += 2
                 else:
-                    layer.sets[0] = [n - 1, n] if max else [n]
-                    layer.sets[1] = [n]
+                    for i in xrange(len(layer.sets)):
+                        layer.sets[i] = [n]
+                    # layer.sets[0] = [n - 1, n] if max else [n]
+                    # layer.sets[1] = [n]
                     n += 1
         return n
 

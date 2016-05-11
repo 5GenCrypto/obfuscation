@@ -40,11 +40,10 @@ class SZObfuscator(Obfuscator):
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
-    def _obfuscate(self, bp, nzs):
+    def _obfuscate(self, bp, nzs, base):
         for i in xrange(len(bp)):
             self.logger('Obfuscating layer...')
-            zeros = bp[i].matrices[0].tolist()
-            ones = bp[i].matrices[1].tolist()
+            mats = [bp[i].matrices[j].tolist() for j in xrange(base)]
             nrows, ncols = bp[i].matrices[0].shape
             rflags = ENCODE_LAYER_RANDOMIZATION_TYPE_NONE
             if i == 0:
@@ -53,17 +52,15 @@ class SZObfuscator(Obfuscator):
                 rflags |= ENCODE_LAYER_RANDOMIZATION_TYPE_LAST
             if 0 < i < len(bp) - 1:
                 rflags |= ENCODE_LAYER_RANDOMIZATION_TYPE_MIDDLE
-            zero_pows = [0] * nzs
-            one_pows = [0] * nzs
-            for j in bp[i].sets[0]:
-                zero_pows[j] = 1
-            for j in bp[i].sets[1]:
-                one_pows[j] = 1
-            _obf.encode_layer(self._state, 2, [zero_pows, one_pows], [zeros, ones],
-                              i, nrows, ncols, bp[i].inp, rflags)
+            pows = [[0] * nzs for _ in xrange(base)]
+            for j in xrange(base):
+                for k in bp[i].sets[j]:
+                    pows[j][k] = 1
+            _obf.encode_layer(self._state, base, pows, mats, i, nrows, ncols,
+                              bp[i].inp, rflags)
 
-    def obfuscate(self, fname, secparam, directory, obliviate=False,
-                  kappa=None, formula=True, dual_input=False, randomization=True):
+    def obfuscate(self, fname, secparam, directory, obliviate=False, kappa=None,
+                  formula=True, dual_input=False, randomization=True):
         start = time.time()
         self._remove_old(directory)
         bp, nzs = self._construct_bp(fname, obliviate, formula=formula)
@@ -78,7 +75,8 @@ class SZObfuscator(Obfuscator):
         if not randomization:
             flags |= OBFUSCATOR_FLAG_NO_RANDOMIZATION
         self._init_mmap(secparam, kappa, nzs, directory, flags)
-        self._obfuscate(bp, nzs)
+        base = len(bp[0].matrices)
+        self._obfuscate(bp, nzs, base)
         _obf.wait(self._state)
         end = time.time()
         self.logger('Obfuscation took: %f' % (end - start))

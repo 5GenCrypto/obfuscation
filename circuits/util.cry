@@ -1,0 +1,41 @@
+module util where
+
+type MaxPosn = 26
+
+constantBase : {base, len, nin} (fin base, fin len, fin nin, base >= 1)
+  => [nin][len][width (base-1)] -> Bit
+constantBase in = [x <= `(base-1) | xs <- in, x <- xs] == ~zero
+
+adjacentConstantBase : {base, n} (fin n, fin base, base >= 1)
+  => [n * width (base - 1)] -> Bit
+adjacentConstantBase in = [x <= `(base-1) | x <- split `{parts=n, each=width (base - 1)} in] == ~zero
+
+positionNames : [MaxPosn](String 1)
+positionNames = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"]
+
+interleavedGrouping : {base, nin} (fin base, base >= 2, 1 <= nin, nin <= MaxPosn)
+  => [nin * width (base-1)](String 1)
+interleavedGrouping =
+  [ positionNames @ i
+  | i <- [0 .. nin-1]
+  , _ <- [1 .. width (base-1)]
+  ]
+
+swizzledGrouping : {base, nin} (fin base, base >= 2, 1 <= nin, nin <= MaxPosn)
+  => [2 * nin * width (base-1)](String 1)
+swizzledGrouping = posns # reverse posns where
+  posns = interleavedGrouping `{base, nin}
+
+uninterleave : {base, len, nin} (fin base, fin len, fin nin, base >= 1)
+  => [nin * len * width (base-1)] -> [nin][len][width (base-1)]
+uninterleave bits = transpose (split (split bits))
+
+unswizzle : {base, len, nin} (fin base, fin len, fin nin, base >= 1)
+  => [nin * len * width (base-1)] -> [nin][len][width (base-1)]
+unswizzle bits = transpose (reverseEveryOther (split (split bits)))
+
+reverseEveryOther : {a,b,c} fin b => [a][b]c -> [a][b]c
+reverseEveryOther xs = [f x | f <- cycle [\x -> x, reverse] | x <- xs]
+
+cycle : {a,b} (fin a) => [a]b -> [inf]b
+cycle xs = xs # cycle xs

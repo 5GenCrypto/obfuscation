@@ -416,8 +416,8 @@ obf_evaluate(enum mmap_e type, char *dir, uint64_t len, uint64_t *input,
         fread(&inp, sizeof inp, 1, fp);
         fclose(fp);
 
-        if (inp >= len) {
-            fprintf(stderr, "invalid input: %lu >= %ld\n", inp, len);
+        if (inp > len) {
+            fprintf(stderr, "invalid input: %lu > %ld\n", inp, len);
             goto done;
         }
         // load in appropriate matrix for the given input value

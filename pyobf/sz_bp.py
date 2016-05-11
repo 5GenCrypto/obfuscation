@@ -47,18 +47,17 @@ class SZBranchingProgram(AbstractBranchingProgram):
             self.bp = self._load_formula(fname)
         else:
             self.bp = self._load_bp(fname)
-        # print(self.bp)
 
-    def obliviate(self):
-        assert self.ninputs and self.depth
-        newbp = []
-        for m in self.bp:
-            for i in xrange(self.ninputs):
-                if m.inp == i:
-                    newbp.append(m)
-                else:
-                    newbp.append(Layer(i, [self.zero, self.zero], None))
-        self.bp = newbp
+    # def obliviate(self):
+    #     assert self.ninputs and self.depth
+    #     newbp = []
+    #     for m in self.bp:
+    #         for i in xrange(self.ninputs):
+    #             if m.inp == i:
+    #                 newbp.append(m)
+    #             else:
+    #                 newbp.append(Layer(i, [self.zero, self.zero], None))
+    #     self.bp = newbp
 
     def _load_bp(self, fname):
         bp = []
@@ -69,19 +68,21 @@ class SZBranchingProgram(AbstractBranchingProgram):
                         continue
                     bp_json = json.loads(line)
                     for step in bp_json['steps']:
+                        keys = sorted(list(step)[:-1])
                         bp.append(
                             Layer(int(step['position']),
-                                  [matrix(step['0']), matrix(step['1'])],
+                                  [matrix(step[key]) for key in keys],
+                                  # [matrix(step['0']), matrix(step['1'])],
                                   None))
 
                     assert len(bp_json['outputs'])    == 1 and \
                            len(bp_json['outputs'][0]) == 2
-                    first_out = bp_json['outputs'][0][0].lower()
-                    if first_out not in ['false', '0']:
-                        if first_out not in ['true', '1']:
-                            print('warning: interpreting %s as a truthy output' % first_out)
-                        bp[-1].matrices[0].swap_columns(0,1)
-                        bp[-1].matrices[1].swap_columns(0,1)
+                    # first_out = bp_json['outputs'][0][0].lower()
+                    # if first_out not in ['false', '0']:
+                    #     if first_out not in ['true', '1']:
+                    #         print('warning: interpreting %s as a truthy output' % first_out)
+                    #     bp[-1].matrices[0].swap_columns(0,1)
+                    #     bp[-1].matrices[1].swap_columns(0,1)
                     return bp
         except IOError as e:
             print(e)
