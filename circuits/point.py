@@ -26,29 +26,44 @@ def arithmetic_point(bitlength):
             if test != secret_bits:
                 f.write('# TEST %s 1\n' % test)
         num = 0
+        dbl = 0
         for i in xrange(bitlength):
-            f.write('%d input x%d\n' % (num, i))
-            num += 1
-        dbl = 1
-        for i in xrange(bitlength - 1):
-            f.write('%d input y%d %d\n' % (num, i, 2**dbl))
+            f.write('%d input x%d %d\n' % (num, i, 2**dbl))
             dbl += 1
             num += 1
-        f.write('%d input y%d -%d\n' % (num, bitlength - 1, secret))
-        snum = num
-        num += 1
-        muls = num
-        for i in xrange(bitlength - 1):
-            f.write('%d gate MUL %d %d\n' % (num, i + 1, bitlength + i))
-            num += 1
-        f.write('%d gate ADD %d %d\n' % (num, 0, muls))
-        num += 1
-        muls += 1
-        for i in xrange(1, bitlength - 1):
-            f.write('%d gate ADD %d %d\n' % (num, num - 1, muls))
-            num += 1
-            muls += 1
-        f.write('%d output ADD %d %d\n' % (num, num - 1, snum))
+        f.write('%d input y%d %d\n' % (num, 0, secret))
+
+        length = bitlength
+        oldstart = 0
+        start = oldstart + length + 1
+        leftover = None
+        while length > 1:
+            for i, j in zip(xrange(start, start + length / 2),
+                            xrange(oldstart, start, 2)):
+                if j + 1 == start:
+                    if leftover:
+                        f.write('%d gate ADD %d %d\n' % (i, j, leftover))
+                        leftover = None
+                else:
+                    f.write('%d gate ADD %d %d\n' % (i, j, j + 1))
+            if length % 2 == 1 and not leftover:
+                leftover = start - 1
+            oldstart = start
+            start = start + length / 2
+            length = (length + length % 2) / 2
+        if leftover:
+            f.write('%d gate ADD %d %d\n' % (start + length / 2,
+                                             start - 1,
+                                             leftover))
+            start = start + 1
+        f.write('%d output SUB %d %d\n' % (start, num, i))
+
+        # f.write('%d gate ADD %d %d\n' % (num, 0, num - 1))
+        # num += 1
+        # for i in xrange(1, bitlength - 1):
+        #     f.write('%d gate ADD %d %d\n' % (num, i, num - 1))
+        #     num += 1
+        # f.write('%d output ADD %d %d\n' % (num, bitlength - 1, num - 1))
 
 def binary_point(bitlength):
     with open('point-%d.circ' % bitlength, 'w') as f:
