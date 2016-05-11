@@ -51,18 +51,16 @@ obf_init_wrapper(PyObject *self, PyObject *args)
 static PyObject *
 obf_encode_layer_wrapper(PyObject *self, PyObject *args)
 {
-    PyObject *py_state, *py_zero_pows, *py_one_pows, *py_zero_ms, *py_one_ms;
-    long idx, nrows, ncols, inp, rflag;
+    PyObject *py_state, *py_pows, *py_mats;
+    long n, idx, nrows, ncols, inp, rflag;
     ssize_t length;
-    int *zero_pows, *one_pows;
-    fmpz_mat_t zero, one;
+    int **pows;
+    fmpz_mat_t *mats;
     obf_state_t *s;
 
     // TODO: can probably get nrows, ncols length from matrices
-    if (!PyArg_ParseTuple(args, "OlllllOOOO", &py_state,
-                          &idx, &nrows, &ncols, &inp, &rflag,
-                          &py_zero_pows, &py_one_pows,
-                          &py_zero_ms, &py_one_ms))
+    if (!PyArg_ParseTuple(args, "OlOOlllll", &py_state, &n, &py_pows, &py_mats,
+                          &idx, &nrows, &ncols, &inp, &rflag))
         return NULL;
 
     s = (obf_state_t *) PyCapsule_GetPointer(py_state, NULL);
@@ -71,37 +69,40 @@ obf_encode_layer_wrapper(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    length = PyList_Size(py_zero_pows);
-    if (PyList_Size(py_one_pows) != length) {
-        PyErr_SetString(PyExc_RuntimeError, "pow lengths unequal");
-        return NULL;
-    }
+    length = PyList_Size(PyList_GetItem(py_pows, 0));
+    // TODO: check pow lengths
 
-    zero_pows = (int *) calloc(length, sizeof(int));
-    one_pows = (int *) calloc(length, sizeof(int));
-
-    for (ssize_t i = 0; i < length; ++i) {
-        zero_pows[i] = PyLong_AsLong(PyList_GetItem(py_zero_pows, i));
-        one_pows[i] = PyLong_AsLong(PyList_GetItem(py_one_pows, i));
-    }
-
-    fmpz_mat_init(zero, nrows, ncols);
-    fmpz_mat_init(one, nrows, ncols);
-
-    for (long i = 0; i < nrows; ++i) {
-        for (long j = 0; j < ncols; ++j) {
-            py_to_fmpz(fmpz_mat_entry(zero, i, j),
-                       PyList_GetItem(PyList_GetItem(py_zero_ms, i), j));
-            py_to_fmpz(fmpz_mat_entry(one, i, j),
-                       PyList_GetItem(PyList_GetItem(py_one_ms, i), j));
+    pows = (int **) calloc(n, sizeof(int *));
+    for (long c = 0; c < n; ++c) {
+        pows[c] = (int *) calloc(length, sizeof(int));
+        for (ssize_t i = 0; i < length; ++i) {
+            pows[c][i] = PyLong_AsLong(
+                PyList_GetItem(
+                    PyList_GetItem(py_pows, c), i));
         }
     }
 
-    obf_encode_layer(s, idx, inp, (encode_layer_randomization_flag_t) rflag,
-                     zero_pows, one_pows, zero, one);
+    mats = (fmpz_mat_t *) calloc(n, sizeof(fmpz_mat_t));
+    for (long c = 0; c < n; ++c) {
+        fmpz_mat_init(mats[c], nrows, ncols);
+        for (long i = 0; i < nrows; ++i) {
+            for (long j = 0; j < ncols; ++j) {
+                py_to_fmpz(fmpz_mat_entry(mats[c], i, j),
+                           PyList_GetItem(
+                               PyList_GetItem(
+                                   PyList_GetItem(py_mats, c), i), j));
+            }
+        }
+    }
 
-    fmpz_mat_clear(zero);
-    fmpz_mat_clear(one);
+    obf_encode_layer(s, n, pows, mats, idx, inp,
+                     (encode_layer_randomization_flag_t) rflag);
+
+    for (long c = 0; c < n; ++c) {
+        fmpz_mat_clear(mats[c]);
+    }
+    free(mats);
+    // TODO: make sure that pows gets cleared elsewhere
 
     Py_RETURN_NONE;
 }
@@ -109,12 +110,14 @@ obf_encode_layer_wrapper(PyObject *self, PyObject *args)
 static PyObject *
 obf_evaluate_wrapper(PyObject *self, PyObject *args)
 {
-    char *dir = NULL, *input = NULL;
+    PyObject *py_input;
+    uint64_t *input;
+    char *dir = NULL;
     long iszero, type_, flags;
     enum mmap_e type;
-    uint64_t bplen = 0, ncores = 0;
+    uint64_t len = 0, bplen = 0, ncores = 0;
 
-    if (!PyArg_ParseTuple(args, "zzllll", &dir, &input, &type_, &bplen,
+    if (!PyArg_ParseTuple(args, "zOllll", &dir, &py_input, &type_, &bplen,
                           &ncores, &flags)) {
         PyErr_SetString(PyExc_RuntimeError, "error parsing arguments");
         return NULL;
@@ -132,7 +135,13 @@ obf_evaluate_wrapper(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    iszero = obf_evaluate(type, dir, input, bplen, ncores, flags);
+    len = PyList_Size(py_input);
+    input = (uint64_t *) calloc(len, sizeof(uint64_t));
+    for (int i = 0; i < len; ++i) {
+        input[i] = PyLong_AsLong(PyList_GetItem(py_input, i));
+    }
+
+    iszero = obf_evaluate(type, dir, len, input, bplen, ncores, flags);
     if (iszero == -1) {
         PyErr_SetString(PyExc_RuntimeError, "zero test failed");
         return NULL;

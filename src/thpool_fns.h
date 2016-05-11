@@ -21,13 +21,13 @@ thpool_encode_elem(void *vargs);
 struct write_layer_s {
     const mmap_vtable *vtable;
     const char *dir;
-    mmap_enc_mat_t *zero_enc, *one_enc;
+    uint64_t n;
+    mmap_enc_mat_t **enc_mats;
+    char **names;
     long inp;
     long idx;
     long nrows;
     long ncols;
-    char *zero;
-    char *one;
     double start;
     bool verbose;
 };

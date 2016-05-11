@@ -46,21 +46,21 @@ class SZObfuscator(Obfuscator):
             zeros = bp[i].matrices[0].tolist()
             ones = bp[i].matrices[1].tolist()
             nrows, ncols = bp[i].matrices[0].shape
-            typ = ENCODE_LAYER_RANDOMIZATION_TYPE_NONE
+            rflags = ENCODE_LAYER_RANDOMIZATION_TYPE_NONE
             if i == 0:
-                typ |= ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST
+                rflags |= ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST
             if i == len(bp) - 1:
-                typ |= ENCODE_LAYER_RANDOMIZATION_TYPE_LAST
+                rflags |= ENCODE_LAYER_RANDOMIZATION_TYPE_LAST
             if 0 < i < len(bp) - 1:
-                typ |= ENCODE_LAYER_RANDOMIZATION_TYPE_MIDDLE
+                rflags |= ENCODE_LAYER_RANDOMIZATION_TYPE_MIDDLE
             zero_pows = [0] * nzs
             one_pows = [0] * nzs
             for j in bp[i].sets[0]:
                 zero_pows[j] = 1
             for j in bp[i].sets[1]:
                 one_pows[j] = 1
-            _obf.encode_layer(self._state, i, nrows, ncols, bp[i].inp, typ,
-                              zero_pows, one_pows, zeros, ones)
+            _obf.encode_layer(self._state, 2, [zero_pows, one_pows], [zeros, ones],
+                              i, nrows, ncols, bp[i].inp, rflags)
 
     def obfuscate(self, fname, secparam, directory, obliviate=False,
                   kappa=None, formula=True, dual_input=False, randomization=True):
@@ -89,7 +89,8 @@ class SZObfuscator(Obfuscator):
         flags = OBFUSCATOR_FLAG_NONE
         if self._verbose:
             flags |= OBFUSCATOR_FLAG_VERBOSE
-        result = self._evaluate(directory, inp, _obf.evaluate, _obf, flags)
+        input = [int(i) for i in inp]
+        result = self._evaluate(directory, input, _obf.evaluate, _obf, flags)
         if self._verbose:
             _obf.max_mem_usage()
         return result
