@@ -11,6 +11,7 @@ class Circuit(object):
     def __init__(self, fname, verbose=False):
         self._verbose = verbose
         self.info = None
+        self.xs = []
         self.ys = []
         self.y_deg = 0
         self.x_degs = None
@@ -24,7 +25,12 @@ class Circuit(object):
         assert(inp.startswith('x') or inp.startswith('y'))
         if inp.startswith('x'):
             self.n_xins += 1
-            g[0].add_node(num, label=[inp])
+            try:
+                inp, value = inp.split(None, 1)
+            except ValueError:
+                value = 1
+            self.xs.append(long(value))
+            g[0].add_node(num, label=[inp], value=long(value))
         elif inp.startswith('y'):
             self.n_yins += 1
             inp, value = inp.split(None, 1)
@@ -135,9 +141,8 @@ class ZObfuscator(Obfuscator):
         self.logger('Encoding circuit...')
         self.logger('  n = %s, m = %s' % (circ.n_xins, circ.n_yins))
         start = time.time()
-        xs = [1] * circ.n_xins;
-        _zobf.encode_circuit(self._state, circname, xs, circ.ys, circ.x_degs,
-                             circ.y_deg, circ.n_xins, circ.n_yins)
+        _zobf.encode_circuit(self._state, circname, circ.xs, circ.ys,
+                             circ.x_degs, circ.y_deg, circ.n_xins, circ.n_yins)
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
