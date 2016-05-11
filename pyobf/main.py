@@ -224,8 +224,8 @@ def main():
     parser_obf.add_argument('--base',
                             metavar='B', action='store', type=int, default=None,
                             help='base of matrix branching program (default: guess)')
-    # parser_obf.add_argument('--dual-input', action='store_true',
-    #                         help='use dual input branching programs')
+    parser_obf.add_argument('--dual-input', action='store_true',
+                            help='use dual input branching programs')
     parser_obf.add_argument('--no-randomization', action='store_true',
                             help='turn of branching program randomization')
     parser_obf.add_argument('-v', '--verbose',
