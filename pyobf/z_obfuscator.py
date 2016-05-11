@@ -113,9 +113,9 @@ ZOBFUSCATOR_FLAG_NONE = 0x00
 ZOBFUSCATOR_FLAG_VERBOSE = 0x01
 
 class ZObfuscator(Obfuscator):
-    def __init__(self, mlm, verbose=False, nthreads=None, ncores=None):
-        assert mlm == 'CLT'
-        super(ZObfuscator, self).__init__(_zobf, mlm, verbose=verbose,
+    def __init__(self, mmap, base=2, verbose=False, nthreads=None, ncores=None):
+        assert mmap == 'CLT'
+        super(ZObfuscator, self).__init__(_zobf, mmap, base=base, verbose=verbose,
                                           nthreads=nthreads, ncores=ncores)
 
     def _init_mmap(self, secparam, kappa, nzs, pows, directory):
@@ -171,7 +171,7 @@ class ZObfuscator(Obfuscator):
             _zobf.max_mem_usage()
 
     def evaluate(self, directory, inp):
-        def f(directory, inp, length, mlm, nthreads, flags):
+        def f(directory, inp, length, mmap, nthreads, flags):
             inp = inp[::-1]
             circname = os.path.join(directory, 'circuit')
             # Count number of y values

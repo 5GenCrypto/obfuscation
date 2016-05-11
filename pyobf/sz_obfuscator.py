@@ -15,9 +15,11 @@ ENCODE_LAYER_RANDOMIZATION_TYPE_MIDDLE = 0x02
 ENCODE_LAYER_RANDOMIZATION_TYPE_LAST = 0x04
 
 class SZObfuscator(Obfuscator):
-    def __init__(self, mlm, verbose=False, nthreads=None, ncores=None):
-        super(SZObfuscator, self).__init__(_obf, mlm, verbose=verbose,
-                                           nthreads=nthreads, ncores=ncores)
+    def __init__(self, mmap, base=None, verbose=False, nthreads=None,
+                 ncores=None):
+        super(SZObfuscator, self).__init__(_obf, mmap, base=base,
+                                           verbose=verbose, nthreads=nthreads,
+                                           ncores=ncores)
 
     def _construct_bp(self, fname, obliviate, formula=True):
         self.logger('Constructing BP...')
@@ -34,8 +36,8 @@ class SZObfuscator(Obfuscator):
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        mlm = 0 if self._mlm == 'CLT' else 1
-        self._state = _obf.init(directory, mlm, secparam, kappa, nzs,
+        mmap = 0 if self._mmap == 'CLT' else 1
+        self._state = _obf.init(directory, mmap, secparam, kappa, nzs,
                                 self._nthreads, self._ncores, flags)
         end = time.time()
         self.logger('Took: %f' % (end - start))
@@ -75,7 +77,8 @@ class SZObfuscator(Obfuscator):
         if not randomization:
             flags |= OBFUSCATOR_FLAG_NO_RANDOMIZATION
         self._init_mmap(secparam, kappa, nzs, directory, flags)
-        self._base = len(bp[0].matrices)
+        if self._base is None:
+            self._base = len(bp[0].matrices)
         self._obfuscate(bp, nzs)
         _obf.wait(self._state)
         end = time.time()
@@ -83,9 +86,8 @@ class SZObfuscator(Obfuscator):
         if self._verbose:
             _obf.max_mem_usage()
 
-    def evaluate(self, directory, inp, base=None):
-        if base is None:
-            base = self._base
+    def evaluate(self, directory, inp):
+        base = self._base if self._base is not None else 2
         flags = OBFUSCATOR_FLAG_NONE
         if self._verbose:
             flags |= OBFUSCATOR_FLAG_VERBOSE

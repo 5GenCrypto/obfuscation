@@ -30,14 +30,14 @@ def test_bp(scheme):
     lst.append(schemedict[scheme])
     return run(lst)
 
-def test_obf(scheme, mlm, secparam):
+def test_obf(scheme, mmap, secparam):
     print_test('Testing obfuscation for scheme %s' % scheme)
     lst = [CMD, "obf", "--test-all", CIRCUIT_PATH, "--secparam", str(secparam),
-           "--mlm", mlm]
+           "--mmap", mmap]
     lst.append(schemedict[scheme])
     return run(lst)
 
-def test_load(scheme, mlm, secparam):
+def test_load(scheme, mmap, secparam):
     print_test('Testing load for scheme %s' % scheme)
     if scheme == 'Z':
         circuit = 'add.acirc'
@@ -46,12 +46,12 @@ def test_load(scheme, mlm, secparam):
         circuit = 'and.circ'
         eval = '00'
     path = os.path.join(CIRCUIT_PATH, circuit)
-    lst = [CMD, "obf", "--test", path, "--secparam", str(secparam), "--mlm", mlm]
+    lst = [CMD, "obf", "--test", path, "--secparam", str(secparam), "--mmap", mmap]
     lst.append(schemedict[scheme])
     r = run(lst)
     if r:
         return r
-    lst = [CMD, "obf", "--load-obf", path + ".obf.%d" % secparam, "--mlm", mlm, "--eval", eval]
+    lst = [CMD, "obf", "--load-obf", path + ".obf.%d" % secparam, "--mmap", mmap, "--eval", eval]
     lst.append(schemedict[scheme])
     return run(lst)
 
