@@ -15,7 +15,7 @@ def transpose(bps):
         newbps.append(Layer(bp.inp,
                             [bp.matrices[0].transpose(),
                              bp.matrices[1].transpose()],
-                            zeroset=bp.zeroset, oneset=bp.oneset))
+                            bp.sets))
     return newbps
 
 def augment(bps, r):
@@ -32,7 +32,7 @@ def augment(bps, r):
         newbps.append(Layer(bp.inp,
                             [_augment(bp.matrices[0], r),
                              _augment(bp.matrices[1], r)],
-                            zeroset=bp.zeroset, oneset=bp.oneset))
+                            bp.sets))
     return newbps
 
 def mult_left(bps, m):
@@ -57,7 +57,7 @@ class SZBranchingProgram(AbstractBranchingProgram):
                 if m.inp == i:
                     newbp.append(m)
                 else:
-                    newbp.append(Layer(i, [self.zero, self.zero]))
+                    newbp.append(Layer(i, [self.zero, self.zero], None))
         self.bp = newbp
 
     def _load_bp(self, fname):
@@ -70,7 +70,9 @@ class SZBranchingProgram(AbstractBranchingProgram):
                     bp_json = json.loads(line)
                     for step in bp_json['steps']:
                         bp.append(
-                            Layer(int(step['position']), [matrix(step['0']), matrix(step['1'])]))
+                            Layer(int(step['position']),
+                                  [matrix(step['0']), matrix(step['1'])],
+                                  None))
 
                     assert len(bp_json['outputs'])    == 1 and \
                            len(bp_json['outputs'][0]) == 2
@@ -93,7 +95,7 @@ class SZBranchingProgram(AbstractBranchingProgram):
         def _new_gate(num):
             zero = matrix([1, 0])
             one = matrix([1, 1])
-            return [Layer(num, [zero, one])]
+            return [Layer(num, [zero, one], None)]
         def _two_input_gate(bp0, bp1, left, right):
             bp1 = augment(transpose(bp1), 1)
             mult_left(bp1, left)

@@ -1,38 +1,33 @@
 import pyobf.utils as utils
 
 class Layer(object):
-    def __init__(self, inp, matrices, zeroset=None, oneset=None):
+    def __init__(self, inp, matrices, sets):
         self.inp = inp
         self.matrices = matrices
-        # self.sets = sets
-        # self.zero = zero
-        # self.one = one
-        self.zeroset = zeroset
-        self.oneset = oneset
+        if sets is None:
+            self.sets = [None, None]
+        else:
+            self.sets = sets
     def size(self):
         size = 0
         for matrix in self.matrices:
             size += len(matrix)
         return size
-        # return len(self.zero) + len(self.one)
     def __repr__(self):
         return "\
         input: %d\nzero:\n%s\none:\n%s\nzeroset: %s\noneset: %s" % (
-            self.inp, self.matrices[0], self.matrices[1], self.zeroset, self.oneset)
-    def group(self, group, prime):
-        return Layer(self.inp, group(self.zero), group(self.one),
-                     zeroset=self.zeroset, oneset=self.oneset)
+            self.inp, self.matrices[0], self.matrices[1], self.sets[0], self.sets[1])
     def mult_scalar(self, alphas):
         return Layer(self.inp,
                      [alphas[0] * self.matrices[0],
                       alphas[1] * self.matrices[1]],
-                      zeroset=self.zeroset, oneset=self.oneset)
+                     self.sets)
     def mult_left(self, M):
          return Layer(self.inp, [M * self.matrices[0], M * self.matrices[1]],
-                      zeroset=self.zeroset, oneset=self.oneset)
+                      self.sets)
     def mult_right(self, M):
          return Layer(self.inp, [self.matrices[0] * M, self.matrices[1] * M],
-                      zeroset=self.zeroset, oneset=self.oneset)
+                      self.sets)
 
     
 class AbstractBranchingProgram(object):
@@ -63,12 +58,12 @@ class AbstractBranchingProgram(object):
             max = len(layers) - 1
             for i, layer in enumerate(layers):
                 if i < max:
-                    layer.zeroset = [n - 1, n]  if i else [n]
-                    layer.oneset = [n, n + 1]
+                    layer.sets[0] = [n - 1, n]  if i else [n]
+                    layer.sets[1] = [n, n + 1]
                     n += 2
                 else:
-                    layer.zeroset = [n - 1, n] if max else [n]
-                    layer.oneset = [n]
+                    layer.sets[0] = [n - 1, n] if max else [n]
+                    layer.sets[1] = [n]
                     n += 1
         return n
 

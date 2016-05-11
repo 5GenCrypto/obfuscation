@@ -9,6 +9,11 @@ OBFUSCATOR_FLAG_NO_RANDOMIZATION = 0x01
 OBFUSCATOR_FLAG_DUAL_INPUT_BP = 0x02
 OBFUSCATOR_FLAG_VERBOSE = 0x04
 
+ENCODE_LAYER_RANDOMIZATION_TYPE_NONE = 0x00
+ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST = 0x01
+ENCODE_LAYER_RANDOMIZATION_TYPE_MIDDLE = 0x02
+ENCODE_LAYER_RANDOMIZATION_TYPE_LAST = 0x04
+
 class SZObfuscator(Obfuscator):
     def __init__(self, mlm, verbose=False, nthreads=None, ncores=None):
         super(SZObfuscator, self).__init__(_obf, mlm, verbose=verbose,
@@ -41,18 +46,18 @@ class SZObfuscator(Obfuscator):
             zeros = bp[i].matrices[0].tolist()
             ones = bp[i].matrices[1].tolist()
             nrows, ncols = bp[i].matrices[0].shape
-            typ = 0
+            typ = ENCODE_LAYER_RANDOMIZATION_TYPE_NONE
             if i == 0:
-                typ = typ | 1
+                typ |= ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST
             if i == len(bp) - 1:
-                typ = typ | 4
+                typ |= ENCODE_LAYER_RANDOMIZATION_TYPE_LAST
             if 0 < i < len(bp) - 1:
-                typ = typ | 2
+                typ |= ENCODE_LAYER_RANDOMIZATION_TYPE_MIDDLE
             zero_pows = [0] * nzs
             one_pows = [0] * nzs
-            for j in bp[i].zeroset:
+            for j in bp[i].sets[0]:
                 zero_pows[j] = 1
-            for j in bp[i].oneset:
+            for j in bp[i].sets[1]:
                 one_pows[j] = 1
             _obf.encode_layer(self._state, i, nrows, ncols, bp[i].inp, typ,
                               zero_pows, one_pows, zeros, ones)
