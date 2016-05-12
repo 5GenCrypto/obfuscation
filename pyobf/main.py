@@ -66,15 +66,14 @@ def bp(args):
         cls = Circuit
 
     try:
-        if args.test_circuit:
-            test_file(args.test_circuit, cls, None, False, args)
+        if args.test:
+            test_file(args.test, cls, None, False, args)
         elif args.test_all:
             test_all(args, cls, None, False)
         elif args.load:
             formula = is_formula(args.load, args)
             ext = os.path.splitext(args.load)[1]
-            bp = cls(args.load, base=args.base, verbose=args.verbose,
-                     formula=formula)
+            bp = cls(args.load, verbose=args.verbose, formula=formula)
             if args.print:
                 print(bp)
                 size = 0
@@ -170,7 +169,7 @@ def main():
     parser_bp.add_argument('--load',
                            metavar='FILE', action='store', type=str,
                            help='load circuit or branching program from FILE')
-    parser_bp.add_argument('--test-circuit',
+    parser_bp.add_argument('--test',
                            metavar='FILE', action='store', type=str,
                            help='test branching program conversion for FILE')
     parser_bp.add_argument('--test-all',
