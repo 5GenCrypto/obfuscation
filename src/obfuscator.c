@@ -290,9 +290,6 @@ obf_encode_layer(obf_state_t *s, uint64_t n, int **pows, fmpz_mat_t *mats,
     mmap_enc_mat_t **enc_mats;
     char **names;
     const mmap_pp *pp = s->vtable->sk->pp(&s->mmap);
-    /* For dual input BPs */
-    /* fmpz_mat_t zero_one, one_zero; */
-    /* mmap_enc_mat_t *zero_one_enc = NULL, *one_zero_enc = NULL; */
     long nrows, ncols;
 
     /* TODO: check for mismatched matrices */
@@ -302,15 +299,6 @@ obf_encode_layer(obf_state_t *s, uint64_t n, int **pows, fmpz_mat_t *mats,
 
     (void) snprintf(tag, 10, "%ld", idx);
     (void) snprintf(di_tag, 10, "%ld_di", idx);
-
-    /* if (s->flags & OBFUSCATOR_FLAG_DUAL_INPUT_BP) { */
-    /*     fmpz_t field; */
-    /*     fmpz_init(field); */
-    /*     s->vtable->sk->plaintext_field(&s->mmap, field); */
-    /*     _fmpz_mat_init_rand(zero_one, nrows, ncols, s->rand, field); */
-    /*     _fmpz_mat_init_rand(one_zero, nrows, ncols, s->rand, field); */
-    /*     fmpz_clear(field); */
-    /* } */
 
     if (!(s->flags & OBFUSCATOR_FLAG_NO_RANDOMIZATION)) {
         double start, end;
@@ -331,31 +319,15 @@ obf_encode_layer(obf_state_t *s, uint64_t n, int **pows, fmpz_mat_t *mats,
         names[c] = calloc(10, sizeof(char));
         (void) snprintf(names[c], 10, "%lu", c);
     }
-    /* if (s->flags & OBFUSCATOR_FLAG_DUAL_INPUT_BP) { */
-    /*     zero_one_enc = malloc(sizeof(mmap_enc_mat_t)); */
-    /*     one_zero_enc = malloc(sizeof(mmap_enc_mat_t)); */
-    /*     mmap_enc_mat_init(s->vtable, pp, *zero_one_enc, nrows, ncols); */
-    /*     mmap_enc_mat_init(s->vtable, pp, *one_zero_enc, nrows, ncols); */
-    /* } */
 
     if (add_work_write_layer(s, n, inp, idx, nrows, ncols, names, tag, enc_mats)
         == OBFUSCATOR_ERR)
         return OBFUSCATOR_ERR;
-    /* if (s->flags & OBFUSCATOR_FLAG_DUAL_INPUT_BP) { */
-    /*     if (add_work_write_layer(s, inp, idx, nrows, ncols, "zero_one", */
-    /*                              "one_zero", di_tag, zero_one_enc, one_zero_enc) */
-    /*         == OBFUSCATOR_ERR) */
-    /*         return OBFUSCATOR_ERR; */
-    /* } */
 
     for (uint64_t c = 0; c < n; ++c) {
         for (long i = 0; i < nrows; ++i) {
             for (long j = 0; j < ncols; ++j) {
                 add_work(s, mats, enc_mats, pows, c, i, j, tag);
-                /* if (s->flags & OBFUSCATOR_FLAG_DUAL_INPUT_BP) { */
-                /*     add_work(s, zero_one, one_zero, zero_one_enc, one_zero_enc, */
-                /*              zero_pows, one_pows, i, j, c, di_tag); */
-                /* } */
             }
         }
     }
