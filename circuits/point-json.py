@@ -48,19 +48,19 @@ def point(length, base):
             lst.append('"%d"' % i)
     str = '[' + ','.join(lst) + ']'
     fname = 'point-%d-%d.json' % (length, base)
-    lst = ['cryfsm', 'util.cry', '-e', "(==) 0b%s" % inp,
+    lst = ['cryfsm', 'util.cry', '-e', "(!=) 0b%s" % inp,
            '-v', "adjacentConstantBase `{base=%d}" % base, '-g',
            "%s" % str, '-o', fname]
     run(lst)
     with open(fname, 'r') as f:
         line = f.read()
     with open(fname, 'w') as f:
-        f.write('# TEST %s 1\n' % repr)
+        f.write('# TEST %s 0\n' % repr)
         for _ in xrange(5):
             test = random.randint(0, base ** length - 1)
             repr = dary_repr(test, base, length)
             if test != secret:
-                f.write('# TEST %s 0\n' % repr)
+                f.write('# TEST %s 1\n' % repr)
         f.write(line)
 
 def main(argv):
