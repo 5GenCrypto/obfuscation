@@ -58,8 +58,8 @@ zobf_init(const char *dir, uint64_t secparam, uint64_t kappa, uint64_t nzs,
         clt_pp_clear(&pp);
     }
 
-    mpz_init_set(s->nev, s->mmap.g);
-    mpz_init_set(s->nchk, s->mmap.g);
+    mpz_init_set(s->nev, s->mmap.gs[0]);
+    mpz_init_set(s->nchk, s->mmap.gs[1]);
 
     return s;
 }
