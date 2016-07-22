@@ -40,6 +40,11 @@ def mult_left(bps, m):
 def mult_right(bps, m):
     bps[-1] = bps[-1].mult_right(m)
 
+def swap_columns(m, a, b):
+    col = m[:,a].copy()
+    m[:,a] = m[:,b].copy()
+    m[:,b] = col
+
 class SZBranchingProgram(AbstractBranchingProgram):
     def __init__(self, fname, verbose=False, obliviate=False, formula=True):
         super(SZBranchingProgram, self).__init__(verbose=verbose)
@@ -47,17 +52,6 @@ class SZBranchingProgram(AbstractBranchingProgram):
             self.bp = self._load_formula(fname)
         else:
             self.bp = self._load_bp(fname)
-
-    # def obliviate(self):
-    #     assert self.ninputs and self.depth
-    #     newbp = []
-    #     for m in self.bp:
-    #         for i in xrange(self.ninputs):
-    #             if m.inp == i:
-    #                 newbp.append(m)
-    #             else:
-    #                 newbp.append(Layer(i, [self.zero, self.zero], None))
-    #     self.bp = newbp
 
     def _load_bp(self, fname):
         bp = []
@@ -78,12 +72,12 @@ class SZBranchingProgram(AbstractBranchingProgram):
 
                     assert len(bp_json['outputs'])    == 1 and \
                            len(bp_json['outputs'][0]) == 2
-                    # first_out = bp_json['outputs'][0][0].lower()
-                    # if first_out not in ['false', '0']:
-                    #     if first_out not in ['true', '1']:
-                    #         print('warning: interpreting %s as a truthy output' % first_out)
-                    #     bp[-1].matrices[0].swap_columns(0,1)
-                    #     bp[-1].matrices[1].swap_columns(0,1)
+                    first_out = bp_json['outputs'][0][0].lower()
+                    if first_out not in ['false', '0']:
+                        if first_out not in ['true', '1']:
+                            print('warning: interpreting %s as a truthy output' % first_out)
+                        for i in range(len(keys)):
+                            swap_columns(bp[-1].matrices[i], 0, 1)
                     return bp
         except IOError as e:
             print(e)
