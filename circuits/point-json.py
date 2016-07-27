@@ -4,7 +4,7 @@ from __future__ import print_function
 import math, os, random, subprocess, sys
 
 def usage():
-    print('Usage: point-json.py <length> <base>')
+    print('Usage: point-json.py <base> <length>')
     sys.exit(1)
 
 def digit_to_char(digit):
@@ -37,7 +37,7 @@ def run(lst):
     with open(os.devnull, 'w') as fnull:
         return subprocess.call(lst, stdout=fnull, stderr=fnull)
 
-def point(length, base):
+def point(base, length):
     secret = random.randint(0, base ** length - 1)
     repr = dary_repr(secret, base, length)
     base_2_len = len(str_base(base-1, 2))
@@ -47,11 +47,15 @@ def point(length, base):
         for b in xrange(base_2_len):
             lst.append('"%d"' % i)
     str = '[' + ','.join(lst) + ']'
-    fname = 'point-%d-%d.json' % (length, base)
+    tmp = 'point-%d-%d-tmp.json' % (base, length)
+    fname = 'point-%d-%d.json' % (base, length)
     lst = ['cryfsm', 'util.cry', '-e', "(!=) 0b%s" % inp,
            '-v', "adjacentConstantBase `{base=%d}" % base, '-g',
-           "%s" % str, '-o', fname]
+           "%s" % str, '-o', tmp]
     run(lst)
+    lst = ['fsmevade', '-i', tmp, '-o', fname, 'True']
+    run(lst)
+    os.remove(tmp)
     with open(fname, 'r') as f:
         line = f.read()
     with open(fname, 'w') as f:
@@ -67,12 +71,12 @@ def main(argv):
     if len(argv) != 3:
         usage()
     try:
-        length = int(argv[1])
-        base = int(argv[2])
+        base = int(argv[1])
+        length = int(argv[2])
     except ValueError:
         usage()
 
-    point(length, base)
+    point(base, length)
 
 if __name__ == '__main__':
     try:
