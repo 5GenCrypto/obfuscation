@@ -12,12 +12,9 @@ errorstr = utils.clr_error('Error:')
 
 def is_formula(fname, args):
     ext = os.path.splitext(fname)[1]
-    if ext in ('.circ', '.acirc'):
+    if ext in ('.circ'):
         return True
     elif ext == '.json':
-        if not args.sahai_zhandry:
-            print("%s loading BPs only works with --sahai-zhandry" % errorstr)
-            sys.exit(1)
         return False
     else:
         print("%s unknown extension '%s'" % (errorstr, ext))
@@ -27,43 +24,17 @@ def test_all(args, bpclass, obfclass, obfuscate):
     if not os.path.isdir(args.test_all):
         print("%s '%s' is not a valid directory" % (errorstr, args.test_all))
         sys.exit(1)
-    ext = '.acirc' if args.zimmerman else '.circ'
+    ext = '.circ'
     for circuit in os.listdir(args.test_all):
         path = os.path.join(args.test_all, circuit)
         if os.path.isfile(path) and path.endswith(ext):
             test_file(path, bpclass, obfclass, obfuscate, args)
-        if os.path.isfile(path) and path.endswith('.json') \
-           and args.sahai_zhandry:
+        if os.path.isfile(path) and path.endswith('.json'):
             test_file(path, bpclass, obfclass, obfuscate, args, formula=False)
 
-def check_args(args):
-    if not args.sahai_zhandry and not args.zimmerman:
-        # guess based on file extension
-        def check(fname):
-            if fname.endswith('.circ') or fname.endswith('.json'):
-                args.sahai_zhandry = True
-            if fname.endswith('.acirc'):
-                args.zimmerman = True
-        if args.load:
-            check(args.load)
-        if args.test:
-            check(args.test)
-    num_set = int(args.sahai_zhandry) + int(args.zimmerman)
-    if num_set > 1:
-        print('%s Only one of --sahai-zhandry, --zimmerman can be set' % errorstr)
-        sys.exit(1)
-    if num_set == 0:
-        args.sahai_zhandry = True
-
 def bp(args):
-    check_args(args)
-
-    if args.sahai_zhandry:
-        from pyobf.sz_bp import SZBranchingProgram
-        cls = SZBranchingProgram
-    if args.zimmerman:
-        from pyobf.z_obfuscator import Circuit
-        cls = Circuit
+    from pyobf.sz_bp import SZBranchingProgram
+    cls = SZBranchingProgram
 
     try:
         if args.test:
@@ -93,20 +64,14 @@ def bp(args):
         sys.exit(1)
 
 def obf(args):
-    check_args(args)
     if args.mmap not in ('CLT', 'GGH'):
         print('--mmap must be either CLT or GGH')
         sys.exit(1)
 
-    if args.sahai_zhandry:
-        from pyobf.sz_bp import SZBranchingProgram
-        from pyobf.sz_obfuscator import SZObfuscator
-        bpclass = SZBranchingProgram
-        obfclass = SZObfuscator
-    if args.zimmerman:
-        from pyobf.z_obfuscator import ZObfuscator
-        bpclass = None
-        obfclass = ZObfuscator
+    from pyobf.sz_bp import SZBranchingProgram
+    from pyobf.sz_obfuscator import SZObfuscator
+    bpclass = SZBranchingProgram
+    obfclass = SZObfuscator
 
     try:
         if args.test:
@@ -184,12 +149,6 @@ def main():
     parser_bp.add_argument('-v', '--verbose',
                            action='store_true',
                            help='be verbose')
-    parser_bp.add_argument('-s', '--sahai-zhandry',
-                           action='store_true',
-                           help='use the Sahai/Zhandry construction (default)')
-    parser_bp.add_argument('-z', '--zimmerman',
-                           action='store_true',
-                           help='use the Zimmerman construction')
     parser_bp.set_defaults(func=bp)
 
     parser_obf = subparsers.add_parser(
@@ -241,12 +200,6 @@ def main():
     parser_obf.add_argument('-v', '--verbose',
                             action='store_true', 
                             help='be verbose')
-    parser_obf.add_argument('-s', '--sahai-zhandry',
-                            action='store_true',
-                            help='use the Sahai/Zhandry construction')
-    parser_obf.add_argument('-z', '--zimmerman',
-                            action='store_true',
-                            help='use the Zimmerman construction')
     parser_obf.set_defaults(func=obf)
 
     args = parser.parse_args()
