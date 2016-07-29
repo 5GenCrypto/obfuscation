@@ -70,14 +70,14 @@ class SZBranchingProgram(AbstractBranchingProgram):
                                   [matrix(step[key]) for key in keys],
                                   None))
 
-                    assert len(bp_json['outputs'])    == 1 and \
-                           len(bp_json['outputs'][0]) == 2
-                    first_out = bp_json['outputs'][0][0].lower()
-                    if first_out not in ['false', '0']:
-                        if first_out not in ['true', '1']:
-                            print('warning: interpreting %s as a truthy output' % first_out)
-                        for i in range(len(keys)):
-                            swap_columns(bp[-1].matrices[i], 0, 1)
+                    # assert len(bp_json['outputs'])    == 1 and \
+                    #        len(bp_json['outputs'][0]) == 2
+                    # first_out = bp_json['outputs'][0][0].lower()
+                    # if first_out not in ['false', '0']:
+                    #     if first_out not in ['true', '1']:
+                    #         print('warning: interpreting %s as a truthy output' % first_out)
+                    #     for i in range(len(keys)):
+                    #         swap_columns(bp[-1].matrices[i], 0, 1)
                     return bp
         except IOError as e:
             print(e)

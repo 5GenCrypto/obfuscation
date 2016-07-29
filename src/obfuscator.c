@@ -437,7 +437,10 @@ obf_evaluate(enum mmap_e type, char *dir, uint64_t len, uint64_t *input,
 done:
     if (!err) {
         start = current_time();
-        iszero = vtable->enc->is_zero(result[0]->m[0][1], &pp);
+        if (result[0]->nrows == 1 && result[0]->ncols == 1)
+            iszero = vtable->enc->is_zero(result[0]->m[0][0], &pp);
+        else
+            iszero = vtable->enc->is_zero(result[0]->m[0][1], &pp);
         end = current_time();
         if (verbose)
             (void) fprintf(stderr, "  Zero test: %f\n", end - start);
