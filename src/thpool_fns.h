@@ -41,7 +41,4 @@ struct write_element_s {
     char *name;
 };
 
-void *
-thpool_write_element(void *vargs);
-
 #endif

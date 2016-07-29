@@ -93,18 +93,3 @@ done:
 
     return NULL;
 }
-
-void *
-thpool_write_element(void *vargs)
-{
-    FILE *fp;
-    char fname[1024];
-    int fnamelen = 1024;
-    struct write_element_s *args = (struct write_element_s *) vargs;
-
-    (void) snprintf(fname, fnamelen, "%s/%s", args->dir, args->name);
-    fp = fopen(fname, "w+b");
-    clt_vtable.enc->fwrite(args->elem, fp);
-    fclose(fp);
-    return NULL;
-}
