@@ -27,7 +27,7 @@ def parse(fname, bp, f_inp_gate, f_gate, keyed=False):
             if line == '' or line.startswith('#'):
                 continue
             elif line.startswith(':'):
-                info.update(_parse_param(line))
+                # info.update(_parse_param(line))
                 continue
             num, rest = line.split(None, 1)
             try:

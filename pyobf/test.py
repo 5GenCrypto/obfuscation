@@ -24,10 +24,7 @@ def test_obfuscation(path, cls, testcases, args, formula=True,
 def test_bp(path, cls, testcases, args):
     success = True
     try:
-        if args.zimmerman:
-            c = cls(path, verbose=args.verbose)
-        else:
-            c = cls(path, verbose=args.verbose, obliviate=args.obliviate)
+        c = cls(path, verbose=args.verbose, obliviate=args.obliviate)
     except ParseException as e:
         print('%s %s' % (utils.clr_warn('Parse Error:'), e))
         return False

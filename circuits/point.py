@@ -12,69 +12,16 @@ def random_bitstring(bitlength):
     bits = bin(r)[2:]
     return '0' * (bitlength - len(bits)) + bits
 
-def random_int(bitlength):
-    return random.randint(0, 2 ** bitlength - 1)
-
-def arithmetic_point(bitlength):
-    with open('point-%d.acirc' % bitlength, 'w') as f:
-        secret = random_int(bitlength)
-        bits = bin(secret)[2:]
-        secret_bits = '0' * (bitlength - len(bits)) + bits
-        f.write('# TEST %s 0\n' % secret_bits)
-        for _ in xrange(5):
-            test = random_bitstring(bitlength)
-            if test != secret_bits:
-                f.write('# TEST %s 1\n' % test)
-        num = 0
-        dbl = 0
-        for i in xrange(bitlength):
-            f.write('%d input x%d %d\n' % (num, i, 2**dbl))
-            dbl += 1
-            num += 1
-        f.write('%d input y%d %d\n' % (num, 0, secret))
-
-        length = bitlength
-        oldstart = 0
-        start = oldstart + length + 1
-        leftover = None
-        while length > 1:
-            for i, j in zip(xrange(start, start + length / 2),
-                            xrange(oldstart, start, 2)):
-                if j + 1 == start:
-                    if leftover:
-                        f.write('%d gate ADD %d %d\n' % (i, j, leftover))
-                        leftover = None
-                else:
-                    f.write('%d gate ADD %d %d\n' % (i, j, j + 1))
-            if length % 2 == 1 and not leftover:
-                leftover = start - 1
-            oldstart = start
-            start = start + length / 2
-            length = (length + length % 2) / 2
-        if leftover:
-            f.write('%d gate ADD %d %d\n' % (start + length / 2,
-                                             start - 1,
-                                             leftover))
-            start = start + 1
-        f.write('%d output SUB %d %d\n' % (start, num, i))
-
-        # f.write('%d gate ADD %d %d\n' % (num, 0, num - 1))
-        # num += 1
-        # for i in xrange(1, bitlength - 1):
-        #     f.write('%d gate ADD %d %d\n' % (num, i, num - 1))
-        #     num += 1
-        # f.write('%d output ADD %d %d\n' % (num, bitlength - 1, num - 1))
-
 def binary_point(bitlength):
     with open('point-%d.circ' % bitlength, 'w') as f:
-        f.write(': nins %d\n' % bitlength)
-        f.write(': depth %d\n' % (int(log(bitlength, 2) + 2)))
+        # f.write(': nins %d\n' % bitlength)
+        # f.write(': depth %d\n' % (int(log(bitlength, 2) + 2)))
         secret = random_bitstring(bitlength)
-        f.write('# TEST %s 1\n' % secret)
+        f.write('# TEST %s 0\n' % secret)
         for _ in xrange(5):
             test = random_bitstring(bitlength)
             if test != secret:
-                f.write('# TEST %s 0\n' % test)
+                f.write('# TEST %s 1\n' % test)
         for i in xrange(bitlength):
             f.write('%d input\n' % i)
         for i in xrange(bitlength):
@@ -104,7 +51,7 @@ def binary_point(bitlength):
                                             start - 1,
                                             leftover))
             start = start + 1
-        f.write('%d output NOT %d\n' % (start, start - 1))
+        f.write('%d output ID %d\n' % (start, start - 1))
 
 def main(argv):
     if len(argv) != 2:
@@ -115,7 +62,6 @@ def main(argv):
         usage()
 
     binary_point(bitlength)
-    arithmetic_point(bitlength)
 
 if __name__ == '__main__':
     try:
