@@ -2,5 +2,7 @@
 
 import pyobf
 from pyobf.main import main
+import sys
 
-main()
+success = main()
+sys.exit(not success)

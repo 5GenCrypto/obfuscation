@@ -274,7 +274,7 @@ int
 obf_encode_layer(obf_state_t *s, uint64_t n, int **pows, fmpz_mat_t *mats,
                  long idx, long inp, encode_layer_randomization_flag_t rflag)
 {
-    char tag[10], di_tag[10];
+    char tag[10];
     mmap_enc_mat_t **enc_mats;
     char **names;
     const mmap_pp *pp = s->vtable->sk->pp(&s->mmap);
@@ -286,7 +286,6 @@ obf_encode_layer(obf_state_t *s, uint64_t n, int **pows, fmpz_mat_t *mats,
     ncols = mats[0]->c;
 
     (void) snprintf(tag, 10, "%ld", idx);
-    (void) snprintf(di_tag, 10, "%ld_di", idx);
 
     if (!(s->flags & OBFUSCATOR_FLAG_NO_RANDOMIZATION)) {
         double start, end;

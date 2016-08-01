@@ -21,6 +21,7 @@ def is_formula(fname, args):
         sys.exit(1)
 
 def test_all(args, bpclass, obfclass, obfuscate):
+    success = True
     if not os.path.isdir(args.test_all):
         print("%s '%s' is not a valid directory" % (errorstr, args.test_all))
         sys.exit(1)
@@ -28,19 +29,20 @@ def test_all(args, bpclass, obfclass, obfuscate):
     for circuit in os.listdir(args.test_all):
         path = os.path.join(args.test_all, circuit)
         if os.path.isfile(path) and path.endswith(ext):
-            test_file(path, bpclass, obfclass, obfuscate, args)
+            success &= test_file(path, bpclass, obfclass, obfuscate, args)
         if os.path.isfile(path) and path.endswith('.json'):
-            test_file(path, bpclass, obfclass, obfuscate, args, formula=False)
+            success &= test_file(path, bpclass, obfclass, obfuscate, args, formula=False)
+    return success
 
 def bp(args):
+    success = True
     from pyobf.sz_bp import SZBranchingProgram
     cls = SZBranchingProgram
-
     try:
         if args.test:
-            test_file(args.test, cls, None, False, args)
+            success = test_file(args.test, cls, None, False, args)
         elif args.test_all:
-            test_all(args, cls, None, False)
+            success = test_all(args, cls, None, False)
         elif args.load:
             formula = is_formula(args.load, args)
             ext = os.path.splitext(args.load)[1]
@@ -58,28 +60,27 @@ def bp(args):
                 print('Output = %d' % r)
         elif args.load_bp:
             cls = SZBranchingProgram
-            
     except ParseException as e:
         print('%s %s' % (errorstr, e))
         sys.exit(1)
+    return success
 
 def obf(args):
     if args.mmap not in ('CLT', 'GGH'):
         print('--mmap must be either CLT or GGH')
         sys.exit(1)
-
+    success = True
     from pyobf.sz_bp import SZBranchingProgram
     from pyobf.sz_obfuscator import SZObfuscator
     bpclass = SZBranchingProgram
     obfclass = SZObfuscator
-
     try:
         if args.test:
             formula = is_formula(args.test, args)
-            test_file(args.test, bpclass, obfclass, True, args, formula=formula,
-                      dual_input=args.dual_input)
+            success = test_file(args.test, bpclass, obfclass, True, args,
+                                formula=formula)
         elif args.test_all:
-            test_all(args, bpclass, obfclass, True)
+            success = test_all(args, bpclass, obfclass, True)
         else:
             directory = None
             if args.load_obf:
@@ -93,7 +94,7 @@ def obf(args):
                             else '%s.obf.%d' % (args.load, args.secparam)
                 obf.obfuscate(args.load, args.secparam, directory,
                               obliviate=args.obliviate, kappa=args.kappa,
-                              formula=formula, dual_input=args.dual_input,
+                              formula=formula,
                               randomization=(not args.no_randomization))
                 end = time.time()
                 print('Obfuscation took: %f seconds' % (end - start))
@@ -111,6 +112,7 @@ def obf(args):
     except ParseException as e:
         print('%s %s' % (errorstr, e))
         sys.exit(1)
+    return success
 
 def main():
     parser = argparse.ArgumentParser(
@@ -203,4 +205,4 @@ def main():
     parser_obf.set_defaults(func=obf)
 
     args = parser.parse_args()
-    args.func(args)
+    return args.func(args)

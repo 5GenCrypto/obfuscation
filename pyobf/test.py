@@ -58,4 +58,6 @@ def test_file(path, cclass, obfclass, obfuscate, args, formula=True,
         success = test_bp(path, cclass, testcases, args)
     if success:
         print(utils.clr_ok('Pass'))
+    else:
+        print(utils.clr_error('Fail'))
     return success

@@ -68,7 +68,6 @@ class SZObfuscator(Obfuscator):
         bp, nzs = self._construct_bp(fname, obliviate, formula=formula)
         if not kappa:
             kappa = nzs
-        self.logger('  kappa = %d' % kappa)
         flags = OBFUSCATOR_FLAG_NONE
         if self._verbose:
             flags |= OBFUSCATOR_FLAG_VERBOSE
