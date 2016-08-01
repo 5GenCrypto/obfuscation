@@ -69,7 +69,6 @@ class SZBranchingProgram(AbstractBranchingProgram):
                             Layer(int(step['position']),
                                   [matrix(step[key]) for key in keys],
                                   None))
-
                     # assert len(bp_json['outputs'])    == 1 and \
                     #        len(bp_json['outputs'][0]) == 2
                     # first_out = bp_json['outputs'][0][0].lower()

@@ -6,7 +6,6 @@ import os, time
 
 OBFUSCATOR_FLAG_NONE = 0x00
 OBFUSCATOR_FLAG_NO_RANDOMIZATION = 0x01
-OBFUSCATOR_FLAG_DUAL_INPUT_BP = 0x02
 OBFUSCATOR_FLAG_VERBOSE = 0x04
 
 ENCODE_LAYER_RANDOMIZATION_TYPE_NONE = 0x00
@@ -62,7 +61,7 @@ class SZObfuscator(Obfuscator):
                               ncols, bp[i].inp, rflags)
 
     def obfuscate(self, fname, secparam, directory, obliviate=False, kappa=None,
-                  formula=True, dual_input=False, randomization=True):
+                  formula=True, randomization=True):
         start = time.time()
         self._remove_old(directory)
         bp, nzs = self._construct_bp(fname, obliviate, formula=formula)
@@ -71,8 +70,6 @@ class SZObfuscator(Obfuscator):
         flags = OBFUSCATOR_FLAG_NONE
         if self._verbose:
             flags |= OBFUSCATOR_FLAG_VERBOSE
-        if dual_input:
-            flags |= OBFUSCATOR_FLAG_DUAL_INPUT_BP
         if not randomization:
             flags |= OBFUSCATOR_FLAG_NO_RANDOMIZATION
         self._init_mmap(secparam, kappa, nzs, directory, flags)
