@@ -128,18 +128,6 @@ _fmpz_mat_init_square_rand(obf_state_t *s, fmpz_mat_t mat, fmpz_mat_t inverse,
 }
 
 static void
-_fmpz_mat_init_rand(fmpz_mat_t mat, long m, long n, aes_randstate_t rand,
-                    fmpz_t field)
-{
-    fmpz_mat_init(mat, m, n);
-    for (int i = 0; i < m; i++) {
-        for(int j = 0; j < n; j++) {
-            fmpz_randm_aes(fmpz_mat_entry(mat, i, j), rand, field);
-        }
-    }
-}
-
-static void
 _fmpz_mat_init_diagonal_rand(fmpz_mat_t mat, long n, aes_randstate_t rand,
                              fmpz_t field)
 {
