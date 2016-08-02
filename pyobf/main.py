@@ -66,8 +66,8 @@ def bp(args):
     return success
 
 def obf(args):
-    if args.mmap not in ('CLT', 'GGH'):
-        print('--mmap must be either CLT or GGH')
+    if args.mmap not in ('CLT', 'GGH', 'DUMMY'):
+        print('--mmap must be either CLT, GGH, or DUMMY')
         sys.exit(1)
     success = True
     from pyobf.sz_bp import SZBranchingProgram
@@ -176,7 +176,7 @@ def main():
                             help='test obfuscation for all circuits in DIR (default: %(const)s)')
     parser_obf.add_argument('--mmap', metavar='M', type=str, default='CLT',
                             action='store',
-                            help='use multilinear map M [either CLT or GGH] (default: %(default)s)')
+                            help='use multilinear map M [CLT, GGH, DUMMY] (default: %(default)s)')
     parser_obf.add_argument('--save',
                             metavar='DIR', action='store', type=str,
                             help='save obfuscation to DIR')

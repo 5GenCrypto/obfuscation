@@ -35,8 +35,7 @@ class SZObfuscator(Obfuscator):
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
-        mmap = 0 if self._mmap == 'CLT' else 1
-        self._state = _obf.init(directory, mmap, secparam, kappa, nzs,
+        self._state = _obf.init(directory, self._mmap, secparam, kappa, nzs,
                                 self._nthreads, self._ncores, flags)
         end = time.time()
         self.logger('Took: %f' % (end - start))

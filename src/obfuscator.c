@@ -4,6 +4,7 @@
 
 #include <mmap/mmap_clt.h>
 #include <mmap/mmap_gghlite.h>
+#include <mmap/mmap_dummy.h>
 #include <omp.h>
 
 typedef struct obf_state_s {
@@ -53,6 +54,9 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
     s->inverse = malloc(sizeof(fmpz_mat_t));
 
     switch (s->type) {
+    case MMAP_DUMMY:
+        s->vtable = &dummy_vtable;
+        break;
     case MMAP_CLT:
         s->vtable = &clt_vtable;
         break;
@@ -338,6 +342,9 @@ obf_evaluate(enum mmap_e type, char *dir, uint64_t len, uint64_t *input,
     double start, end;
 
     switch (type) {
+    case MMAP_DUMMY:
+        vtable = &dummy_vtable;
+        break;
     case MMAP_CLT:
         vtable = &clt_vtable;
         break;
@@ -419,7 +426,7 @@ obf_evaluate(enum mmap_e type, char *dir, uint64_t len, uint64_t *input,
 
         end = current_time();
 
-        if (verbose)
+        if (verbose && layer != 0)
             (void) fprintf(stderr, "  Multiplying matrices: %f\n", end - start);
     }
     err = 0;

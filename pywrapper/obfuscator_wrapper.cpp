@@ -34,6 +34,9 @@ obf_init_wrapper(PyObject *self, PyObject *args)
     case 1:
         type = MMAP_GGHLITE;
         break;
+    case 2:
+        type = MMAP_DUMMY;
+        break;
     default:
         PyErr_SetString(PyExc_RuntimeError, "invalid mmap type");
         return NULL;
@@ -129,6 +132,9 @@ obf_evaluate_wrapper(PyObject *self, PyObject *args)
         break;
     case 1:
         type = MMAP_GGHLITE;
+        break;
+    case 2:
+        type = MMAP_DUMMY;
         break;
     default:
         PyErr_SetString(PyExc_RuntimeError, "invalid mmap type");

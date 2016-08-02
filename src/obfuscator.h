@@ -18,7 +18,7 @@ extern "C" {
 
 typedef struct obf_state_s obf_state_t;
 
-enum mmap_e { MMAP_CLT, MMAP_GGHLITE };
+enum mmap_e { MMAP_CLT, MMAP_GGHLITE, MMAP_DUMMY };
 
 typedef enum {
     ENCODE_LAYER_RANDOMIZATION_TYPE_NONE = 0x00,
