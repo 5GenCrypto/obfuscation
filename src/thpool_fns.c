@@ -12,12 +12,9 @@ void *
 thpool_encode_elem(void *vargs)
 {
     struct encode_elem_s *args = (struct encode_elem_s *) vargs;
-    aes_randstate_t rand;
 
-    aes_randinit(rand);
     args->vtable->enc->encode(args->enc, args->sk, args->n, args->plaintext,
-                              args->group, rand);
-    aes_randclear(rand);
+                              args->group, *args->rand);
 
     for (int i = 0; i < args->n; ++i)
         fmpz_clear(args->plaintext[i]);

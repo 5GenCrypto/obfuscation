@@ -67,6 +67,9 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
         return NULL;
     }
 
+    /* unsigned char seed[16] = { */
+    /*     0xde, 0x90, 0xa8, 0xfc, 0xb2, 0xa4, 0xa4, 0x4d, 0x43, 0x29, 0x3d, 0xe6, 0xd0, 0x42, 0x03, 0x7a}; */
+    /* (void) aes_randinit_seedn(s->rand, (char *) seed, 16, NULL, 0); */
     (void) aes_randinit(s->rand);
     if (nthreads == 0)
         nthreads = ncores;
@@ -273,6 +276,7 @@ add_work(obf_state_t *s, fmpz_mat_t *mats, mmap_enc_mat_t **enc_mats,
     args->vtable = s->vtable;
     args->sk = &s->mmap;
     args->enc = enc;
+    args->rand = &s->rand;
 
     thpool_add_work(s->thpool, thpool_encode_elem, (void *) args, tag);
 }

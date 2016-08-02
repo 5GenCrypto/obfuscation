@@ -13,6 +13,7 @@ struct encode_elem_s {
     fmpz_t *plaintext;
     int *group;
     mmap_enc *enc;
+    aes_randstate_t *rand;
 };
 
 void *
