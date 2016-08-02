@@ -106,8 +106,9 @@ static void
 _fmpz_mat_init_square_rand(obf_state_t *s, fmpz_mat_t mat, fmpz_mat_t inverse,
                            long n, aes_randstate_t rand, fmpz_t field)
 {
-    while (true) {
-        int nzeros = 0;
+    int nzeros;
+    do {
+        nzeros = 0;
         for (int i = 0; i < n; i++) {
             for(int j = 0; j < n; j++) {
                 fmpz_randm_aes(fmpz_mat_entry(mat, i, j), rand, field);
@@ -122,9 +123,7 @@ _fmpz_mat_init_square_rand(obf_state_t *s, fmpz_mat_t mat, fmpz_mat_t inverse,
                     nzeros++;
             }
         }
-        if (nzeros != n * n)
-            break;
-    }
+    } while (nzeros == n * n);
 }
 
 static void
@@ -134,7 +133,9 @@ _fmpz_mat_init_diagonal_rand(fmpz_mat_t mat, long n, aes_randstate_t rand,
     fmpz_mat_init(mat, n, n);
     fmpz_mat_one(mat);
     for (int i = 0; i < n; i++) {
-        fmpz_randm_aes(fmpz_mat_entry(mat, i, i), rand, field);
+        do {
+            fmpz_randm_aes(fmpz_mat_entry(mat, i, i), rand, field);
+        } while (fmpz_cmp_ui(fmpz_mat_entry(mat, i, i), 0) == 0);
     }
 }
 
@@ -213,7 +214,9 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
         fmpz_t alpha;
         fmpz_init(alpha);
         for (uint64_t i = 0; i < n; ++i) {
-            fmpz_randm_aes(alpha, s->rand, field);
+            do {
+                fmpz_randm_aes(alpha, s->rand, field);
+            } while (fmpz_cmp_ui(alpha, 0) == 0);
             fmpz_mat_scalar_mul_fmpz(mats[i], mats[i], alpha);
         }
         fmpz_clear(alpha);
