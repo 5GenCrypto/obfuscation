@@ -27,17 +27,6 @@ obfuscator = Extension(
     ]
 )
 
-zobfuscator = Extension(
-    'pyobf._zobfuscator',
-    library_dirs=library_dirs,
-    libraries=libraries,
-    extra_compile_args=compile_args,
-    sources=[
-        'pywrapper/zobfuscator_wrapper.cpp',
-        'pywrapper/pyutils.cpp',
-    ]
-)
-
 setup(name='obfuscator',
       author='Alex J. Malozemoff',
       author_email='amaloz@cs.umd.edu',
@@ -46,7 +35,7 @@ setup(name='obfuscator',
       license='GPLv2',
       url='https://github.com/amaloz/obfuscation',
       packages=['pyobf'],
-      ext_modules=[obfuscator, zobfuscator],
+      ext_modules=[obfuscator],
       scripts=['obfuscator'],
       test_suite='t',
       classifiers=[
