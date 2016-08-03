@@ -113,7 +113,7 @@ static void
 _fmpz_mat_init_square_rand(obf_state_t *s, fmpz_mat_t mat, fmpz_mat_t inverse,
                            long n, aes_randstate_t rand, fmpz_t field)
 {
-    int nzeros;
+    int singular;
     do {
         nzeros = 0;
         for (int i = 0; i < n; i++) {
@@ -123,14 +123,8 @@ _fmpz_mat_init_square_rand(obf_state_t *s, fmpz_mat_t mat, fmpz_mat_t inverse,
         }
         if (s->flags & OBFUSCATOR_FLAG_VERBOSE)
             fprintf(stderr, "    Finding inverse...\n");
-        fmpz_modp_matrix_inverse(inverse, mat, n, field);
-        for (int i = 0; i < n; i++) {
-            for(int j = 0; j < n; j++) {
-                if (fmpz_is_zero(fmpz_mat_entry(inverse, i, j)))
-                    nzeros++;
-            }
-        }
-    } while (nzeros == n * n);
+        singular = fmpz_modp_matrix_inverse(inverse, mat, n, field);
+    } while (singular);
 }
 
 static void
