@@ -115,7 +115,6 @@ _fmpz_mat_init_square_rand(obf_state_t *s, fmpz_mat_t mat, fmpz_mat_t inverse,
 {
     int singular;
     do {
-        nzeros = 0;
         for (int i = 0; i < n; i++) {
             for(int j = 0; j < n; j++) {
                 fmpz_randm_aes(fmpz_mat_entry(mat, i, j), rand, field);
