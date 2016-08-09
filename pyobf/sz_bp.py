@@ -176,7 +176,8 @@ class SZBranchingProgram(AbstractBranchingProgram):
         except ValueError:
             print("Error: invalid base for input '%s'" % x)
             sys.exit(1)
-        comp = self.bp[0].matrices[inp[0]]
-        for i, m in zip(inp[1:], self.bp[1:]):
-            comp = np.dot(comp, m.matrices[i])
+        m = self.bp[0]
+        comp = m.matrices[inp[m.inp]]
+        for m in self.bp[1:]:
+            comp = np.dot(comp, m.matrices[inp[m.inp]])
         return comp[0, comp.shape[1] - 1] != 0
