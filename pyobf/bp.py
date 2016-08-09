@@ -76,7 +76,5 @@ class AbstractBranchingProgram(object):
                 #         n += 1
         return n
 
-    def obliviate(self):
-        raise NotImplementedError
     def evaluate(self, x):
         raise NotImplementedError

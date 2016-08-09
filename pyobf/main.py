@@ -54,8 +54,6 @@ def bp(args):
                 for i in bp:
                     size += i.size()
                 print('Number of encodings: %d' % size)
-            if args.obliviate:
-                bp.obliviate()
             if args.eval:
                 r = bp.evaluate(args.eval)
                 print('Output = %d' % r)
@@ -94,8 +92,7 @@ def obf(args):
                 directory = args.save if args.save \
                             else '%s.obf.%d' % (args.load, args.secparam)
                 obf.obfuscate(args.load, args.secparam, directory,
-                              obliviate=args.obliviate, kappa=args.kappa,
-                              formula=formula,
+                              kappa=args.kappa, formula=formula,
                               randomization=(not args.no_randomization))
                 end = time.time()
                 print('Obfuscation took: %f seconds' % (end - start))
@@ -143,9 +140,6 @@ def main():
     parser_bp.add_argument('--test-all',
                            metavar='DIR', nargs='?', const='circuits/',
                            help='test branching program conversion for all circuits in DIR (default: %(const)s)')
-    parser_bp.add_argument('--obliviate',
-                           action='store_true',
-                           help='obliviate the branching program')
     parser_bp.add_argument('--base',
                            metavar='B', action='store', type=int, default=None,
                            help='base of matrix branching program (default: guess)')
@@ -187,9 +181,6 @@ def main():
     parser_obf.add_argument('--secparam',
                             metavar='N', action='store', type=int,
                             default=secparam, help='security parameter (default: %(default)s)')
-    parser_obf.add_argument('--obliviate',
-                            action='store_true',
-                            help='obliviate the branching program')
     parser_obf.add_argument('--nthreads',
                             metavar='N', action='store', type=int, default=nthreads,
                             help='number of threads to use in threadpool (default: %(default)s)')

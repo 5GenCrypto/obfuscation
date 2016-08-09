@@ -46,8 +46,7 @@ def swap_columns(m, a, b):
     m[:,b] = col
 
 class SZBranchingProgram(AbstractBranchingProgram):
-    def __init__(self, fname, base=None, verbose=False, obliviate=False,
-                 formula=True):
+    def __init__(self, fname, base=None, verbose=False, formula=True):
         super(SZBranchingProgram, self).__init__(base=base, verbose=verbose)
         if formula:
             self.bp = self._load_formula(fname)

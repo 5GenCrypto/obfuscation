@@ -20,11 +20,10 @@ class SZObfuscator(Obfuscator):
                                            verbose=verbose, nthreads=nthreads,
                                            ncores=ncores)
 
-    def _construct_bp(self, fname, obliviate, formula=True):
+    def _construct_bp(self, fname, formula=True):
         self.logger('Constructing BP...')
         start = time.time()
-        bp = SZBranchingProgram(fname, verbose=self._verbose,
-                                obliviate=obliviate, formula=formula)
+        bp = SZBranchingProgram(fname, verbose=self._verbose, formula=formula)
         nzs = bp.set_straddling_sets()
         end = time.time()
         self.logger('Took: %f' % (end - start))
@@ -59,11 +58,11 @@ class SZObfuscator(Obfuscator):
             _obf.encode_layer(self._state, self._base, pows, mats, i, nrows,
                               ncols, bp[i].inp, rflags)
 
-    def obfuscate(self, fname, secparam, directory, obliviate=False, kappa=None,
-                  formula=True, randomization=True):
+    def obfuscate(self, fname, secparam, directory, kappa=None, formula=True,
+                  randomization=True):
         start = time.time()
         self._remove_old(directory)
-        bp, nzs = self._construct_bp(fname, obliviate, formula=formula)
+        bp, nzs = self._construct_bp(fname, formula=formula)
         if not kappa:
             kappa = nzs
         flags = OBFUSCATOR_FLAG_NONE

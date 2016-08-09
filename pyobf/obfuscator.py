@@ -32,8 +32,7 @@ class Obfuscator(object):
                 p = os.path.join(directory, file)
                 os.unlink(p)
 
-    def obfuscate(self, circuit, secparam, directory, obliviate=False,
-                  kappa=None, formula=True):
+    def obfuscate(self, circuit, secparam, directory, kappa=None, formula=True):
         raise NotImplementedError
 
     def _evaluate(self, directory, inp, f, obf, flags):

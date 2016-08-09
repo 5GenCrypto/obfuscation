@@ -11,9 +11,8 @@ def test_obfuscation(path, cls, testcases, args, formula=True):
               nthreads=args.nthreads, ncores=args.ncores)
     directory = args.save if args.save \
                 else '%s.obf.%d' % (path, args.secparam)
-    obf.obfuscate(path, args.secparam, directory, obliviate=args.obliviate,
-                  kappa=args.kappa, formula=formula,
-                  randomization=(not args.no_randomization))
+    obf.obfuscate(path, args.secparam, directory, kappa=args.kappa,
+                  formula=formula, randomization=(not args.no_randomization))
     for k, v in testcases.items():
         if obf.evaluate(directory, k) != v:
             print('%s (%s != %d) ' % (failstr, k, v))
@@ -23,7 +22,7 @@ def test_obfuscation(path, cls, testcases, args, formula=True):
 def test_bp(path, cls, testcases, args):
     success = True
     try:
-        c = cls(path, verbose=args.verbose, obliviate=args.obliviate)
+        c = cls(path, verbose=args.verbose)
     except ParseException as e:
         print('%s %s' % (utils.clr_warn('Parse Error:'), e))
         return False
