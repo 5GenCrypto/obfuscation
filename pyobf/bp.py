@@ -32,14 +32,13 @@ class Layer(object):
 
     
 class AbstractBranchingProgram(object):
-    def __init__(self, verbose=False):
+    def __init__(self, base=None, verbose=False):
         self._verbose = verbose
         self.logger = utils.make_logger(self._verbose)
         self.nlayers = 0
         self.ninputs = None
         self.bp = None
-        self.base = None
-        # self.zero = None
+        self.base = base
     def __len__(self):
         return len(self.bp)
     def __iter__(self):

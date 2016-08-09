@@ -46,8 +46,9 @@ def swap_columns(m, a, b):
     m[:,b] = col
 
 class SZBranchingProgram(AbstractBranchingProgram):
-    def __init__(self, fname, verbose=False, obliviate=False, formula=True):
-        super(SZBranchingProgram, self).__init__(verbose=verbose)
+    def __init__(self, fname, base=None, verbose=False, obliviate=False,
+                 formula=True):
+        super(SZBranchingProgram, self).__init__(base=base, verbose=verbose)
         if formula:
             self.bp = self._load_formula(fname)
         else:
@@ -170,8 +171,13 @@ class SZBranchingProgram(AbstractBranchingProgram):
 
     def evaluate(self, x):
         assert self.bp
-        m = self.bp[0]
-        comp = m.matrices[0] if x[m.inp] == '0' else m.matrices[1]
-        for m in self.bp[1:]:
-            comp = np.dot(comp, m.matrices[0] if x[m.inp] == '0' else m.matrices[1])
+        base = self.base if self.base else 2
+        try:
+            inp = [int(i, base) for i in x]
+        except ValueError:
+            print("Error: invalid base for input '%s'" % x)
+            sys.exit(1)
+        comp = self.bp[0].matrices[inp[0]]
+        for i, m in zip(inp[1:], self.bp[1:]):
+            comp = np.dot(comp, m.matrices[i])
         return comp[0, comp.shape[1] - 1] != 0

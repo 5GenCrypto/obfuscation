@@ -46,7 +46,8 @@ def bp(args):
         elif args.load:
             formula = is_formula(args.load, args)
             ext = os.path.splitext(args.load)[1]
-            bp = cls(args.load, verbose=args.verbose, formula=formula)
+            bp = cls(args.load, base=args.base, verbose=args.verbose,
+                     formula=formula)
             if args.print:
                 print(bp)
                 size = 0
@@ -145,6 +146,9 @@ def main():
     parser_bp.add_argument('--obliviate',
                            action='store_true',
                            help='obliviate the branching program')
+    parser_bp.add_argument('--base',
+                           metavar='B', action='store', type=int, default=None,
+                           help='base of matrix branching program (default: guess)')
     parser_bp.add_argument('--print',
                            action='store_true',
                            help='print branching program to stdout')
