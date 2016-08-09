@@ -58,7 +58,7 @@ def bp(args):
             if args.eval:
                 r = bp.evaluate(args.eval)
                 print('Output = %d' % r)
-        elif args.load_bp:
+        elif args.load:
             cls = SZBranchingProgram
     except ParseException as e:
         print('%s %s' % (errorstr, e))
