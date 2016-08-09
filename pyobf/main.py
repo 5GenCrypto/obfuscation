@@ -2,6 +2,8 @@ from __future__ import print_function
 
 from pyobf.circuit import ParseException
 from pyobf.test import test_file
+from pyobf.sz_bp import SZBranchingProgram
+from pyobf.sz_obfuscator import SZObfuscator
 
 import argparse, os, sys, time
 import pyobf.utils as utils
@@ -20,7 +22,7 @@ def is_formula(fname, args):
         print("%s unknown extension '%s'" % (errorstr, ext))
         sys.exit(1)
 
-def test_all(args, bpclass, obfclass, obfuscate):
+def test_all(args, obfuscate):
     success = True
     if not os.path.isdir(args.test_all):
         print("%s '%s' is not a valid directory" % (errorstr, args.test_all))
@@ -29,36 +31,28 @@ def test_all(args, bpclass, obfclass, obfuscate):
     for circuit in os.listdir(args.test_all):
         path = os.path.join(args.test_all, circuit)
         if os.path.isfile(path) and path.endswith(ext):
-            success &= test_file(path, bpclass, obfclass, obfuscate, args)
+            success &= test_file(path, obfuscate, args)
         if os.path.isfile(path) and path.endswith('.json'):
-            success &= test_file(path, bpclass, obfclass, obfuscate, args, formula=False)
+            success &= test_file(path, obfuscate, args, formula=False)
     return success
 
 def bp(args):
     success = True
-    from pyobf.sz_bp import SZBranchingProgram
-    cls = SZBranchingProgram
     try:
         if args.test:
-            success = test_file(args.test, cls, None, False, args)
+            success = test_file(args.test, False, args)
         elif args.test_all:
-            success = test_all(args, cls, None, False)
+            success = test_all(args, False)
         elif args.load:
             formula = is_formula(args.load, args)
             ext = os.path.splitext(args.load)[1]
-            bp = cls(args.load, base=args.base, verbose=args.verbose,
-                     formula=formula)
+            bp = SZBranchingProgram(args.load, base=args.base,
+                                    verbose=args.verbose, formula=formula)
             if args.print:
                 print(bp)
-                size = 0
-                for i in bp:
-                    size += i.size()
-                print('Number of encodings: %d' % size)
             if args.eval:
                 r = bp.evaluate(args.eval)
                 print('Output = %d' % r)
-        elif args.load:
-            cls = SZBranchingProgram
     except ParseException as e:
         print('%s %s' % (errorstr, e))
         sys.exit(1)
@@ -69,17 +63,12 @@ def obf(args):
         print('--mmap must be either CLT, GGH, or DUMMY')
         sys.exit(1)
     success = True
-    from pyobf.sz_bp import SZBranchingProgram
-    from pyobf.sz_obfuscator import SZObfuscator
-    bpclass = SZBranchingProgram
-    obfclass = SZObfuscator
     try:
         if args.test:
             formula = is_formula(args.test, args)
-            success = test_file(args.test, bpclass, obfclass, True, args,
-                                formula=formula)
+            success = test_file(args.test, True, args, formula=formula)
         elif args.test_all:
-            success = test_all(args, bpclass, obfclass, True)
+            success = test_all(args, True)
         else:
             directory = None
             if args.load_obf:
@@ -87,8 +76,9 @@ def obf(args):
             elif args.load:
                 formula = is_formula(args.load, args)
                 start = time.time()
-                obf = obfclass(args.mmap, base=args.base, verbose=args.verbose,
-                               nthreads=args.nthreads, ncores=args.ncores)
+                obf = SZObfuscator(args.mmap, base=args.base,
+                                   verbose=args.verbose, nthreads=args.nthreads,
+                                   ncores=args.ncores)
                 directory = args.save if args.save \
                             else '%s.obf.%d' % (args.load, args.secparam)
                 obf.obfuscate(args.load, args.secparam, directory,
@@ -104,8 +94,9 @@ def obf(args):
 
             if args.eval:
                 assert directory
-                obf = obfclass(args.mmap, base=args.base, verbose=args.verbose,
-                               nthreads=args.nthreads, ncores=args.ncores)
+                obf = SZObfuscator(args.mmap, base=args.base,
+                                   verbose=args.verbose, nthreads=args.nthreads,
+                                   ncores=args.ncores)
                 r = obf.evaluate(directory, args.eval)
                 print('Output = %d' % r)
     except ParseException as e:
