@@ -93,7 +93,8 @@ def obf(args):
                             else '%s.obf.%d' % (args.load, args.secparam)
                 obf.obfuscate(args.load, args.secparam, directory,
                               kappa=args.kappa, formula=formula,
-                              randomization=(not args.no_randomization))
+                              randomization=(not args.no_randomization),
+                              seed=args.seed)
                 end = time.time()
                 print('Obfuscation took: %f seconds' % (end - start))
             else:
@@ -190,6 +191,9 @@ def main():
     parser_obf.add_argument('--base',
                             metavar='B', action='store', type=int, default=None,
                             help='base of matrix branching program (default: guess)')
+    parser_obf.add_argument('--seed',
+                            metavar='FILE', action='store', type=str,
+                            help='load seed from FILE')
     parser_obf.add_argument('--no-randomization', action='store_true',
                             help='turn of branching program randomization')
     parser_obf.add_argument('-v', '--verbose',

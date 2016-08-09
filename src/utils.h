@@ -4,6 +4,8 @@
 #include <gmp.h>
 #include <stdio.h>
 
+#define AES_SEED_BYTE_SIZE 32
+
 double
 current_time(void);
 

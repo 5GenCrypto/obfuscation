@@ -34,7 +34,8 @@ open_indexed_file(const char *dir, const char *file, uint64_t index,
 
 obf_state_t *
 obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
-         uint64_t nzs, uint64_t nthreads, uint64_t ncores, uint64_t flags)
+         uint64_t nzs, uint64_t nthreads, uint64_t ncores, char *seed,
+         uint64_t flags)
 {
     obf_state_t *s = NULL;
 
@@ -67,10 +68,34 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
         return NULL;
     }
 
-    /* unsigned char seed[16] = { */
-    /*     0xde, 0x90, 0xa8, 0xfc, 0xb2, 0xa4, 0xa4, 0x4d, 0x43, 0x29, 0x3d, 0xe6, 0xd0, 0x42, 0x03, 0x7a}; */
-    /* (void) aes_randinit_seedn(s->rand, (char *) seed, 16, NULL, 0); */
-    (void) aes_randinit(s->rand);
+    if (seed) {
+        FILE *f;
+        char dest[AES_SEED_BYTE_SIZE];
+        size_t n;
+
+        if ((f = fopen(seed, "r")) == NULL) {
+            fprintf(stderr, "unable to open seed file '%s'\n", seed);
+            return NULL;
+        }
+        n = fread(dest, sizeof(*dest), AES_SEED_BYTE_SIZE, f);
+        if (n != AES_SEED_BYTE_SIZE) {
+            fprintf(stderr, "unable to read %d bytes of seed, only %d bytes read\n",
+                    AES_SEED_BYTE_SIZE, n);
+            fclose(f);
+            return NULL;
+        }
+        fclose(f);
+        if (s->flags & OBFUSCATOR_FLAG_VERBOSE) {
+            fprintf(stderr, "  Seed: ");
+            for (int i = 0; i < AES_SEED_BYTE_SIZE; ++i) {
+                fprintf(stderr, "%02x", dest[i]);
+            }
+            fprintf(stderr, "\n");
+        }
+        aes_randinit_seedn(s->rand, dest, AES_SEED_BYTE_SIZE, NULL, 0);
+    } else {
+        (void) aes_randinit(s->rand);
+    }
     if (nthreads == 0)
         nthreads = ncores;
     s->thpool = thpool_init(nthreads);

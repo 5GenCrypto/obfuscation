@@ -14,11 +14,11 @@ obf_init_wrapper(PyObject *self, PyObject *args)
     long type_ = 0, secparam = 0, kappa = 0, nzs = 0, nthreads = 0,
         ncores = 0, flags = 0;
     enum mmap_e type;
-    char *dir = NULL;
+    char *dir = NULL, *seed = NULL;
     obf_state_t *s = NULL;
 
-    if (!PyArg_ParseTuple(args, "slllllll", &dir, &type_, &secparam, &kappa,
-                          &nzs, &nthreads, &ncores, &flags)) {
+    if (!PyArg_ParseTuple(args, "sllllllzl", &dir, &type_, &secparam, &kappa,
+                          &nzs, &nthreads, &ncores, &seed, &flags)) {
         PyErr_SetString(PyExc_RuntimeError, "unable to parse input");
         return NULL;
     }
@@ -42,7 +42,7 @@ obf_init_wrapper(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    s = obf_init(type, dir, secparam, kappa, nzs, nthreads, ncores, flags);
+    s = obf_init(type, dir, secparam, kappa, nzs, nthreads, ncores, seed, flags);
     if (s == NULL) {
         PyErr_SetString(PyExc_RuntimeError, "initialization failed");
         return NULL;

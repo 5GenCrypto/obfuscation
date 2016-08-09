@@ -12,7 +12,8 @@ def test_obfuscation(path, cls, testcases, args, formula=True):
     directory = args.save if args.save \
                 else '%s.obf.%d' % (path, args.secparam)
     obf.obfuscate(path, args.secparam, directory, kappa=args.kappa,
-                  formula=formula, randomization=(not args.no_randomization))
+                  formula=formula, randomization=(not args.no_randomization),
+                  seed=args.seed)
     for k, v in testcases.items():
         if obf.evaluate(directory, k) != v:
             print('%s (%s != %d) ' % (failstr, k, v))

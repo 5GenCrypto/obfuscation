@@ -29,7 +29,8 @@ typedef enum {
 
 obf_state_t *
 obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
-         uint64_t nzs, uint64_t nthreads, uint64_t ncores, uint64_t flags);
+         uint64_t nzs, uint64_t nthreads, uint64_t ncores, char *seed,
+         uint64_t flags);
 
 void
 obf_clear(obf_state_t *s);

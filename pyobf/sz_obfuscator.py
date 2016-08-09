@@ -29,13 +29,13 @@ class SZObfuscator(Obfuscator):
         self.logger('Took: %f' % (end - start))
         return bp, nzs
 
-    def _init_mmap(self, secparam, kappa, nzs, directory, flags):
+    def _init_mmap(self, secparam, kappa, nzs, directory, seed, flags):
         self.logger('Initializing mmap...')
         start = time.time()
         if not os.path.exists(directory):
             os.mkdir(directory)
         self._state = _obf.init(directory, self._mmap, secparam, kappa, nzs,
-                                self._nthreads, self._ncores, flags)
+                                self._nthreads, self._ncores, seed, flags)
         end = time.time()
         self.logger('Took: %f' % (end - start))
 
@@ -59,7 +59,7 @@ class SZObfuscator(Obfuscator):
                               ncols, bp[i].inp, rflags)
 
     def obfuscate(self, fname, secparam, directory, kappa=None, formula=True,
-                  randomization=True):
+                  randomization=True, seed=None):
         start = time.time()
         self._remove_old(directory)
         bp, nzs = self._construct_bp(fname, formula=formula)
@@ -70,7 +70,7 @@ class SZObfuscator(Obfuscator):
             flags |= OBFUSCATOR_FLAG_VERBOSE
         if not randomization:
             flags |= OBFUSCATOR_FLAG_NO_RANDOMIZATION
-        self._init_mmap(secparam, kappa, nzs, directory, flags)
+        self._init_mmap(secparam, kappa, nzs, directory, seed, flags)
         if self._base is None:
             self._base = len(bp[0].matrices)
         self._obfuscate(bp, nzs)
