@@ -5,7 +5,6 @@
 #include <mmap/mmap_clt.h>
 #include <mmap/mmap_gghlite.h>
 #include <mmap/mmap_dummy.h>
-#include <omp.h>
 
 typedef struct obf_state_s {
     threadpool thpool;
@@ -79,7 +78,7 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
         }
         n = fread(dest, sizeof(*dest), AES_SEED_BYTE_SIZE, f);
         if (n != AES_SEED_BYTE_SIZE) {
-            fprintf(stderr, "unable to read %d bytes of seed, only %d bytes read\n",
+            fprintf(stderr, "unable to read %d bytes of seed, only %ld bytes read\n",
                     AES_SEED_BYTE_SIZE, n);
             fclose(f);
             return NULL;
@@ -99,7 +98,6 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
     if (nthreads == 0)
         nthreads = ncores;
     s->thpool = thpool_init(nthreads);
-    (void) omp_set_num_threads(ncores);
 
     if (s->flags & OBFUSCATOR_FLAG_VERBOSE) {
         fprintf(stderr, "  # Threads: %ld\n", nthreads);
@@ -110,7 +108,7 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
             fprintf(stderr, "  Not randomizing branching programs\n");
     }
 
-    s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, s->rand,
+    s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, ncores, s->rand,
                         s->flags & OBFUSCATOR_FLAG_VERBOSE);
     {
         FILE *fp = open_file(dir, "params", "w+b");
@@ -376,8 +374,6 @@ obf_evaluate(enum mmap_e type, char *dir, uint64_t len, uint64_t *input,
     default:
         return err;
     }
-
-    (void) omp_set_num_threads(ncores);
 
     if ((fp = open_file(dir, "params", "r+b")) == NULL)
         goto done;
