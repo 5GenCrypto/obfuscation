@@ -13,6 +13,8 @@ typedef struct obf_state_s {
     mmap_sk mmap;
     const mmap_vtable *vtable;
     aes_randstate_t rand;
+    uint64_t nthreads;
+    aes_randstate_t *rands;
     const char *dir;
     uint64_t nzs;
     fmpz_mat_t *randomizer;
@@ -95,9 +97,21 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
     } else {
         (void) aes_randinit(s->rand);
     }
+    /* Generate dedicated randomness for threads */
+    s->rands = calloc(nthreads, sizeof(aes_randstate_t));
+    for (uint64_t i = 0; i < nthreads; ++i) {
+        unsigned char *buf;
+        size_t n = 32;
+
+        buf = random_aes(s->rand, &n);
+        aes_randinit_seedn(s->rands[i], (char *) buf, n, NULL, 0);
+        free(buf);
+    }
+
     if (nthreads == 0)
         nthreads = ncores;
     s->thpool = thpool_init(nthreads);
+    s->nthreads = nthreads;
 
     if (s->flags & OBFUSCATOR_FLAG_VERBOSE) {
         fprintf(stderr, "  # Threads: %ld\n", nthreads);
@@ -125,6 +139,10 @@ obf_clear(obf_state_t *s)
     if (s) {
         s->vtable->sk->clear(&s->mmap);
         aes_randclear(s->rand);
+        for (uint64_t i = 0; i < s->nthreads; ++i) {
+            aes_randclear(s->rands[i]);
+        }
+        free(s->rands);
         free(s->randomizer);
         free(s->inverse);
         thpool_destroy(s->thpool);
