@@ -101,10 +101,10 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
     s->rands = calloc(nthreads, sizeof(aes_randstate_t));
     for (uint64_t i = 0; i < nthreads; ++i) {
         unsigned char *buf;
-        size_t n = 32;
+        size_t nb = 128;        /* number of *bits* of randomness */
 
-        buf = random_aes(s->rand, &n);
-        aes_randinit_seedn(s->rands[i], (char *) buf, n, NULL, 0);
+        buf = random_aes(s->rand, &nb);
+        aes_randinit_seedn(s->rands[i], (char *) buf + 5, nb - 5, NULL, 0);
         free(buf);
     }
 
