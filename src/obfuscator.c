@@ -34,8 +34,8 @@ open_indexed_file(const char *dir, const char *file, uint64_t index,
 }
 
 obf_state_t *
-obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
-         uint64_t nzs, uint64_t nthreads, uint64_t ncores, char *seed,
+obf_init(enum mmap_e type, const char *dir, size_t secparam, size_t kappa,
+         size_t nzs, size_t nthreads, size_t ncores, char *seed,
          uint64_t flags)
 {
     obf_state_t *s = NULL;
@@ -114,15 +114,15 @@ obf_init(enum mmap_e type, const char *dir, uint64_t secparam, uint64_t kappa,
     s->nthreads = nthreads;
 
     if (s->flags & OBFUSCATOR_FLAG_VERBOSE) {
-        fprintf(stderr, "  # Threads: %ld\n", nthreads);
-        fprintf(stderr, "  # Cores: %ld\n", ncores);
+        fprintf(stderr, "  # Threads: %lu\n", nthreads);
+        fprintf(stderr, "  # Cores: %lu\n", ncores);
         if (s->flags & OBFUSCATOR_FLAG_DUAL_INPUT_BP)
             fprintf(stderr, "  Using dual input branching programs\n");
         if (s->flags & OBFUSCATOR_FLAG_NO_RANDOMIZATION)
             fprintf(stderr, "  Not randomizing branching programs\n");
     }
 
-    s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, ncores, s->rand,
+    s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, NULL, ncores, s->rand,
                         s->flags & OBFUSCATOR_FLAG_VERBOSE);
     {
         FILE *fp = open_file(dir, "params", "w+b");
@@ -208,22 +208,20 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
                     encode_layer_randomization_flag_t rflag,
                     uint64_t n, fmpz_mat_t *mats)
 {
-    fmpz_t field;
+    fmpz_t *fields;
 
-    fmpz_init(field);
-
-    s->vtable->sk->plaintext_field(&s->mmap, field);
+    fields = s->vtable->sk->plaintext_fields(&s->mmap);
 
     if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST) {
         fmpz_mat_t first;
-        _fmpz_mat_init_diagonal_rand(first, nrows, s->rand, field);
-        fmpz_layer_mul_left(n, mats, first, field);
+        _fmpz_mat_init_diagonal_rand(first, nrows, s->rand, fields[0]);
+        fmpz_layer_mul_left(n, mats, first, fields[0]);
         fmpz_mat_clear(first);
     }
     if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_LAST) {
         fmpz_mat_t last;
-        _fmpz_mat_init_diagonal_rand(last, ncols, s->rand, field);
-        fmpz_layer_mul_right(n, mats, last, field);
+        _fmpz_mat_init_diagonal_rand(last, ncols, s->rand, fields[0]);
+        fmpz_layer_mul_right(n, mats, last, fields[0]);
         fmpz_mat_clear(last);
     }
 
@@ -233,20 +231,20 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
         fmpz_mat_init(*s->randomizer, ncols, ncols);
         fmpz_mat_init(*s->inverse, ncols, ncols);
         _fmpz_mat_init_square_rand(s, *s->randomizer, *s->inverse, ncols,
-                                   s->rand, field);
-        fmpz_layer_mul_right(n, mats, *s->randomizer, field);
+                                   s->rand, fields[0]);
+        fmpz_layer_mul_right(n, mats, *s->randomizer, fields[0]);
     } else if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_MIDDLE) {
-        fmpz_layer_mul_left(n, mats, *s->inverse, field);
+        fmpz_layer_mul_left(n, mats, *s->inverse, fields[0]);
         fmpz_mat_clear(*s->randomizer);
         fmpz_mat_clear(*s->inverse);
 
         fmpz_mat_init(*s->randomizer, ncols, ncols);
         fmpz_mat_init(*s->inverse, ncols, ncols);
         _fmpz_mat_init_square_rand(s, *s->randomizer, *s->inverse, ncols,
-                                   s->rand, field);
-        fmpz_layer_mul_right(n, mats, *s->randomizer, field);
+                                   s->rand, fields[0]);
+        fmpz_layer_mul_right(n, mats, *s->randomizer, fields[0]);
     } else if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_LAST) {
-        fmpz_layer_mul_left(n, mats, *s->inverse, field);
+        fmpz_layer_mul_left(n, mats, *s->inverse, fields[0]);
         fmpz_mat_clear(*s->randomizer);
         fmpz_mat_clear(*s->inverse);
     }
@@ -256,14 +254,14 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
         fmpz_init(alpha);
         for (uint64_t i = 0; i < n; ++i) {
             do {
-                fmpz_randm_aes(alpha, s->rand, field);
+                fmpz_randm_aes(alpha, s->rand, fields[0]);
             } while (fmpz_cmp_ui(alpha, 0) == 0);
             fmpz_mat_scalar_mul_fmpz(mats[i], mats[i], alpha);
         }
         fmpz_clear(alpha);
     }
 
-    fmpz_clear(field);
+    free(fields);
 }
 
 static int
@@ -378,6 +376,8 @@ obf_evaluate(enum mmap_e type, char *dir, uint64_t len, uint64_t *input,
     uint64_t nrows, ncols, nrows_prev = 0;
     int err = 1, iszero = -1;
     double start, end;
+
+    (void) ncores;
 
     switch (type) {
     case MMAP_DUMMY:
