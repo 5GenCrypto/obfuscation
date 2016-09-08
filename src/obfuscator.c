@@ -122,7 +122,7 @@ obf_init(enum mmap_e type, const char *dir, size_t secparam, size_t kappa,
             fprintf(stderr, "  Not randomizing branching programs\n");
     }
 
-    s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, NULL, ncores, s->rand,
+    s->vtable->sk->init(&s->mmap, secparam, kappa, 0, nzs, NULL, ncores, s->rand,
                         s->flags & OBFUSCATOR_FLAG_VERBOSE);
     {
         FILE *fp = open_file(dir, "params", "w+b");
