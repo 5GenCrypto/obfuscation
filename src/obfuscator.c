@@ -97,6 +97,11 @@ obf_init(enum mmap_e type, const char *dir, size_t secparam, size_t kappa,
     } else {
         (void) aes_randinit(s->rand);
     }
+    if (nthreads == 0)
+        nthreads = ncores;
+    s->thpool = thpool_init(nthreads);
+    s->nthreads = nthreads;
+
     /* Generate dedicated randomness for threads */
     s->rands = calloc(nthreads, sizeof(aes_randstate_t));
     for (uint64_t i = 0; i < nthreads; ++i) {
@@ -107,11 +112,6 @@ obf_init(enum mmap_e type, const char *dir, size_t secparam, size_t kappa,
         aes_randinit_seedn(s->rands[i], (char *) buf, nbytes, NULL, 0);
         free(buf);
     }
-
-    if (nthreads == 0)
-        nthreads = ncores;
-    s->thpool = thpool_init(nthreads);
-    s->nthreads = nthreads;
 
     if (s->flags & OBFUSCATOR_FLAG_VERBOSE) {
         fprintf(stderr, "  # Threads: %lu\n", nthreads);
