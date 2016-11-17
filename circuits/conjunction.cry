@@ -1,0 +1,9 @@
+main secret bits = (bits && mask) == val where
+    mask = [c != '?' | c <- secret]
+    val  = [c == '1' | c <- secret]
+
+property main_correct chunks
+    = (chunks@0 == 0b0011 && chunks@2 == 0b0110)
+    == main "0011????0110????" (join chunks)
+
+valid _ = True
