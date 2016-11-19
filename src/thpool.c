@@ -102,7 +102,7 @@ typedef struct thpool_{
 
 static int  thread_init(thpool_* thpool_p, struct thread** thread_p, int id);
 static void* thread_do(void* varg);
-static void  thread_hold();
+static void  thread_hold(int num);
 static void  thread_destroy(struct thread* thread_p);
 
 static int   jobqueue_init(thpool_* thpool_p);

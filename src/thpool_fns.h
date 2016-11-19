@@ -5,6 +5,7 @@
 
 #include <aesrand.h>
 #include <mmap/mmap.h>
+#include <stdint.h>
 
 struct encode_elem_s {
     const mmap_vtable *vtable;

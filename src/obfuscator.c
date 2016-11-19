@@ -2,6 +2,7 @@
 #include "thpool.h"
 #include "thpool_fns.h"
 
+#include <oz/flint-addons.h>
 #include <mmap/mmap_clt.h>
 #include <mmap/mmap_gghlite.h>
 #include <mmap/mmap_dummy.h>
