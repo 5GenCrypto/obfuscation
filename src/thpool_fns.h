@@ -9,7 +9,7 @@
 
 struct encode_elem_s {
     const mmap_vtable *vtable;
-    const mmap_sk *sk;
+    mmap_ro_sk sk;
     int n;
     fmpz_t *plaintext;
     int *group;

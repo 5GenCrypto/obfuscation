@@ -123,11 +123,12 @@ obf_init(enum mmap_e type, const char *dir, size_t secparam, size_t kappa,
             fprintf(stderr, "  Not randomizing branching programs\n");
     }
 
-    s->vtable->sk->init(&s->mmap, secparam, kappa, nzs, NULL, 0, ncores, s->rand,
+    s->mmap = malloc(s->vtable->sk->size);
+    s->vtable->sk->init(s->mmap, secparam, kappa, nzs, NULL, 0, ncores, s->rand,
                         s->flags & OBFUSCATOR_FLAG_VERBOSE);
     {
         FILE *fp = open_file(dir, "params", "w+b");
-        s->vtable->pp->fwrite(s->vtable->sk->pp(&s->mmap), fp);
+        s->vtable->pp->fwrite(s->vtable->sk->pp(s->mmap), fp);
         fclose(fp);
     }
 
@@ -138,7 +139,8 @@ void
 obf_clear(obf_state_t *s)
 {
     if (s) {
-        s->vtable->sk->clear(&s->mmap);
+        s->vtable->sk->clear(s->mmap);
+        free(s->mmap);
         aes_randclear(s->rand);
         for (uint64_t i = 0; i < s->nthreads; ++i) {
             aes_randclear(s->rands[i]);
@@ -211,7 +213,7 @@ obf_randomize_layer(obf_state_t *s, long nrows, long ncols,
 {
     fmpz_t *fields;
 
-    fields = s->vtable->sk->plaintext_fields(&s->mmap);
+    fields = s->vtable->sk->plaintext_fields(s->mmap);
 
     if (rflag & ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST) {
         fmpz_mat_t first;
@@ -307,7 +309,7 @@ add_work(obf_state_t *s, fmpz_mat_t *mats, mmap_enc_mat_t **enc_mats,
     args->n = 1;
     args->plaintext = plaintext;
     args->vtable = s->vtable;
-    args->sk = &s->mmap;
+    args->sk = s->mmap;
     args->enc = enc;
     args->rand = &s->rand;
 
@@ -321,7 +323,7 @@ obf_encode_layer(obf_state_t *s, uint64_t n, int **pows, fmpz_mat_t *mats,
     char tag[10];
     mmap_enc_mat_t **enc_mats;
     char **names;
-    const mmap_pp *pp = s->vtable->sk->pp(&s->mmap);
+    mmap_ro_pp pp = s->vtable->sk->pp(s->mmap);
     long nrows, ncols;
 
     /* TODO: check for mismatched matrices */
@@ -394,9 +396,11 @@ obf_evaluate(enum mmap_e type, char *dir, uint64_t len, uint64_t *input,
         return err;
     }
 
+    if(NULL == (pp = malloc(vtable->pp->size)))
+        goto done;
     if ((fp = open_file(dir, "params", "r+b")) == NULL)
         goto done;
-    vtable->pp->fread(&pp, fp);
+    vtable->pp->fread(pp, fp);
     fclose(fp);
 
     for (uint64_t layer = 0; layer < bplen; ++layer) {
@@ -433,7 +437,7 @@ obf_evaluate(enum mmap_e type, char *dir, uint64_t len, uint64_t *input,
 
         if (layer == 0) {
             result = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
-            mmap_enc_mat_init(vtable, &pp, *result, nrows, ncols);
+            mmap_enc_mat_init(vtable, pp, *result, nrows, ncols);
             for (uint64_t i = 0; i < nrows; ++i) {
                 for (uint64_t j = 0; j < ncols; ++j) {
                     vtable->enc->fread(result[0]->m[i][j], fp);
@@ -443,7 +447,7 @@ obf_evaluate(enum mmap_e type, char *dir, uint64_t len, uint64_t *input,
         } else {
             left = result;
             right = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
-            mmap_enc_mat_init(vtable, &pp, *right, nrows, ncols);
+            mmap_enc_mat_init(vtable, pp, *right, nrows, ncols);
             for (uint64_t i = 0; i < nrows; ++i) {
                 for (uint64_t j = 0; j < ncols; ++j) {
                     vtable->enc->fread(right[0]->m[i][j], fp);
@@ -451,8 +455,8 @@ obf_evaluate(enum mmap_e type, char *dir, uint64_t len, uint64_t *input,
             }
 
             result = (mmap_enc_mat_t *) malloc(sizeof(mmap_enc_mat_t));
-            mmap_enc_mat_init(vtable, &pp, *result, nrows_prev, ncols);
-            mmap_enc_mat_mul_par(vtable, &pp, *result, *left, *right);
+            mmap_enc_mat_init(vtable, pp, *result, nrows_prev, ncols);
+            mmap_enc_mat_mul_par(vtable, pp, *result, *left, *right);
             mmap_enc_mat_clear(vtable, *left);
             mmap_enc_mat_clear(vtable, *right);
             free(left);
@@ -472,9 +476,9 @@ done:
     if (!err) {
         start = current_time();
         if (result[0]->nrows == 1 && result[0]->ncols == 1)
-            iszero = vtable->enc->is_zero(result[0]->m[0][0], &pp);
+            iszero = vtable->enc->is_zero(result[0]->m[0][0], pp);
         else
-            iszero = vtable->enc->is_zero(result[0]->m[0][1], &pp);
+            iszero = vtable->enc->is_zero(result[0]->m[0][1], pp);
         end = current_time();
         if (verbose)
             (void) fprintf(stderr, "  Zero test: %f\n", end - start);
@@ -483,6 +487,11 @@ done:
     if (result) {
         mmap_enc_mat_clear(vtable, *result);
         free(result);
+    }
+
+    if (pp) {
+        vtable->pp->clear(pp);
+        free(pp);
     }
 
     return iszero;
