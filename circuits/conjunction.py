@@ -1,31 +1,35 @@
 #!/usr/bin/env python2
 
 from __future__ import print_function
-import random, re, sys
+import argparse, random, re, sys
 from util import *
 
-def usage(ret):
-    print("""
-Usage: conjunction.py <bitstring>
-
+def main(argv):
+    parser = argparse.ArgumentParser(description='''
 Produces the matrix branching program for conjunction on a given bitstring,
 where 'bitstring' must contain only characters 0, 1, and ?.
-Example: conjunction.py 01??1?11101?01""")
-    sys.exit(ret)
+Example: conjunction.py "01??1?11101?01"''')
+    parser.add_argument('--cryfsm', metavar='PATH', action='store', type=str,
+                        default='cryfsm',
+                        help='set PATH as cryfsm executable')
+    parser.add_argument('bitstring', action='store', type=str,
+                        help='the bitstring to obfuscate')
 
-def main(argv):
-    if len(argv) != 2:
-        usage(1)
-    bitstring = argv[1]
+    args = parser.parse_args()
+    bitstring = args.bitstring
     r = re.search("[^01?]", bitstring)
     if r:
-        print("Error: invalid character '%c' in bitstring" % r.group())
-        usage(1)
+        print("error: invalid character '%c' in bitstring" % r.group())
+        sys.exit(1)
     length = len(bitstring)
     fname = '%s.json' % re.escape(bitstring).replace('\\', '')
-    lst = ['cryfsm', 'conjunction.cry', '-g', '#', '-e', 'main \"%s\"' % bitstring,
+    lst = [args.cryfsm, 'conjunction.cry', '-g', '#', '-e', 'main \"%s\"' % bitstring,
            '-o', fname]
-    run(lst)
+    try:
+        run(lst)
+    except OSError:
+        print("error: failure when executing cryfsm")
+        sys.exit(1)
     with open(fname, 'r') as f:
         line = f.read()
     pattern = bitstring.replace('?', '.?')
