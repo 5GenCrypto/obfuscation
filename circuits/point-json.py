@@ -4,7 +4,7 @@ from __future__ import print_function
 import  argparse, os, random, sys
 from util import *
 
-def point(base, length, cryfsm='cryfsm'):
+def point(base, length, cryfsm='cryfsm', fsmevade='fsmevade'):
     secret = random.randint(0, base ** length - 1)
     repr = dary_repr(secret, base, length)
     base_2_len = len(str_base(base-1, 2))
@@ -19,9 +19,17 @@ def point(base, length, cryfsm='cryfsm'):
     lst = [cryfsm, 'util.cry', '-e', "(!=) 0b%s" % inp,
            '-v', "adjacentConstantBase `{base=%d}" % base, '-g',
            "%s" % str, '-o', tmp]
-    run(lst)
-    lst = ['fsmevade', '-i', tmp, '-o', fname, 'True']
-    run(lst)
+    try:
+        run(lst)
+    except OSError:
+        print("error: running cryfsm failed")
+        sys.exit(1)
+    lst = [fsmevade, '-i', tmp, '-o', fname, 'True']
+    try:
+        run(lst)
+    except OSError:
+        print("error: running fsmevade failed")
+        sys.exit(1)
     os.remove(tmp)
     with open(fname, 'r') as f:
         line = f.read()
@@ -39,10 +47,13 @@ def main(argv):
     parser.add_argument('--cryfsm', metavar='PATH', action='store', type=str,
                         default='cryfsm',
                         help='set PATH as cryfsm executable')
+    parser.add_argument('--fsmevade', metavar='PATH', action='store', type=str,
+                        default='cryfsm',
+                        help='set PATH as fsmevade executable')
     parser.add_argument('base', action='store', type=int)
     parser.add_argument('length', action='store', type=int)
     args = parser.parse_args()
-    point(args.base, args.length, args.cryfsm)
+    point(args.base, args.length, args.cryfsm, args.fsmevade)
 
 if __name__ == '__main__':
     try:
