@@ -40,6 +40,11 @@ class SZObfuscator(Obfuscator):
         self.logger('Took: %f' % (end - start))
 
     def _obfuscate(self, bp, nzs):
+        nencodings = 0
+        for i in xrange(len(bp)):
+            nrows, ncols = bp[i].matrices[0].shape
+            nencodings += nrows * ncols * self._base
+        self.logger('Total # Encodings: %d' % nencodings)
         for i in xrange(len(bp)):
             self.logger('Obfuscating layer...')
             mats = [bp[i].matrices[j].tolist() for j in xrange(self._base)]
