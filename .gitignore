@@ -48,3 +48,5 @@ src/stamp-h1
 *.circ
 *.acirc
 *.json
+
+dist/
