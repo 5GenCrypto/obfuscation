@@ -64,6 +64,15 @@ class SZObfuscator(Obfuscator):
             _obf.encode_layer(self._state, self._base, pows, mats, i, nrows,
                               ncols, bp[i].inp, rflags)
 
+    '''
+    Get size of obfuscation (in bytes)
+    '''
+    def obfsize(self, directory):
+        size = 0
+        for f in os.listdir(directory):
+            size += os.path.getsize(os.path.join(directory, f))
+        return size
+
     def obfuscate(self, fname, secparam, directory, kappa=None, formula=True,
                   randomization=True, seed=None):
         start = time.time()
@@ -82,7 +91,8 @@ class SZObfuscator(Obfuscator):
         self._obfuscate(bp, nzs)
         _obf.wait(self._state)
         end = time.time()
-        self.logger('Obfuscation took: %f' % (end - start))
+        self.logger('Obfuscation took: %f s' % (end - start))
+        self.logger('Obfuscation size: %0.2f KB' % (self.obfsize(directory) / 1024.0))
         if self._verbose:
             _obf.max_mem_usage()
 
@@ -110,7 +120,4 @@ class SZObfuscator(Obfuscator):
         flags = OBFUSCATOR_FLAG_NONE
         if self._verbose:
             flags |= OBFUSCATOR_FLAG_VERBOSE
-        result = self._evaluate(directory, inp, _obf.evaluate, _obf, flags)
-        if self._verbose:
-            _obf.max_mem_usage()
-        return result
+        return self._evaluate(directory, inp, _obf.evaluate, _obf, flags)

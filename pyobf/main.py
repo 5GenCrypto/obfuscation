@@ -86,7 +86,6 @@ def obf(args):
                               randomization=(not args.no_randomization),
                               seed=args.seed)
                 end = time.time()
-                print('Obfuscation took: %f seconds' % (end - start))
             else:
                 print('%s One of --load-obf, --load, or '
                       '--test must be used' % errorstr)
@@ -189,7 +188,7 @@ def main():
     parser_obf.add_argument('--no-randomization', action='store_true',
                             help='turn of branching program randomization')
     parser_obf.add_argument('-v', '--verbose',
-                            action='store_true', 
+                            action='store_true',
                             help='be verbose')
     parser_obf.set_defaults(func=obf)
 
