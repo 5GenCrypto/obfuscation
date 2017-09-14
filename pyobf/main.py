@@ -156,8 +156,8 @@ def main():
                             metavar='DIR', action='store', type=str,
                             help='load obfuscation from DIR')
     parser_obf.add_argument('--load',
-                           metavar='FILE', action='store', type=str,
-                           help='load circuit or branching program from FILE')
+                            metavar='FILE', action='store', type=str,
+                            help='load circuit or branching program from FILE')
     parser_obf.add_argument('--test',
                             metavar='FILE', action='store', type=str,
                             help='test circuit or branching program from FILE')

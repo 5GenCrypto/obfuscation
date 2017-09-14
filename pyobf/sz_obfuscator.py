@@ -95,4 +95,3 @@ class SZObfuscator(Obfuscator):
         if self._verbose:
             _obf.max_mem_usage()
         return result
-
