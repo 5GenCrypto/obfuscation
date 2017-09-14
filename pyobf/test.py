@@ -3,14 +3,14 @@ from __future__ import print_function
 from pyobf.circuit import ParseException
 import pyobf.utils as utils
 from pyobf.sz_bp import SZBranchingProgram
-from pyobf.sz_obfuscator import SZObfuscator
+from pyobf.obfuscator import Obfuscator
 
 failstr = utils.clr_error('Fail')
 
 def test_obfuscation(path, testcases, args, formula=True):
     success = True
-    obf = SZObfuscator(args.mmap, base=args.base, verbose=args.verbose,
-                       nthreads=args.nthreads, ncores=args.ncores)
+    obf = Obfuscator(args.mmap, base=args.base, verbose=args.verbose,
+                     nthreads=args.nthreads, ncores=args.ncores)
     directory = args.save if args.save \
                 else '%s.obf.%d' % (path, args.secparam)
     obf.obfuscate(path, args.secparam, directory, kappa=args.kappa,

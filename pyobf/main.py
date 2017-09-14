@@ -3,7 +3,7 @@ from __future__ import print_function
 from pyobf.circuit import ParseException
 from pyobf.test import test_file
 from pyobf.sz_bp import SZBranchingProgram
-from pyobf.sz_obfuscator import SZObfuscator
+from pyobf.obfuscator import Obfuscator
 
 import argparse, os, sys, time
 import pyobf.utils as utils
@@ -75,17 +75,15 @@ def obf(args):
                 directory = args.load_obf
             elif args.load:
                 formula = is_formula(args.load, args)
-                start = time.time()
-                obf = SZObfuscator(args.mmap, base=args.base,
-                                   verbose=args.verbose, nthreads=args.nthreads,
-                                   ncores=args.ncores)
+                obf = Obfuscator(args.mmap, base=args.base,
+                                 verbose=args.verbose, nthreads=args.nthreads,
+                                 ncores=args.ncores)
                 directory = args.save if args.save \
                             else '%s.obf.%d' % (args.load, args.secparam)
                 obf.obfuscate(args.load, args.secparam, directory,
                               kappa=args.kappa, formula=formula,
                               randomization=(not args.no_randomization),
                               seed=args.seed)
-                end = time.time()
             else:
                 print('%s One of --load-obf, --load, or '
                       '--test must be used' % errorstr)
@@ -93,9 +91,9 @@ def obf(args):
 
             if args.eval:
                 assert directory
-                obf = SZObfuscator(args.mmap, base=args.base,
-                                   verbose=args.verbose, nthreads=args.nthreads,
-                                   ncores=args.ncores)
+                obf = Obfuscator(args.mmap, base=args.base,
+                                 verbose=args.verbose, nthreads=args.nthreads,
+                                 ncores=args.ncores)
                 r = obf.evaluate(directory, args.eval)
                 if r is not None:
                     print('Output = %d' % r)
