@@ -1,8 +1,9 @@
 import pyobf._obfuscator as _obf
 from pyobf.obfuscator import Obfuscator
 from pyobf.sz_bp import SZBranchingProgram
+import pyobf.utils as utils
 
-import os, time
+import os, re, time
 
 OBFUSCATOR_FLAG_NONE = 0x00
 OBFUSCATOR_FLAG_NO_RANDOMIZATION = 0x01
@@ -86,12 +87,30 @@ class SZObfuscator(Obfuscator):
             _obf.max_mem_usage()
 
     def evaluate(self, directory, inp):
-        base = self._base if self._base is not None else 2
+        files = os.listdir(directory)
+        if self._base:
+            base = self._base
+        else:
+            # Compute base by counting the number of files that correspond to
+            # the first MBP layer.
+            base = len(filter(lambda s: re.match('0.\d+', s), files))
+        # Input length is equal to the number of `[num].input` files in
+        # `directory`.
+        inplen = len(filter(lambda file: re.match('\d+.input', file), files))
+        if len(inp) != inplen:
+            print('{} Invalid input length ({} != {})'.format(
+                utils.clr_error('Error:'), len(inp), inplen))
+            return None
+        try:
+            inp = [int(i, base) for i in inp]
+        except ValueError:
+            print('{} Invalid input for base {}'.format(
+                utils.clr_error('Error:'), base))
+            return None
         flags = OBFUSCATOR_FLAG_NONE
         if self._verbose:
             flags |= OBFUSCATOR_FLAG_VERBOSE
-        input = [int(i, base) for i in inp]
-        result = self._evaluate(directory, input, _obf.evaluate, _obf, flags)
+        result = self._evaluate(directory, inp, _obf.evaluate, _obf, flags)
         if self._verbose:
             _obf.max_mem_usage()
         return result

@@ -98,7 +98,8 @@ def obf(args):
                                    verbose=args.verbose, nthreads=args.nthreads,
                                    ncores=args.ncores)
                 r = obf.evaluate(directory, args.eval)
-                print('Output = %d' % r)
+                if r is not None:
+                    print('Output = %d' % r)
     except ParseException as e:
         print('%s %s' % (errorstr, e))
         sys.exit(1)
