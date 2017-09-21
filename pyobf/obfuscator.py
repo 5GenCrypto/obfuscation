@@ -1,3 +1,4 @@
+from builtins import *  # Python3 compatibility
 import pyobf._obfuscator as _obf
 from pyobf.sz_bp import SZBranchingProgram
 import pyobf.utils as utils
@@ -15,6 +16,9 @@ ENCODE_LAYER_RANDOMIZATION_TYPE_NONE = 0x00
 ENCODE_LAYER_RANDOMIZATION_TYPE_FIRST = 0x01
 ENCODE_LAYER_RANDOMIZATION_TYPE_MIDDLE = 0x02
 ENCODE_LAYER_RANDOMIZATION_TYPE_LAST = 0x04
+
+err_str = utils.clr_error('Error:')
+warn_str = utils.clr_warn('Warning:')
 
 def get_mmap_flag(mmap):
     if mmap == 'CLT':
@@ -38,7 +42,6 @@ class Obfuscator(object):
     def _remove_old(self, directory):
         # remove old files in obfuscation directory
         if os.path.isdir(directory):
-            files = os.listdir(directory)
             for file in os.listdir(directory):
                 p = os.path.join(directory, file)
                 os.unlink(p)
@@ -64,13 +67,13 @@ class Obfuscator(object):
 
     def _obfuscate(self, bp, nzs):
         nencodings = 0
-        for i in xrange(len(bp)):
+        for i in range(len(bp)):
             nrows, ncols = bp[i].matrices[0].shape
             nencodings += nrows * ncols * self._base
         self.logger('Total # Encodings: %d' % nencodings)
-        for i in xrange(len(bp)):
+        for i in range(len(bp)):
             self.logger('Obfuscating layer...')
-            mats = [bp[i].matrices[j].tolist() for j in xrange(self._base)]
+            mats = [bp[i].matrices[j].tolist() for j in range(self._base)]
             nrows, ncols = bp[i].matrices[0].shape
             rflags = ENCODE_LAYER_RANDOMIZATION_TYPE_NONE
             if i == 0:
@@ -79,8 +82,8 @@ class Obfuscator(object):
                 rflags |= ENCODE_LAYER_RANDOMIZATION_TYPE_LAST
             if 0 < i < len(bp) - 1:
                 rflags |= ENCODE_LAYER_RANDOMIZATION_TYPE_MIDDLE
-            pows = [[0] * nzs for _ in xrange(self._base)]
-            for j in xrange(self._base):
+            pows = [[0] * nzs for _ in range(self._base)]
+            for j in range(self._base):
                 for k in bp[i].sets[j]:
                     pows[j][k] = 1
             _obf.encode_layer(self._state, self._base, pows, mats, i, nrows,
@@ -137,19 +140,25 @@ class Obfuscator(object):
         else:
             # Compute base by counting the number of files that correspond to
             # the first MBP layer.
-            base = len(filter(lambda s: re.match('0.\d+', s), files))
+            base = len(list(filter(lambda s: re.match('0.\d+', s), files)))
+        if base < 2:
+            print('{} Base cannot be < 2'.format(err_str))
+            return None
         # Input length is equal to the number of `[num].input` files in
         # `directory`.
-        inplen = len(filter(lambda file: re.match('\d+.input', file), files))
+        inplen = len(list(filter(lambda file: re.match('\d+.input', file), files)))
         if len(inp) != inplen:
             print('{} Invalid input length ({} != {})'.format(
-                utils.clr_error('Error:'), len(inp), inplen))
+                err_str, len(inp), inplen))
             return None
         try:
+            if base > 36:
+                print("{} Bases > 36 are not quite supported, so assuming that "
+                      "input encoded using base 36".format(warn_str))
+                base = 36
             inp = [int(i, base) for i in inp]
         except ValueError:
-            print('{} Invalid input for base {}'.format(
-                utils.clr_error('Error:'), base))
+            print('{} Invalid input for base {}'.format(err_str, base))
             return None
         flags = OBFUSCATOR_FLAG_NONE
         if self._verbose:
