@@ -45,7 +45,6 @@ def bp(args):
             success = test_all(args, False)
         elif args.load:
             formula = is_formula(args.load, args)
-            ext = os.path.splitext(args.load)[1]
             bp = SZBranchingProgram(args.load, base=args.base,
                                     verbose=args.verbose, formula=formula)
             if args.print:
