@@ -30,7 +30,7 @@ class Layer(object):
         mats = [mat * M for mat in self.matrices]
         return Layer(self.inp, mats, self.sets)
 
-    
+
 class AbstractBranchingProgram(object):
     def __init__(self, base=None, verbose=False):
         self._verbose = verbose
@@ -61,19 +61,19 @@ class AbstractBranchingProgram(object):
                     layers[0].sets[i] = [n]
                 n += 1
             else:
-                print('Straddling sets not done yet for functions with repeated input bits')
-                raise NotImplementedError
-                # XXX: Below is wrong for bases beyond 2
-                # max = len(layers) - 1
-                # for i, layer in enumerate(layers):
-                #     if i < max:
-                #         layer.sets[0] = [n - 1, n]  if i else [n]
-                #         layer.sets[1] = [n, n + 1]
-                #         n += 2
-                #     else:
-                #         layer.sets[0] = [n - 1, n] if max else [n]
-                #         layer.sets[1] = [n]
-                #         n += 1
+                if self.base != 2:
+                    print("Error: straddling sets do not work for base ≠ 2")
+                    raise NotImplementedError
+                max = len(layers) - 1
+                for i, layer in enumerate(layers):
+                    if i < max:
+                        layer.sets[0] = [n - 1, n]  if i else [n]
+                        layer.sets[1] = [n, n + 1]
+                        n += 2
+                    else:
+                        layer.sets[0] = [n - 1, n] if max else [n]
+                        layer.sets[1] = [n]
+                        n += 1
         return n
 
     def evaluate(self, x):
