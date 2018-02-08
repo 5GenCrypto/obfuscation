@@ -65,9 +65,12 @@ class SZBranchingProgram(AbstractBranchingProgram):
                         keys = list(step)
                         keys = filter(lambda x: x != 'position', keys)
                         keys = sorted(keys)
+                        try:
+                            pos = int(step['position'])
+                        except ValueError:
+                            pos = ord(step['position']) - ord('a')
                         bp.append(
-                            Layer(int(step['position']),
-                                  [matrix(step[key]) for key in keys],
+                            Layer(pos, [matrix(step[key]) for key in keys],
                                   None))
                     # assert len(bp_json['outputs'])    == 1 and \
                     #        len(bp_json['outputs'][0]) == 2
@@ -79,10 +82,6 @@ class SZBranchingProgram(AbstractBranchingProgram):
                     #         swap_columns(bp[-1].matrices[i], 0, 1)
                     return bp
         except IOError as e:
-            print(e)
-            sys.exit(1)
-        except ValueError as e:
-            print('expected numeric position while parsing branching program JSON')
             print(e)
             sys.exit(1)
 
