@@ -61,8 +61,8 @@ class AbstractBranchingProgram(object):
                     layers[0].sets[i] = [n]
                 n += 1
             else:
-                if self.base != 2:
-                    print("Error: straddling sets do not work for base ≠ 2")
+                if self.base is not None and self.base != 2:
+                    print("Error: straddling sets do not work for base != 2")
                     raise NotImplementedError
                 max = len(layers) - 1
                 for i, layer in enumerate(layers):
